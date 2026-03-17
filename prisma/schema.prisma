@@ -1,14 +1,52 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
-  provider = "prisma-client"
-  output   = "../src/generated/prisma"
+  provider = "prisma-client-js"
 }
 
 datasource db {
   provider = "postgresql"
+}
+
+model User {
+  id        String      @id @default(cuid())
+  name      String?
+  image     String?
+  email     String      @unique
+  password  String
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+  entries   TimeEntry[]
+}
+
+model TimeEntry {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  /// Local calendar date in the user's timezone. Format: YYYY-MM-DD.
+  date      String
+
+  /// Local times in 24h clock. Format: HH:mm.
+  punchIn   String
+  punchOut  String
+  notes     String?
+
+  breaks    Break[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, date])
+  @@index([userId, date])
+}
+
+model Break {
+  id          String    @id @default(cuid())
+  timeEntryId String
+  entry       TimeEntry @relation(fields: [timeEntryId], references: [id], onDelete: Cascade)
+  start       String
+  end         String
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([timeEntryId])
 }
