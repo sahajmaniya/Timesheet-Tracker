@@ -1,7 +1,17 @@
+import type { Metadata } from "next";
 import { BadgeCheck, CalendarClock, FileSpreadsheet } from "lucide-react";
 import { redirect } from "next/navigation";
 import { SignUpForm } from "@/components/auth/signup-form";
 import { getServerAuthSession } from "@/lib/auth";
+
+export const metadata: Metadata = {
+  title: "Create Account",
+  description: "Create your PunchPilot account to start tracking work hours.",
+  robots: {
+    index: false,
+    follow: false,
+  },
+};
 
 export default async function SignUpPage() {
   const session = await getServerAuthSession();

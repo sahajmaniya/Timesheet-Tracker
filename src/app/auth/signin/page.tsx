@@ -1,7 +1,17 @@
+import type { Metadata } from "next";
 import { BarChart3, CalendarDays, Clock3 } from "lucide-react";
 import { redirect } from "next/navigation";
 import { SignInForm } from "@/components/auth/signin-form";
 import { getServerAuthSession } from "@/lib/auth";
+
+export const metadata: Metadata = {
+  title: "Sign In",
+  description: "Sign in to PunchPilot to manage your timesheet entries.",
+  robots: {
+    index: false,
+    follow: false,
+  },
+};
 
 export default async function SignInPage() {
   const session = await getServerAuthSession();

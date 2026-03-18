@@ -1,0 +1,27 @@
+<svg width="1200" height="630" viewBox="0 0 1200 630" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1200" y2="630" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0F172A"/>
+      <stop offset="1" stop-color="#1E3A8A"/>
+    </linearGradient>
+    <linearGradient id="badge" x1="120" y1="110" x2="270" y2="260" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#38BDF8"/>
+      <stop offset="1" stop-color="#2563EB"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="630" fill="url(#bg)"/>
+  <circle cx="1030" cy="70" r="280" fill="#22D3EE" fill-opacity="0.15"/>
+  <circle cx="70" cy="560" r="250" fill="#60A5FA" fill-opacity="0.15"/>
+
+  <rect x="120" y="110" width="150" height="150" rx="42" fill="url(#badge)"/>
+  <circle cx="195" cy="190" r="37" fill="#E0F2FE"/>
+  <path d="M195 190V167" stroke="#0F172A" stroke-width="5" stroke-linecap="round"/>
+  <path d="M195 190L213 199" stroke="#0F172A" stroke-width="5" stroke-linecap="round"/>
+  <rect x="150" y="130" width="90" height="20" rx="10" fill="#E2E8F0" fill-opacity="0.8"/>
+
+  <text x="300" y="185" fill="#E2E8F0" font-size="72" font-family="Manrope, Arial, sans-serif" font-weight="800">PunchPilot</text>
+  <text x="300" y="255" fill="#BAE6FD" font-size="38" font-family="Manrope, Arial, sans-serif" font-weight="600">Modern Timesheet Tracker</text>
+
+  <text x="120" y="390" fill="#CBD5E1" font-size="34" font-family="Manrope, Arial, sans-serif">Punch in/out, breaks, monthly totals, and CSV export.</text>
+  <text x="120" y="450" fill="#93C5FD" font-size="30" font-family="Manrope, Arial, sans-serif">Built for student assistants and hourly teams.</text>
+</svg>

@@ -1,9 +1,27 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { CalendarRange, Clock3, Download } from "lucide-react";
 import { redirect } from "next/navigation";
 import { getServerAuthSession } from "@/lib/auth";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { siteConfig } from "@/lib/site";
+
+export const metadata: Metadata = {
+  title: "Timesheet Tracker for Punch In/Out",
+  description:
+    "PunchPilot is a modern timesheet tracker for punch in/out, break tracking, monthly totals, and CSV export.",
+  alternates: {
+    canonical: "/",
+  },
+  openGraph: {
+    title: "PunchPilot | Timesheet Tracker",
+    description:
+      "Track work hours with punch in/out, break logging, and export-ready monthly timesheets.",
+    url: siteConfig.url,
+    images: [{ url: "/og-image.svg", width: 1200, height: 630, alt: "PunchPilot timesheet tracker" }],
+  },
+};
 
 export default async function HomePage() {
   const session = await getServerAuthSession();
@@ -11,8 +29,28 @@ export default async function HomePage() {
     redirect("/dashboard");
   }
 
+  const productJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    name: "PunchPilot",
+    applicationCategory: "BusinessApplication",
+    operatingSystem: "Web",
+    description:
+      "A modern timesheet tracker for punch in/out, break tracking, monthly totals, and CSV export.",
+    url: siteConfig.url,
+    offers: {
+      "@type": "Offer",
+      price: "0",
+      priceCurrency: "USD",
+    },
+  };
+
   return (
     <main className="relative flex min-h-screen items-center overflow-hidden bg-gradient-to-br from-slate-100 via-cyan-50 to-blue-100 px-4 py-16 dark:from-slate-950 dark:via-slate-900 dark:to-sky-950">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(productJsonLd) }}
+      />
       <div className="pointer-events-none absolute inset-0">
         <div className="absolute -left-24 top-12 h-72 w-72 rounded-full bg-cyan-400/30 blur-3xl dark:bg-cyan-500/20" />
         <div className="absolute -right-20 top-0 h-72 w-72 rounded-full bg-blue-400/30 blur-3xl dark:bg-indigo-500/20" />
