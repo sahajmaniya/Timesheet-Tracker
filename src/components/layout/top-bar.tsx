@@ -1,9 +1,10 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
-import { BriefcaseBusiness, LayoutDashboard, ListChecks, Settings2 } from "lucide-react";
+import { LayoutDashboard, ListChecks, Settings2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { UserAvatar } from "@/components/profile/user-avatar";
@@ -52,8 +53,15 @@ export function TopBar() {
           <div className="rounded-2xl border border-border/60 bg-gradient-to-r from-sky-200/40 via-background/95 to-indigo-200/30 px-3 py-2 shadow-[0_16px_35px_-24px_rgba(59,130,246,0.45)] dark:from-sky-500/10 dark:to-indigo-500/10">
           <div className="flex items-center justify-between gap-2">
             <Link href="/dashboard" className="group flex items-center gap-2.5 text-sm font-semibold tracking-wide">
-              <span className="rounded-xl border border-primary/30 bg-primary/15 p-1.5 text-primary transition-transform duration-200 group-hover:scale-105">
-                <BriefcaseBusiness className="h-4 w-4" />
+              <span className="rounded-xl border border-primary/30 bg-primary/15 p-1 text-primary transition-transform duration-200 group-hover:scale-105">
+                <Image
+                  src="/punchpilot-logo.svg"
+                  alt="PunchPilot logo"
+                  width={28}
+                  height={28}
+                  className="h-7 w-7 rounded-lg"
+                  priority
+                />
               </span>
               <div className="leading-tight">
                 <p className="text-sm font-bold text-foreground">PunchPilot</p>

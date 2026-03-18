@@ -1,0 +1,26 @@
+<svg width="128" height="128" viewBox="0 0 128 128" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="pp_bg" x1="16" y1="12" x2="112" y2="116" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#38BDF8"/>
+      <stop offset="1" stop-color="#2563EB"/>
+    </linearGradient>
+    <linearGradient id="pp_core" x1="37" y1="35" x2="93" y2="94" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#E0F2FE"/>
+      <stop offset="1" stop-color="#BFDBFE"/>
+    </linearGradient>
+  </defs>
+
+  <rect x="8" y="8" width="112" height="112" rx="32" fill="url(#pp_bg)"/>
+  <rect x="8" y="8" width="112" height="112" rx="32" stroke="#FFFFFF" stroke-opacity="0.3" stroke-width="2"/>
+
+  <circle cx="64" cy="67" r="29" fill="url(#pp_core)"/>
+  <circle cx="64" cy="67" r="25" stroke="#0F172A" stroke-opacity="0.22" stroke-width="2"/>
+
+  <rect x="47" y="24" width="34" height="16" rx="8" fill="#0F172A" fill-opacity="0.28"/>
+  <rect x="54" y="16" width="20" height="14" rx="7" fill="#E2E8F0"/>
+
+  <path d="M64 67L64 50" stroke="#0F172A" stroke-width="4" stroke-linecap="round"/>
+  <path d="M64 67L77 74" stroke="#0F172A" stroke-width="4" stroke-linecap="round"/>
+
+  <path d="M35 95C44 88 53 85 63 85C75 85 85 90 93 101" stroke="#E2E8F0" stroke-opacity="0.85" stroke-width="5" stroke-linecap="round"/>
+</svg>
