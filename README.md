@@ -2,6 +2,10 @@
 
 Modern, responsive timesheet tracker built with Next.js App Router, TypeScript, Tailwind, shadcn/ui style components, NextAuth credentials auth, Prisma, and Postgres.
 
+## Live Demo
+
+- Production URL: https://punch-pilot.vercel.app
+
 ## Features
 
 - Sign up / sign in / sign out (NextAuth credentials)
