@@ -102,6 +102,21 @@ export default async function HomePage() {
               <p className="mt-1 text-xs text-slate-600 dark:text-slate-400">Download a clean CSV for timesheet submission.</p>
             </div>
           </div>
+
+          <div className="mt-7 rounded-2xl border border-border/60 bg-background/65 p-4">
+            <p className="text-sm font-semibold">Learn More</p>
+            <div className="mt-2 flex flex-wrap gap-x-5 gap-y-2 text-sm text-muted-foreground">
+              <Link className="underline underline-offset-4 hover:text-foreground" href="/student-assistant-timesheet-tracker">
+                Student assistant timesheet tracker
+              </Link>
+              <Link className="underline underline-offset-4 hover:text-foreground" href="/punch-in-punch-out-web-app">
+                Punch in punch out web app
+              </Link>
+              <Link className="underline underline-offset-4 hover:text-foreground" href="/monthly-timesheet-csv-export">
+                Monthly timesheet CSV export
+              </Link>
+            </div>
+          </div>
         </div>
       </section>
     </main>

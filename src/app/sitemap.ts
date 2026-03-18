@@ -12,6 +12,24 @@ export default function sitemap(): MetadataRoute.Sitemap {
       priority: 1,
     },
     {
+      url: `${siteConfig.url}/student-assistant-timesheet-tracker`,
+      lastModified: now,
+      changeFrequency: "weekly",
+      priority: 0.8,
+    },
+    {
+      url: `${siteConfig.url}/punch-in-punch-out-web-app`,
+      lastModified: now,
+      changeFrequency: "weekly",
+      priority: 0.8,
+    },
+    {
+      url: `${siteConfig.url}/monthly-timesheet-csv-export`,
+      lastModified: now,
+      changeFrequency: "weekly",
+      priority: 0.8,
+    },
+    {
       url: `${siteConfig.url}/auth/signin`,
       lastModified: now,
       changeFrequency: "monthly",
@@ -25,4 +43,3 @@ export default function sitemap(): MetadataRoute.Sitemap {
     },
   ];
 }
-
