@@ -38,7 +38,16 @@ export function EntriesTable({
             </TableCell>
             <TableCell>{formatTime12h(entry.punchIn)}</TableCell>
             <TableCell>{formatTime12h(entry.punchOut)}</TableCell>
-            <TableCell>{minutesToHM(entry.breakMinutes)}</TableCell>
+            <TableCell>
+              <div>{minutesToHM(entry.breakMinutes)}</div>
+              <div className="mt-1 text-xs text-muted-foreground">
+                {entry.breaks.length > 0
+                  ? entry.breaks
+                      .map((item) => `${formatTime12h(item.start)} - ${formatTime12h(item.end)}`)
+                      .join(" | ")
+                  : "No break logged"}
+              </div>
+            </TableCell>
             <TableCell>
               <div className="font-semibold text-primary">{minutesToHM(entry.workedMinutes)}</div>
               <div className="text-xs text-muted-foreground">{formatTenthsDecimal(entry.workedMinutes)} decimal hrs</div>
