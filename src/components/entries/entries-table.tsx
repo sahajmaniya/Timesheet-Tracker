@@ -17,7 +17,7 @@ export function EntriesTable({
   onDelete: (entry: TimeEntry) => void;
 }) {
   return (
-    <Table className="rounded-xl border bg-card">
+    <Table className="min-w-[900px] rounded-xl border bg-card">
       <TableHeader>
         <TableRow>
           <TableHead>Date</TableHead>

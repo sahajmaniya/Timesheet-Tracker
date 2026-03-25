@@ -284,7 +284,7 @@ export function EntriesClient() {
                   type="file"
                   accept=".xlsx,.xls"
                   onChange={(e) => setImportFile(e.target.files?.[0] ?? null)}
-                  className="text-sm"
+                  className="w-full max-w-sm text-sm"
                 />
               </div>
 
@@ -316,7 +316,7 @@ export function EntriesClient() {
                   type="file"
                   accept=".pdf,application/pdf"
                   onChange={(e) => setTimesheetTemplateFile(e.target.files?.[0] ?? null)}
-                  className="text-sm"
+                  className="w-full max-w-sm text-sm"
                 />
                 <p className="text-[11px] text-slate-500 dark:text-slate-400">
                   Default layout mode: <span className="font-semibold capitalize">{timesheetLayoutMode}</span>
@@ -342,7 +342,7 @@ export function EntriesClient() {
                   <Button
                     type="button"
                     variant="outline"
-                    className="h-8"
+                    className="h-8 w-full sm:w-auto"
                     onClick={() => {
                       setTimesheetLayoutMode("standard");
                       void onFillTimesheetPdf("standard");
@@ -354,7 +354,7 @@ export function EntriesClient() {
                   <Button
                     type="button"
                     variant="outline"
-                    className="h-8"
+                    className="h-8 w-full sm:w-auto"
                     onClick={() => {
                       setTimesheetLayoutMode("carry");
                       void onFillTimesheetPdf("carry");
@@ -366,7 +366,7 @@ export function EntriesClient() {
                   <Button
                     type="button"
                     variant="outline"
-                    className="h-8"
+                    className="h-8 w-full sm:w-auto"
                     onClick={() => {
                       setTimesheetLayoutMode("auto");
                       void onFillTimesheetPdf("auto");
