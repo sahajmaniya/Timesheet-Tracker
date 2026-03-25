@@ -113,16 +113,17 @@ export function EntriesClient() {
     }
   };
 
-  const onFillTimesheetPdf = async () => {
+  const onFillTimesheetPdf = async (layoutOverride?: "auto" | "standard" | "carry") => {
     if (!timesheetTemplateFile) {
       toast.error("Select a blank timesheet PDF first.");
       return;
     }
 
+    const selectedLayoutMode = layoutOverride ?? timesheetLayoutMode;
     const formData = new FormData();
     formData.append("file", timesheetTemplateFile);
     formData.append("month", month);
-    formData.append("layoutMode", timesheetLayoutMode);
+    formData.append("layoutMode", selectedLayoutMode);
 
     setFillingPdf(true);
     try {
@@ -152,7 +153,11 @@ export function EntriesClient() {
         });
       a.click();
       URL.revokeObjectURL(url);
-      toast.success("Filled timesheet PDF downloaded.");
+      toast.success(
+        selectedLayoutMode === "auto"
+          ? "Filled timesheet PDF downloaded."
+          : `Filled timesheet PDF downloaded (${selectedLayoutMode} layout).`,
+      );
     } finally {
       setFillingPdf(false);
     }
@@ -305,38 +310,74 @@ export function EntriesClient() {
               <div className="space-y-1">
                 <p className="text-sm font-semibold text-indigo-800 dark:text-indigo-100">Auto-Fill Monthly Timesheet PDF</p>
                 <p className="text-xs text-slate-600 dark:text-slate-300/80">
-                  Upload your blank CSULB monthly voucher PDF. We will fill in In/Out/Hours and break ranges from your current month entries.
+                  Upload your blank CSULB monthly voucher PDF. We fill In/Out/Hours and break ranges from your selected month entries.
                 </p>
-                <select
-                  value={timesheetLayoutMode}
-                  onChange={(e) =>
-                    setTimesheetLayoutMode(
-                      e.target.value === "standard" || e.target.value === "carry"
-                        ? e.target.value
-                        : "auto",
-                    )
-                  }
-                  className="h-9 rounded-md border border-indigo-500/30 bg-background/90 px-3 text-sm dark:border-indigo-300/25 dark:bg-background/80"
-                >
-                  <option value="auto">Layout: Auto detect</option>
-                  <option value="standard">Layout: Standard month start</option>
-                  <option value="carry">Layout: Carry-over first week</option>
-                </select>
                 <input
                   type="file"
                   accept=".pdf,application/pdf"
                   onChange={(e) => setTimesheetTemplateFile(e.target.files?.[0] ?? null)}
                   className="text-sm"
                 />
+                <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                  Default layout mode: <span className="font-semibold capitalize">{timesheetLayoutMode}</span>
+                </p>
               </div>
 
               <div className="flex w-full flex-wrap items-center gap-2 md:w-auto md:justify-end">
-                <Button className="flex-1 md:flex-none" onClick={onFillTimesheetPdf} disabled={fillingPdf}>
+                <Button className="flex-1 md:flex-none" onClick={() => onFillTimesheetPdf("auto")} disabled={fillingPdf}>
                   <Download className="mr-2 h-4 w-4" />
-                  {fillingPdf ? "Filling..." : "Download Filled PDF"}
+                  {fillingPdf ? "Filling..." : "Auto Fill & Download"}
                 </Button>
               </div>
             </div>
+            <details className="mt-3 rounded-lg border border-indigo-500/20 bg-background/55 p-3 text-xs dark:bg-background/30">
+              <summary className="cursor-pointer font-medium text-indigo-800 dark:text-indigo-100">
+                Having alignment issues? Use advanced layout options
+              </summary>
+              <div className="mt-3 space-y-2">
+                <p className="text-slate-600 dark:text-slate-300/80">
+                  If values appear one week above or below, retry using one of these:
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="h-8"
+                    onClick={() => {
+                      setTimesheetLayoutMode("standard");
+                      void onFillTimesheetPdf("standard");
+                    }}
+                    disabled={fillingPdf}
+                  >
+                    Retry: Standard Month Start
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="h-8"
+                    onClick={() => {
+                      setTimesheetLayoutMode("carry");
+                      void onFillTimesheetPdf("carry");
+                    }}
+                    disabled={fillingPdf}
+                  >
+                    Retry: Carry-Over First Week
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="h-8"
+                    onClick={() => {
+                      setTimesheetLayoutMode("auto");
+                      void onFillTimesheetPdf("auto");
+                    }}
+                    disabled={fillingPdf}
+                  >
+                    Retry: Auto Detect
+                  </Button>
+                </div>
+              </div>
+            </details>
           </div>
 
           {loading ? (
