@@ -59,6 +59,13 @@ export function TimeEntryForm({
     setValue("punchOut", end, { shouldValidate: true });
   };
 
+  const applyPresetWithBreak = (start: string, end: string, breakStart: string, breakEnd: string, label: string) => {
+    setValue("punchIn", start, { shouldValidate: true });
+    setValue("punchOut", end, { shouldValidate: true });
+    setValue("breaks", [{ start: breakStart, end: breakEnd }], { shouldValidate: true });
+    toast.success(`Applied ${label}`);
+  };
+
   const applyRegularSchedule = () => {
     if (!date) return;
     const day = new Date(`${date}T00:00:00`).getDay();
@@ -174,9 +181,31 @@ export function TimeEntryForm({
           </div>
 
           <div className="flex flex-wrap gap-2">
-            <Button type="button" size="sm" variant="outline" onClick={() => setPreset("08:00", "12:00")}>8am - 12pm</Button>
-            <Button type="button" size="sm" variant="outline" onClick={() => setPreset("09:00", "13:00")}>9am - 1pm</Button>
-            <Button type="button" size="sm" variant="outline" onClick={() => setPreset("10:00", "14:00")}>10am - 2pm</Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() => applyPresetWithBreak("09:00", "17:00", "12:30", "13:00", "Mon/Wed 9am-5pm preset")}
+            >
+              Mon/Wed 9am-5pm
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() => applyPresetWithBreak("12:00", "17:00", "14:30", "15:00", "Fri 12pm-5pm preset")}
+            >
+              Fri 12pm-5pm
+            </Button>
+            <Button type="button" size="sm" variant="outline" onClick={() => setPreset("08:00", "12:00")}>
+              8am-12pm
+            </Button>
+            <Button type="button" size="sm" variant="outline" onClick={() => setPreset("09:00", "13:00")}>
+              9am-1pm
+            </Button>
+            <Button type="button" size="sm" variant="outline" onClick={() => setPreset("10:00", "14:00")}>
+              10am-2pm
+            </Button>
           </div>
 
           <div className="grid gap-2 rounded-xl bg-background/80 p-3 text-sm md:grid-cols-3">

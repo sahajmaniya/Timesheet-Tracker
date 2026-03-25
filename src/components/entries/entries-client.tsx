@@ -2,7 +2,7 @@
 
 import { format } from "date-fns";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Download, FileUp, Plus, Trash2 } from "lucide-react";
+import { Download, FileUp, Plus, Sparkles, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { EntryDialog } from "@/components/entries/entry-dialog";
 import { EntriesTable } from "@/components/entries/entries-table";
@@ -13,6 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { buildDownloadFilename, getFilenameFromContentDisposition } from "@/lib/downloads";
 import { minutesToHM, minutesToTenthsDecimal } from "@/lib/time";
 import type { TimeEntry } from "@/types/time-entry";
+import type { TimeEntryInput } from "@/lib/validators";
 
 export function EntriesClient() {
   const [month, setMonth] = useState(format(new Date(), "yyyy-MM"));
@@ -27,6 +28,7 @@ export function EntriesClient() {
   const [timesheetLayoutMode, setTimesheetLayoutMode] = useState<"auto" | "standard" | "carry">("auto");
   const [fillingPdf, setFillingPdf] = useState(false);
   const [deletingMonth, setDeletingMonth] = useState(false);
+  const [showWalkthrough, setShowWalkthrough] = useState(false);
 
   const fetchEntries = useCallback(async (signal?: AbortSignal) => {
     setLoading(true);
@@ -53,6 +55,45 @@ export function EntriesClient() {
     return () => controller.abort();
   }, [fetchEntries]);
 
+  useEffect(() => {
+    try {
+      const dismissed = window.localStorage.getItem("entries_walkthrough_dismissed");
+      setShowWalkthrough(dismissed !== "true");
+    } catch {
+      setShowWalkthrough(true);
+    }
+  }, []);
+
+  const restoreEntry = useCallback(async (entry: TimeEntry) => {
+    const payload: TimeEntryInput = {
+      date: entry.date,
+      punchIn: entry.punchIn,
+      punchOut: entry.punchOut,
+      notes: entry.notes,
+      breaks: entry.breaks.map((item) => ({ start: item.start, end: item.end })),
+    };
+
+    const res = await fetch("/api/entries", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    const body = await res.json().catch(() => ({}));
+
+    if (!res.ok) {
+      throw new Error(body.error || "Could not restore deleted entry.");
+    }
+  }, []);
+
+  const dismissWalkthrough = () => {
+    setShowWalkthrough(false);
+    try {
+      window.localStorage.setItem("entries_walkthrough_dismissed", "true");
+    } catch {
+      // ignore storage issues
+    }
+  };
+
   const totals = useMemo(() => {
     const total = entries.reduce((sum, entry) => sum + entry.workedMinutes, 0);
     const avg = entries.length ? Math.round(total / entries.length) : 0;
@@ -76,7 +117,22 @@ export function EntriesClient() {
       return;
     }
 
-    toast.success("Entry deleted");
+    toast("Entry deleted.", {
+      action: {
+        label: "Undo",
+        onClick: () => {
+          void (async () => {
+            try {
+              await restoreEntry(entry);
+              await fetchEntries();
+              toast.success("Entry restored.");
+            } catch (error) {
+              toast.error(error instanceof Error ? error.message : "Could not restore entry.");
+            }
+          })();
+        },
+      },
+    });
     await fetchEntries();
   };
 
@@ -183,7 +239,27 @@ export function EntriesClient() {
         return;
       }
 
-      toast.success(`Deleted ${body.deletedCount ?? entries.length} entries for ${month}.`);
+      const deletedSnapshot = [...entries];
+      toast(`Deleted ${body.deletedCount ?? entries.length} entries for ${month}.`, {
+        action: {
+          label: "Undo",
+          onClick: () => {
+            void (async () => {
+              try {
+                let restored = 0;
+                for (const item of deletedSnapshot) {
+                  await restoreEntry(item);
+                  restored += 1;
+                }
+                await fetchEntries();
+                toast.success(`Restored ${restored} entries.`);
+              } catch (error) {
+                toast.error(error instanceof Error ? error.message : "Could not restore all entries.");
+              }
+            })();
+          },
+        },
+      });
       await fetchEntries();
     } finally {
       setDeletingMonth(false);
@@ -192,6 +268,51 @@ export function EntriesClient() {
 
   return (
     <div className="space-y-6">
+      {showWalkthrough && (
+        <Card className="border-primary/25 bg-gradient-to-r from-primary/12 via-background to-sky-500/10">
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Sparkles className="h-4 w-4 text-primary" />
+              Quick Start: 3 Steps
+            </CardTitle>
+            <CardDescription>
+              New here? Use this simple flow to finish your monthly timesheet in minutes.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-2 pb-5 text-sm md:grid-cols-3">
+            <button
+              type="button"
+              onClick={() => document.getElementById("entries-import-section")?.scrollIntoView({ behavior: "smooth", block: "start" })}
+              className="rounded-xl border border-border/70 bg-card/70 p-3 text-left transition hover:bg-accent/60"
+            >
+              <p className="font-semibold">1. Import or add entries</p>
+              <p className="mt-1 text-muted-foreground">Bring past month data from Excel or create daily entries.</p>
+            </button>
+            <button
+              type="button"
+              onClick={() => document.getElementById("entries-pdf-section")?.scrollIntoView({ behavior: "smooth", block: "start" })}
+              className="rounded-xl border border-border/70 bg-card/70 p-3 text-left transition hover:bg-accent/60"
+            >
+              <p className="font-semibold">2. Upload blank PDF</p>
+              <p className="mt-1 text-muted-foreground">Pick the official monthly voucher template from payroll.</p>
+            </button>
+            <button
+              type="button"
+              onClick={() => document.getElementById("entries-pdf-section")?.scrollIntoView({ behavior: "smooth", block: "start" })}
+              className="rounded-xl border border-border/70 bg-card/70 p-3 text-left transition hover:bg-accent/60"
+            >
+              <p className="font-semibold">3. Auto fill & download</p>
+              <p className="mt-1 text-muted-foreground">Generate your filled timesheet and submit confidently.</p>
+            </button>
+            <div className="md:col-span-3">
+              <Button type="button" variant="ghost" size="sm" onClick={dismissWalkthrough}>
+                Dismiss guide
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       <div className="grid gap-4 md:grid-cols-3">
         <Card className="relative overflow-hidden border-border/70 bg-gradient-to-br from-sky-200/70 via-background to-cyan-200/60 shadow-[0_18px_40px_-24px_rgba(34,211,238,0.35)] dark:from-sky-500/15 dark:to-cyan-500/10 dark:shadow-[0_18px_40px_-24px_rgba(34,211,238,0.55)]">
           <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_16%_22%,rgba(56,189,248,0.2),transparent_52%)]" />
@@ -273,7 +394,10 @@ export function EntriesClient() {
         </CardHeader>
 
         <CardContent>
-          <div className="mb-5 rounded-xl border border-dashed border-cyan-500/25 bg-gradient-to-r from-cyan-100/65 via-background/80 to-sky-100/60 p-4 dark:border-cyan-300/20 dark:from-cyan-500/10 dark:via-background/70 dark:to-sky-500/10">
+          <div
+            id="entries-import-section"
+            className="mb-5 rounded-xl border border-dashed border-cyan-500/25 bg-gradient-to-r from-cyan-100/65 via-background/80 to-sky-100/60 p-4 dark:border-cyan-300/20 dark:from-cyan-500/10 dark:via-background/70 dark:to-sky-500/10"
+          >
             <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
               <div className="space-y-1">
                 <p className="text-sm font-semibold text-cyan-800 dark:text-cyan-100">Import Previous Months (.xlsx)</p>
@@ -305,7 +429,10 @@ export function EntriesClient() {
             </div>
           </div>
 
-          <div className="mb-5 rounded-xl border border-dashed border-indigo-500/25 bg-gradient-to-r from-indigo-100/65 via-background/80 to-blue-100/60 p-4 dark:border-indigo-300/20 dark:from-indigo-500/10 dark:via-background/70 dark:to-blue-500/10">
+          <div
+            id="entries-pdf-section"
+            className="mb-5 rounded-xl border border-dashed border-indigo-500/25 bg-gradient-to-r from-indigo-100/65 via-background/80 to-blue-100/60 p-4 dark:border-indigo-300/20 dark:from-indigo-500/10 dark:via-background/70 dark:to-blue-500/10"
+          >
             <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
               <div className="space-y-1">
                 <p className="text-sm font-semibold text-indigo-800 dark:text-indigo-100">Auto-Fill Monthly Timesheet PDF</p>
