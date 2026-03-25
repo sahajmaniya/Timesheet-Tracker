@@ -9,31 +9,27 @@ datasource db {
 model User {
   id        String      @id @default(cuid())
   name      String?
-  image     String?
   email     String      @unique
   password  String
   createdAt DateTime    @default(now())
   updatedAt DateTime    @updatedAt
+  image     String?
   entries   TimeEntry[]
 }
 
 model TimeEntry {
   id        String   @id @default(cuid())
   userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-
   /// Local calendar date in the user's timezone. Format: YYYY-MM-DD.
   date      String
-
   /// Local times in 24h clock. Format: HH:mm.
   punchIn   String
   punchOut  String
   notes     String?
-
-  breaks    Break[]
-
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  breaks    Break[]
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, date])
   @@index([userId, date])
@@ -42,11 +38,11 @@ model TimeEntry {
 model Break {
   id          String    @id @default(cuid())
   timeEntryId String
-  entry       TimeEntry @relation(fields: [timeEntryId], references: [id], onDelete: Cascade)
   start       String
   end         String
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
+  entry       TimeEntry @relation(fields: [timeEntryId], references: [id], onDelete: Cascade)
 
   @@index([timeEntryId])
 }

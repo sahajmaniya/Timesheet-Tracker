@@ -98,3 +98,38 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 }
+
+export async function DELETE(request: Request) {
+  const session = await getServerAuthSession();
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const { searchParams } = new URL(request.url);
+  const monthParam = searchParams.get("month") ?? format(new Date(), "yyyy-MM");
+  const parsedMonth = monthQuerySchema.safeParse(monthParam);
+
+  if (!parsedMonth.success) {
+    return NextResponse.json({ error: parsedMonth.error.issues[0]?.message }, { status: 400 });
+  }
+
+  const monthDate = new Date(`${parsedMonth.data}-01T00:00:00`);
+  const start = format(startOfMonth(monthDate), "yyyy-MM-dd");
+  const end = format(endOfMonth(monthDate), "yyyy-MM-dd");
+
+  const result = await prisma.timeEntry.deleteMany({
+    where: {
+      userId: session.user.id,
+      date: {
+        gte: start,
+        lte: end,
+      },
+    },
+  });
+
+  return NextResponse.json({
+    success: true,
+    deletedCount: result.count,
+    month: parsedMonth.data,
+  });
+}

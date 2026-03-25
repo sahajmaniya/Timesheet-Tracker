@@ -2,7 +2,7 @@
 
 import { format } from "date-fns";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Download, FileUp, Plus } from "lucide-react";
+import { Download, FileUp, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { EntryDialog } from "@/components/entries/entry-dialog";
 import { EntriesTable } from "@/components/entries/entries-table";
@@ -22,6 +22,10 @@ export function EntriesClient() {
   const [importFile, setImportFile] = useState<File | null>(null);
   const [importMode, setImportMode] = useState<"overwrite" | "skip">("overwrite");
   const [importing, setImporting] = useState(false);
+  const [timesheetTemplateFile, setTimesheetTemplateFile] = useState<File | null>(null);
+  const [timesheetLayoutMode, setTimesheetLayoutMode] = useState<"auto" | "standard" | "carry">("auto");
+  const [fillingPdf, setFillingPdf] = useState(false);
+  const [deletingMonth, setDeletingMonth] = useState(false);
 
   const fetchEntries = useCallback(async (signal?: AbortSignal) => {
     setLoading(true);
@@ -108,6 +112,70 @@ export function EntriesClient() {
     }
   };
 
+  const onFillTimesheetPdf = async () => {
+    if (!timesheetTemplateFile) {
+      toast.error("Select a blank timesheet PDF first.");
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append("file", timesheetTemplateFile);
+    formData.append("month", month);
+    formData.append("layoutMode", timesheetLayoutMode);
+
+    setFillingPdf(true);
+    try {
+      const res = await fetch("/api/entries/fill-pdf", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        toast.error(body.error || "Could not fill the PDF template.");
+        return;
+      }
+
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `timesheet-${month}-filled.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success("Filled timesheet PDF downloaded.");
+    } finally {
+      setFillingPdf(false);
+    }
+  };
+
+  const onDeleteMonth = async () => {
+    if (entries.length === 0) {
+      toast.error("No entries to delete for this month.");
+      return;
+    }
+
+    const ok = window.confirm(
+      `Delete all ${entries.length} entries for ${month}? This cannot be undone.`,
+    );
+    if (!ok) return;
+
+    setDeletingMonth(true);
+    try {
+      const res = await fetch(`/api/entries?month=${month}`, { method: "DELETE" });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast.error(body.error || "Could not delete month entries");
+        return;
+      }
+
+      toast.success(`Deleted ${body.deletedCount ?? entries.length} entries for ${month}.`);
+      await fetchEntries();
+    } finally {
+      setDeletingMonth(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="grid gap-4 md:grid-cols-3">
@@ -168,6 +236,15 @@ export function EntriesClient() {
                 Export CSV
               </Button>
               <Button
+                variant="outline"
+                className="flex-1 border-red-500/35 text-red-700 hover:bg-red-500/10 hover:text-red-800 dark:text-red-200 dark:hover:bg-red-500/15 dark:hover:text-red-100 sm:flex-none"
+                onClick={onDeleteMonth}
+                disabled={deletingMonth || entries.length === 0}
+              >
+                <Trash2 className="mr-2 h-4 w-4" />
+                {deletingMonth ? "Deleting..." : "Delete Month"}
+              </Button>
+              <Button
                 className="flex-1 sm:flex-none"
                 onClick={() => {
                   setSelectedEntry(null);
@@ -209,6 +286,45 @@ export function EntriesClient() {
                 <Button className="flex-1 md:flex-none" onClick={onImportWorkbook} disabled={importing}>
                   <FileUp className="mr-2 h-4 w-4" />
                   {importing ? "Importing..." : "Import Excel"}
+                </Button>
+              </div>
+            </div>
+          </div>
+
+          <div className="mb-5 rounded-xl border border-dashed border-indigo-500/25 bg-gradient-to-r from-indigo-100/65 via-background/80 to-blue-100/60 p-4 dark:border-indigo-300/20 dark:from-indigo-500/10 dark:via-background/70 dark:to-blue-500/10">
+            <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+              <div className="space-y-1">
+                <p className="text-sm font-semibold text-indigo-800 dark:text-indigo-100">Auto-Fill Monthly Timesheet PDF</p>
+                <p className="text-xs text-slate-600 dark:text-slate-300/80">
+                  Upload your blank CSULB monthly voucher PDF. We will fill in In/Out/Hours and break ranges from your current month entries.
+                </p>
+                <select
+                  value={timesheetLayoutMode}
+                  onChange={(e) =>
+                    setTimesheetLayoutMode(
+                      e.target.value === "standard" || e.target.value === "carry"
+                        ? e.target.value
+                        : "auto",
+                    )
+                  }
+                  className="h-9 rounded-md border border-indigo-500/30 bg-background/90 px-3 text-sm dark:border-indigo-300/25 dark:bg-background/80"
+                >
+                  <option value="auto">Layout: Auto detect</option>
+                  <option value="standard">Layout: Standard month start</option>
+                  <option value="carry">Layout: Carry-over first week</option>
+                </select>
+                <input
+                  type="file"
+                  accept=".pdf,application/pdf"
+                  onChange={(e) => setTimesheetTemplateFile(e.target.files?.[0] ?? null)}
+                  className="text-sm"
+                />
+              </div>
+
+              <div className="flex w-full flex-wrap items-center gap-2 md:w-auto md:justify-end">
+                <Button className="flex-1 md:flex-none" onClick={onFillTimesheetPdf} disabled={fillingPdf}>
+                  <Download className="mr-2 h-4 w-4" />
+                  {fillingPdf ? "Filling..." : "Download Filled PDF"}
                 </Button>
               </div>
             </div>

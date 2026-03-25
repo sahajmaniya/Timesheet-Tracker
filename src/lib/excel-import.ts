@@ -30,7 +30,14 @@ function toDateString(value: unknown): string | null {
   }
 
   if (typeof value === "string") {
-    const date = new Date(value);
+    const trimmed = value.trim();
+    const plainYmd = trimmed.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (plainYmd) {
+      // Keep plain YYYY-MM-DD as-is to avoid timezone day shifting.
+      return trimmed;
+    }
+
+    const date = new Date(trimmed);
     if (Number.isNaN(date.getTime())) return null;
     return format(date, "yyyy-MM-dd");
   }
