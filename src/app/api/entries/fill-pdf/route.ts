@@ -1,6 +1,7 @@
 import { endOfMonth, format, startOfMonth } from "date-fns";
 import { NextResponse } from "next/server";
 import { getServerAuthSession } from "@/lib/auth";
+import { buildDownloadFilename } from "@/lib/downloads";
 import { prisma } from "@/lib/prisma";
 import { fillTimesheetPdfTemplate } from "@/lib/timesheet-pdf";
 import { monthQuerySchema } from "@/lib/validators";
@@ -64,11 +65,17 @@ export async function POST(request: Request) {
       layoutMode,
     });
 
+    const filename = buildDownloadFilename({
+      kind: "timesheet_filled_pdf",
+      month: parsedMonth.data,
+      extension: "pdf",
+    });
+
     return new NextResponse(Buffer.from(filled), {
       status: 200,
       headers: {
         "Content-Type": "application/pdf",
-        "Content-Disposition": `attachment; filename=timesheet-${parsedMonth.data}-filled.pdf`,
+        "Content-Disposition": `attachment; filename="${filename}"`,
       },
     });
   } catch (error) {

@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { buildDownloadFilename, getFilenameFromContentDisposition } from "@/lib/downloads";
 import { minutesToHM, minutesToTenthsDecimal } from "@/lib/time";
 import type { TimeEntry } from "@/types/time-entry";
 
@@ -140,7 +141,15 @@ export function EntriesClient() {
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `timesheet-${month}-filled.pdf`;
+      const contentDisposition = res.headers.get("content-disposition");
+      const filenameFromHeader = getFilenameFromContentDisposition(contentDisposition);
+      a.download =
+        filenameFromHeader ||
+        buildDownloadFilename({
+          kind: "timesheet_filled_pdf",
+          month,
+          extension: "pdf",
+        });
       a.click();
       URL.revokeObjectURL(url);
       toast.success("Filled timesheet PDF downloaded.");

@@ -1,5 +1,6 @@
 import { endOfMonth, format, startOfMonth } from "date-fns";
 import { getServerAuthSession } from "@/lib/auth";
+import { buildDownloadFilename } from "@/lib/downloads";
 import { prisma } from "@/lib/prisma";
 import { calcBreakMinutes, calcWorkedMinutes, formatTime12h, minutesToTenthsDecimal } from "@/lib/time";
 import { monthQuerySchema } from "@/lib/validators";
@@ -87,7 +88,11 @@ export async function GET(request: Request) {
   ].join(",");
 
   const csv = [header.join(","), ...rows, totalsRow].join("\n");
-  const filename = `timesheet-${parsedMonth.data}.csv`;
+  const filename = buildDownloadFilename({
+    kind: "timesheet_csv",
+    month: parsedMonth.data,
+    extension: "csv",
+  });
 
   return new Response(csv, {
     status: 200,
