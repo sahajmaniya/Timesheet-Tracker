@@ -17,6 +17,7 @@ model User {
   workScheduleJson Json?
   entries          TimeEntry[]
   otpChallenges    LoginOtpChallenge[]
+  authAuditLogs    AuthAuditLog[]
 }
 
 model TimeEntry {
@@ -60,4 +61,21 @@ model LoginOtpChallenge {
   user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, expiresAt])
+}
+
+model AuthAuditLog {
+  id        String   @id @default(cuid())
+  event     String
+  success   Boolean
+  reason    String?
+  email     String?
+  userId    String?
+  ip        String?
+  userAgent String?
+  createdAt DateTime @default(now())
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([event, createdAt])
+  @@index([email, createdAt])
+  @@index([userId, createdAt])
 }

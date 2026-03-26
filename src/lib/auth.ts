@@ -4,6 +4,7 @@ import type { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import { getServerSession } from "next-auth";
 import { z } from "zod";
+import { writeAuthAuditLog } from "@/lib/auth-audit";
 import { hashOtpCode, OTP_MAX_ATTEMPTS } from "@/lib/otp";
 import { prisma } from "@/lib/prisma";
 
@@ -30,17 +31,40 @@ export const authOptions: NextAuthOptions = {
       },
       async authorize(credentials) {
         const parsed = credentialsSchema.safeParse(credentials);
-        if (!parsed.success) return null;
+        if (!parsed.success) {
+          await writeAuthAuditLog({
+            event: "signin_invalid_input",
+            success: false,
+            reason: "validation_failed",
+          });
+          return null;
+        }
 
         const user = await prisma.user.findUnique({
           where: { email: parsed.data.email },
         });
 
-        if (!user) return null;
-        if (!user.password) return null;
+        if (!user || !user.password) {
+          await writeAuthAuditLog({
+            event: "signin_failed",
+            success: false,
+            email: parsed.data.email,
+            reason: "user_not_found",
+          });
+          return null;
+        }
 
         const passwordOk = await compare(parsed.data.password, user.password);
-        if (!passwordOk) return null;
+        if (!passwordOk) {
+          await writeAuthAuditLog({
+            event: "signin_failed",
+            success: false,
+            email: user.email,
+            userId: user.id,
+            reason: "password_mismatch",
+          });
+          return null;
+        }
 
         const challenge = await prisma.loginOtpChallenge.findFirst({
           where: {
@@ -50,9 +74,36 @@ export const authOptions: NextAuthOptions = {
           },
         });
 
-        if (!challenge) return null;
-        if (isAfter(new Date(), challenge.expiresAt)) return null;
-        if (challenge.attempts >= OTP_MAX_ATTEMPTS) return null;
+        if (!challenge) {
+          await writeAuthAuditLog({
+            event: "signin_failed",
+            success: false,
+            email: user.email,
+            userId: user.id,
+            reason: "otp_challenge_missing",
+          });
+          return null;
+        }
+        if (isAfter(new Date(), challenge.expiresAt)) {
+          await writeAuthAuditLog({
+            event: "signin_failed",
+            success: false,
+            email: user.email,
+            userId: user.id,
+            reason: "otp_expired",
+          });
+          return null;
+        }
+        if (challenge.attempts >= OTP_MAX_ATTEMPTS) {
+          await writeAuthAuditLog({
+            event: "signin_failed",
+            success: false,
+            email: user.email,
+            userId: user.id,
+            reason: "otp_attempt_limit_reached",
+          });
+          return null;
+        }
 
         const codeHash = hashOtpCode({
           email: user.email,
@@ -64,12 +115,26 @@ export const authOptions: NextAuthOptions = {
             where: { id: challenge.id },
             data: { attempts: { increment: 1 } },
           });
+          await writeAuthAuditLog({
+            event: "signin_failed",
+            success: false,
+            email: user.email,
+            userId: user.id,
+            reason: "otp_mismatch",
+          });
           return null;
         }
 
         await prisma.loginOtpChallenge.update({
           where: { id: challenge.id },
           data: { consumedAt: new Date() },
+        });
+
+        await writeAuthAuditLog({
+          event: "signin_success",
+          success: true,
+          email: user.email,
+          userId: user.id,
         });
 
         return {
