@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { getServerAuthSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { workScheduleSchema } from "@/lib/validators";
+import { DEFAULT_WORK_SCHEDULE } from "@/lib/work-schedule";
 
 const MAX_FILE_BYTES = 2 * 1024 * 1024;
 
@@ -32,10 +34,19 @@ export async function POST(request: Request) {
     const updated = await prisma.user.update({
       where: { id: session.user.id },
       data: { image: dataUrl },
-      select: { name: true, email: true, image: true },
+      select: { name: true, email: true, image: true, workScheduleJson: true },
     });
 
-    return NextResponse.json({ profile: updated });
+    const parsedSchedule = workScheduleSchema.safeParse(updated.workScheduleJson);
+
+    return NextResponse.json({
+      profile: {
+        name: updated.name,
+        email: updated.email,
+        image: updated.image,
+        workSchedule: parsedSchedule.success ? parsedSchedule.data : DEFAULT_WORK_SCHEDULE,
+      },
+    });
   } catch (error) {
     console.error("Avatar upload failed:", error);
     return NextResponse.json({ error: "Failed to upload image." }, { status: 500 });

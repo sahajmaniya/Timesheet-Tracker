@@ -2,7 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Coffee, Clock3, Minus, Plus, Sparkles, Trash2 } from "lucide-react";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useFieldArray, useForm, useWatch } from "react-hook-form";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { addMinutesToHHmm, calcBreakMinutes, calcWorkedMinutes, formatTenthsDecimal, formatTime12h, minutesToHM, nowHHmm } from "@/lib/time";
 import { timeEntrySchema, type TimeEntryInput } from "@/lib/validators";
+import { type WorkSchedule } from "@/lib/work-schedule";
 
 const defaultEntry: TimeEntryInput = {
   date: new Date().toISOString().slice(0, 10),
@@ -34,6 +35,7 @@ export function TimeEntryForm({
   onSubmit: (values: TimeEntryInput) => Promise<void>;
   onCancel?: () => void;
 }) {
+  const [workSchedule, setWorkSchedule] = useState<WorkSchedule | null>(null);
   const {
     register,
     control,
@@ -86,6 +88,25 @@ export function TimeEntryForm({
     return () => window.clearTimeout(id);
   }, [allValues, initialValues]);
 
+  useEffect(() => {
+    let ignore = false;
+    const fetchSchedule = async () => {
+      try {
+        const res = await fetch("/api/profile");
+        const body = await res.json().catch(() => ({}));
+        if (!res.ok || !body.profile?.workSchedule || ignore) return;
+        setWorkSchedule(body.profile.workSchedule as WorkSchedule);
+      } catch {
+        // ignore profile fetch issues
+      }
+    };
+
+    void fetchSchedule();
+    return () => {
+      ignore = true;
+    };
+  }, []);
+
   const setPreset = (start: string, end: string) => {
     setValue("punchIn", start, { shouldValidate: true });
     setValue("punchOut", end, { shouldValidate: true });
@@ -101,32 +122,22 @@ export function TimeEntryForm({
   const applyRegularSchedule = () => {
     if (!date) return;
     const day = new Date(`${date}T00:00:00`).getDay();
+    const dayKey = (["sun", "mon", "tue", "wed", "thu", "fri", "sat"] as const)[day];
+    const daySchedule = workSchedule?.[dayKey];
 
-    if (day === 1 || day === 3) {
-      setValue("punchIn", "09:00", { shouldValidate: true });
-      setValue("punchOut", "17:00", { shouldValidate: true });
-      setValue(
-        "breaks",
-        [{ start: "12:30", end: "13:00" }],
-        { shouldValidate: true },
-      );
-      toast.success("Applied regular Monday/Wednesday schedule");
+    if (!daySchedule || !daySchedule.enabled) {
+      toast.message("No regular schedule set for this day. Update it in Settings.");
       return;
     }
 
-    if (day === 5) {
-      setValue("punchIn", "12:00", { shouldValidate: true });
-      setValue("punchOut", "17:00", { shouldValidate: true });
-      setValue(
-        "breaks",
-        [{ start: "14:30", end: "15:00" }],
-        { shouldValidate: true },
-      );
-      toast.success("Applied regular Friday schedule");
-      return;
-    }
-
-    toast.message("No regular schedule for this day. Use manual entry.");
+    setValue("punchIn", daySchedule.start, { shouldValidate: true });
+    setValue("punchOut", daySchedule.end, { shouldValidate: true });
+    setValue(
+      "breaks",
+      [{ start: daySchedule.breakStart, end: daySchedule.breakEnd }],
+      { shouldValidate: true },
+    );
+    toast.success(`Applied ${dayKey.toUpperCase()} regular schedule`);
   };
 
   const addBreakNow = () => {

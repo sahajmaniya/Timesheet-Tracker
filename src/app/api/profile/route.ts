@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import { getServerAuthSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { profileUpdateSchema } from "@/lib/validators";
+import { profileUpdateSchema, workScheduleSchema } from "@/lib/validators";
+import { DEFAULT_WORK_SCHEDULE } from "@/lib/work-schedule";
 
 export async function GET() {
   const session = await getServerAuthSession();
@@ -15,6 +17,7 @@ export async function GET() {
       name: true,
       email: true,
       image: true,
+      workScheduleJson: true,
     },
   });
 
@@ -22,7 +25,16 @@ export async function GET() {
     return NextResponse.json({ error: "User not found" }, { status: 404 });
   }
 
-  return NextResponse.json({ profile: user });
+  const parsedSchedule = workScheduleSchema.safeParse(user.workScheduleJson);
+
+  return NextResponse.json({
+    profile: {
+      name: user.name,
+      email: user.email,
+      image: user.image,
+      workSchedule: parsedSchedule.success ? parsedSchedule.data : DEFAULT_WORK_SCHEDULE,
+    },
+  });
 }
 
 export async function PATCH(request: Request) {
@@ -47,12 +59,16 @@ export async function PATCH(request: Request) {
       body !== null &&
       Object.prototype.hasOwnProperty.call(body, "image");
 
-    const updateData: { name: string; image?: string | null } = {
+    const updateData: Prisma.UserUpdateInput = {
       name: parsed.data.name,
     };
 
     if (hasImageField) {
       updateData.image = parsed.data.image || null;
+    }
+
+    if (parsed.data.workSchedule) {
+      updateData.workScheduleJson = parsed.data.workSchedule as Prisma.InputJsonValue;
     }
 
     const updated = await prisma.user.update({
@@ -62,10 +78,20 @@ export async function PATCH(request: Request) {
         name: true,
         email: true,
         image: true,
+        workScheduleJson: true,
       },
     });
 
-    return NextResponse.json({ profile: updated });
+    const parsedSchedule = workScheduleSchema.safeParse(updated.workScheduleJson);
+
+    return NextResponse.json({
+      profile: {
+        name: updated.name,
+        email: updated.email,
+        image: updated.image,
+        workSchedule: parsedSchedule.success ? parsedSchedule.data : DEFAULT_WORK_SCHEDULE,
+      },
+    });
   } catch (error) {
     console.error("Profile update failed:", error);
     return NextResponse.json({ error: "Failed to update profile" }, { status: 500 });

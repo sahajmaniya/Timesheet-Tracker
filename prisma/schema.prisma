@@ -7,14 +7,15 @@ datasource db {
 }
 
 model User {
-  id        String      @id @default(cuid())
-  name      String?
-  email     String      @unique
-  password  String
-  createdAt DateTime    @default(now())
-  updatedAt DateTime    @updatedAt
-  image     String?
-  entries   TimeEntry[]
+  id               String      @id @default(cuid())
+  name             String?
+  email            String      @unique
+  password         String
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+  image            String?
+  workScheduleJson Json?
+  entries          TimeEntry[]
 }
 
 model TimeEntry {

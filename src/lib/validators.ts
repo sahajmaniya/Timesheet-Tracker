@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { weekdayKeys } from "@/lib/work-schedule";
 
 const hhmmRegex = /^([01]\d|2[0-3]):([0-5]\d)$/;
 
@@ -31,6 +32,45 @@ export const monthQuerySchema = z
   .string()
   .regex(/^\d{4}-(0[1-9]|1[0-2])$/, "Month must be YYYY-MM");
 
+const dayScheduleSchema = z.object({
+  enabled: z.boolean(),
+  start: z.string().regex(hhmmRegex, "Time must be HH:mm"),
+  end: z.string().regex(hhmmRegex, "Time must be HH:mm"),
+  breakStart: z.string().regex(hhmmRegex, "Time must be HH:mm"),
+  breakEnd: z.string().regex(hhmmRegex, "Time must be HH:mm"),
+});
+
+export const workScheduleSchema = z.object({
+  sun: dayScheduleSchema,
+  mon: dayScheduleSchema,
+  tue: dayScheduleSchema,
+  wed: dayScheduleSchema,
+  thu: dayScheduleSchema,
+  fri: dayScheduleSchema,
+  sat: dayScheduleSchema,
+}).superRefine((value, ctx) => {
+  for (const key of weekdayKeys) {
+    const day = value[key];
+    if (!day.enabled) continue;
+
+    if (day.start >= day.end) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: [key, "end"],
+        message: "End time must be after start time",
+      });
+    }
+
+    if (day.breakStart >= day.breakEnd) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: [key, "breakEnd"],
+        message: "Break end must be after break start",
+      });
+    }
+  }
+});
+
 export const profileUpdateSchema = z.object({
   name: z.string().trim().min(2).max(80),
   image: z
@@ -46,8 +86,10 @@ export const profileUpdateSchema = z.object({
     )
     .optional()
     .or(z.literal("")),
+  workSchedule: workScheduleSchema.optional(),
 });
 
 export type TimeEntryInput = z.infer<typeof timeEntrySchema>;
 export type SignupInput = z.infer<typeof signupSchema>;
 export type ProfileUpdateInput = z.infer<typeof profileUpdateSchema>;
+export type WorkScheduleInput = z.infer<typeof workScheduleSchema>;

@@ -11,11 +11,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { profileUpdateSchema, type ProfileUpdateInput } from "@/lib/validators";
+import { DAY_LABELS, weekdayKeys, type WorkSchedule } from "@/lib/work-schedule";
 
 type ProfileData = {
   name: string | null;
   email: string | null;
   image: string | null;
+  workSchedule: WorkSchedule;
 };
 
 export function ProfileSettingsForm({ initialProfile }: { initialProfile: ProfileData }) {
@@ -33,6 +35,7 @@ export function ProfileSettingsForm({ initialProfile }: { initialProfile: Profil
     defaultValues: {
       name: profile.name ?? "",
       image: "",
+      workSchedule: profile.workSchedule,
     },
   });
 
@@ -40,7 +43,7 @@ export function ProfileSettingsForm({ initialProfile }: { initialProfile: Profil
     const res = await fetch("/api/profile", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: values.name }),
+      body: JSON.stringify({ name: values.name, workSchedule: values.workSchedule }),
     });
 
     const body = await res.json().catch(() => ({}));
@@ -49,7 +52,11 @@ export function ProfileSettingsForm({ initialProfile }: { initialProfile: Profil
       return;
     }
 
-    setProfile(body.profile);
+    setProfile((prev) => ({
+      ...prev,
+      ...body.profile,
+      workSchedule: body.profile?.workSchedule ?? prev.workSchedule,
+    }));
     toast.success("Profile updated");
   };
 
@@ -69,7 +76,11 @@ export function ProfileSettingsForm({ initialProfile }: { initialProfile: Profil
         toast.error(body.error || "Could not upload image");
         return;
       }
-      setProfile(body.profile);
+      setProfile((prev) => ({
+        ...prev,
+        ...body.profile,
+        workSchedule: body.profile?.workSchedule ?? prev.workSchedule,
+      }));
       toast.success("Profile photo updated");
     } finally {
       setUploading(false);
@@ -88,7 +99,11 @@ export function ProfileSettingsForm({ initialProfile }: { initialProfile: Profil
       toast.error(body.error || "Could not remove photo");
       return;
     }
-    setProfile(body.profile);
+    setProfile((prev) => ({
+      ...prev,
+      ...body.profile,
+      workSchedule: body.profile?.workSchedule ?? prev.workSchedule,
+    }));
     toast.success("Profile photo removed");
   };
 
@@ -191,6 +206,49 @@ export function ProfileSettingsForm({ initialProfile }: { initialProfile: Profil
                         Use the upload button on the left panel to select an image from your computer.
                       </p>
                     </div>
+                  </div>
+
+                  <div className="rounded-xl border border-border/70 bg-card/70 p-4">
+                    <div className="mb-3">
+                      <p className="text-sm font-semibold">Regular Shift Schedule</p>
+                      <p className="text-xs text-muted-foreground">
+                        Used by &quot;Apply Regular Shift&quot; in entry form. Configure times per weekday.
+                      </p>
+                    </div>
+
+                    <div className="space-y-2">
+                      {weekdayKeys.map((day) => (
+                        <div key={day} className="grid gap-2 rounded-lg border border-border/60 bg-background/60 p-3 sm:grid-cols-[120px,1fr,1fr,1fr,1fr] sm:items-center">
+                          <label className="inline-flex items-center gap-2 text-sm font-medium">
+                            <input type="checkbox" {...register(`workSchedule.${day}.enabled`)} />
+                            {DAY_LABELS[day]}
+                          </label>
+
+                          <div className="space-y-1">
+                            <Label className="text-[11px] text-muted-foreground">Start</Label>
+                            <Input type="time" {...register(`workSchedule.${day}.start`)} />
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-[11px] text-muted-foreground">End</Label>
+                            <Input type="time" {...register(`workSchedule.${day}.end`)} />
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-[11px] text-muted-foreground">Break Start</Label>
+                            <Input type="time" {...register(`workSchedule.${day}.breakStart`)} />
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-[11px] text-muted-foreground">Break End</Label>
+                            <Input type="time" {...register(`workSchedule.${day}.breakEnd`)} />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    {errors.workSchedule && (
+                      <p className="mt-2 text-xs text-destructive">
+                        Please check your schedule times (end must be after start, break end after break start).
+                      </p>
+                    )}
                   </div>
 
                   <div className="flex justify-end pt-1">
