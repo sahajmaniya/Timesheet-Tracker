@@ -1,6 +1,6 @@
 # PunchPilot
 
-Modern, responsive timesheet tracker built with Next.js App Router, TypeScript, Tailwind, shadcn/ui style components, NextAuth credentials auth, Prisma, and Postgres.
+Modern, responsive timesheet tracker built with Next.js App Router, TypeScript, Tailwind, shadcn/ui style components, NextAuth credentials auth + email OTP verification, Prisma, and Postgres.
 
 ## Live Demo
 
@@ -9,6 +9,7 @@ Modern, responsive timesheet tracker built with Next.js App Router, TypeScript, 
 ## Features
 
 - Sign up / sign in / sign out (NextAuth credentials)
+- 2-step sign-in with email OTP verification
 - Protected pages: `/dashboard`, `/entries`, `/settings`
 - User-isolated data access (server-side userId enforcement)
 - Daily time log: date, punch in/out, breaks, notes
@@ -16,6 +17,8 @@ Modern, responsive timesheet tracker built with Next.js App Router, TypeScript, 
 - Validation with Zod + React Hook Form
 - Monthly totals + average/day analytics
 - CSV export by month
+- Fill monthly timesheet PDF templates from saved entries
+- Per-user regular shift schedule in Settings
 - Mobile-responsive UI + dark mode toggle
 - Seed script for demo data
 
@@ -27,6 +30,7 @@ Modern, responsive timesheet tracker built with Next.js App Router, TypeScript, 
 - NextAuth (Credentials)
 - Prisma ORM
 - PostgreSQL (Neon/Supabase compatible)
+- Nodemailer (SMTP for OTP emails)
 
 ## Data Model Choice
 
@@ -59,23 +63,37 @@ cp .env.example .env.local
 
 3. Set up Postgres in Neon/Supabase and paste the `DATABASE_URL`.
 
-4. Generate Prisma client and run migrations:
+4. Configure authentication + OTP email variables in `.env.local`:
+
+```bash
+NEXTAUTH_SECRET="replace-with-a-long-random-secret"
+NEXTAUTH_URL="http://localhost:3000"
+
+OTP_SECRET="replace-with-another-random-secret"
+SMTP_HOST="smtp.gmail.com"
+SMTP_PORT="587"
+SMTP_USER="your-sender@gmail.com"
+SMTP_PASS="your-gmail-app-password"
+SMTP_FROM="PunchPilot <your-sender@gmail.com>"
+```
+
+5. Generate Prisma client and run migrations:
 
 ```bash
 npx prisma generate
-npx prisma migrate dev --name init
+npx prisma migrate dev
 
 # or in deployed/prod database:
 # npx prisma migrate deploy
 ```
 
-5. (Optional) Seed demo data:
+6. (Optional) Seed demo data:
 
 ```bash
 npm run seed
 ```
 
-6. Run app:
+7. Run app:
 
 ```bash
 npm run dev
@@ -91,6 +109,12 @@ Open `http://localhost:3000`.
    - `DATABASE_URL`
    - `NEXTAUTH_SECRET`
    - `NEXTAUTH_URL` (set to your production URL, e.g. `https://your-app.vercel.app`)
+   - `OTP_SECRET`
+   - `SMTP_HOST`
+   - `SMTP_PORT`
+   - `SMTP_USER`
+   - `SMTP_PASS`
+   - `SMTP_FROM`
 4. Deploy.
 5. Run production migration once:
 
@@ -101,12 +125,14 @@ npx prisma migrate deploy
 ## API Routes
 
 - `POST /api/auth/signup`
+- `POST /api/auth/request-otp`
 - `GET /api/entries?month=YYYY-MM`
 - `POST /api/entries`
 - `GET /api/entries/:id`
 - `PATCH /api/entries/:id`
 - `DELETE /api/entries/:id`
 - `GET /api/entries/export?month=YYYY-MM`
+- `POST /api/entries/fill-pdf`
 
 ## Notes
 
