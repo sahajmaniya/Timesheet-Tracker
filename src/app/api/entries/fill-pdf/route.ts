@@ -86,7 +86,7 @@ export async function POST(request: Request) {
         error:
           process.env.NODE_ENV === "development"
             ? `Could not fill this template: ${message}`
-            : "Could not fill this template. Upload the same CSULB blank monthly voucher format.",
+            : "Could not fill this template. Upload a compatible blank monthly timesheet PDF template.",
       },
       { status: 500 },
     );

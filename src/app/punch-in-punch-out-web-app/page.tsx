@@ -72,9 +72,9 @@ export default function PunchInOutWebAppPage() {
         </div>
 
         <p className="mt-8 text-sm text-muted-foreground">
-          Need student-focused workflow? Visit{" "}
+          Need another overview? Visit{" "}
           <Link className="underline underline-offset-4" href="/student-assistant-timesheet-tracker">
-            student assistant timesheet tracker
+            timesheet tracker guide
           </Link>
           .
         </p>
@@ -84,4 +84,3 @@ export default function PunchInOutWebAppPage() {
     </main>
   );
 }
-

@@ -107,7 +107,7 @@ export default async function HomePage() {
             <p className="text-sm font-semibold">Learn More</p>
             <div className="mt-2 flex flex-wrap gap-x-5 gap-y-2 text-sm text-muted-foreground">
               <Link className="underline underline-offset-4 hover:text-foreground" href="/student-assistant-timesheet-tracker">
-                Student assistant timesheet tracker
+                General timesheet tracker guide
               </Link>
               <Link className="underline underline-offset-4 hover:text-foreground" href="/punch-in-punch-out-web-app">
                 Punch in punch out web app

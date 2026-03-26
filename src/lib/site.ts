@@ -9,11 +9,10 @@ export const siteConfig = {
     "PunchPilot",
     "timesheet tracker",
     "employee timesheet app",
-    "student assistant timesheet",
+    "online timesheet app",
     "work hours tracker",
     "punch in punch out app",
     "monthly timesheet export",
     "break time tracker",
   ],
 } as const;
-

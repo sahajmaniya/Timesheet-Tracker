@@ -5,9 +5,9 @@ import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = {
-  title: "Student Assistant Timesheet Tracker",
+  title: "Timesheet Tracker Guide",
   description:
-    "PunchPilot helps student assistants track punch in/out, breaks, and monthly totals with export-ready timesheets.",
+    "PunchPilot helps teams and individuals track punch in/out, breaks, and monthly totals with export-ready timesheets.",
   alternates: { canonical: "/student-assistant-timesheet-tracker" },
 };
 
@@ -18,7 +18,7 @@ export default function StudentAssistantTimesheetPage() {
     mainEntity: [
       {
         "@type": "Question",
-        name: "How can a student assistant track daily work hours?",
+        name: "How can I track daily work hours?",
         acceptedAnswer: {
           "@type": "Answer",
           text: "Use PunchPilot to log punch in and punch out times, add breaks, and keep notes for each day.",
@@ -48,9 +48,9 @@ export default function StudentAssistantTimesheetPage() {
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }} />
       <section className="mx-auto max-w-4xl rounded-3xl border border-border/60 bg-white/75 p-6 shadow-[0_26px_60px_-40px_rgba(15,23,42,0.45)] backdrop-blur-xl sm:p-10 dark:bg-slate-900/65">
         <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Guide</p>
-        <h1 className="mt-3 text-3xl font-extrabold tracking-tight sm:text-5xl">Student Assistant Timesheet Tracker</h1>
+        <h1 className="mt-3 text-3xl font-extrabold tracking-tight sm:text-5xl">Timesheet Tracker Guide</h1>
         <p className="mt-4 text-base text-muted-foreground sm:text-lg">
-          PunchPilot is designed for student assistant schedules where you need accurate daily logging and clean monthly reporting.
+          PunchPilot is designed for work schedules where you need accurate daily logging and clean monthly reporting.
           You can track punch in/out time, unpaid breaks, and shift notes without jumping between spreadsheets.
         </p>
 
@@ -64,7 +64,7 @@ export default function StudentAssistantTimesheetPage() {
           <div className="rounded-2xl border bg-background/80 p-4">
             <h2 className="text-lg font-semibold">Monthly Submission Ready</h2>
             <p className="mt-2 text-sm text-muted-foreground">
-              Generate monthly totals and download CSV exports to complete assistant timesheets quickly.
+              Generate monthly totals and download CSV exports to complete timesheets quickly.
             </p>
           </div>
         </div>
@@ -95,4 +95,3 @@ export default function StudentAssistantTimesheetPage() {
     </main>
   );
 }
-

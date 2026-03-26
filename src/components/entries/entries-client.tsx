@@ -395,7 +395,7 @@ export function EntriesClient() {
               className="rounded-xl border border-border/70 bg-card/70 p-3 text-left transition hover:bg-accent/60"
             >
               <p className="font-semibold">2. Upload blank PDF</p>
-              <p className="mt-1 text-muted-foreground">Pick the official monthly voucher template from payroll.</p>
+              <p className="mt-1 text-muted-foreground">Pick your blank monthly timesheet PDF template.</p>
             </button>
             <button
               type="button"
@@ -615,7 +615,7 @@ export function EntriesClient() {
               <div className="space-y-1">
                 <p className="text-sm font-semibold text-indigo-800 dark:text-indigo-100">Auto-Fill Monthly Timesheet PDF</p>
                 <p className="text-xs text-slate-600 dark:text-slate-300/80">
-                  Upload your blank CSULB monthly voucher PDF. We fill In/Out/Hours and break ranges from your selected month entries.
+                  Upload your blank monthly timesheet PDF template. We fill In/Out/Hours and break ranges from your selected month entries.
                 </p>
                 <input
                   type="file"

@@ -85,7 +85,7 @@ export default function MonthlyTimesheetCsvExportPage() {
           </Link>{" "}
           and{" "}
           <Link className="underline underline-offset-4" href="/student-assistant-timesheet-tracker">
-            student assistant timesheet tracker
+            timesheet tracker guide
           </Link>
           .
         </p>
@@ -95,4 +95,3 @@ export default function MonthlyTimesheetCsvExportPage() {
     </main>
   );
 }
-

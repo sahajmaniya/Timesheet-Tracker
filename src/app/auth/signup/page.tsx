@@ -24,7 +24,7 @@ export default async function SignUpPage() {
       <div className="mx-auto grid w-full max-w-6xl items-center gap-8 lg:grid-cols-2">
         <section className="order-2 space-y-5 lg:order-1">
           <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">New Account</p>
-          <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">Create your assistant timesheet profile.</h1>
+          <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">Create your timesheet profile.</h1>
           <p className="max-w-lg text-sm text-muted-foreground sm:text-base">
             Get a modern workspace for shift tracking, break logging, and monthly timesheet exports.
           </p>

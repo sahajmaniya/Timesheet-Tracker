@@ -11,7 +11,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { profileUpdateSchema, type ProfileUpdateInput } from "@/lib/validators";
-import { DAY_LABELS, weekdayKeys, type WorkSchedule } from "@/lib/work-schedule";
+import { DAY_LABELS, weekdayKeys, type WeekdayKey, type WorkSchedule } from "@/lib/work-schedule";
 
 type ProfileData = {
   name: string | null;
@@ -23,12 +23,15 @@ type ProfileData = {
 export function ProfileSettingsForm({ initialProfile }: { initialProfile: ProfileData }) {
   const [profile, setProfile] = useState<ProfileData>(initialProfile);
   const [uploading, setUploading] = useState(false);
+  const [activeScheduleDay, setActiveScheduleDay] = useState<WeekdayKey>("mon");
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const displayEmail = profile.email ? profile.email.replace(/\s+/g, "") : "No email";
 
   const {
     register,
     handleSubmit,
+    setValue,
+    watch,
     formState: { errors, isSubmitting },
   } = useForm<ProfileUpdateInput>({
     resolver: zodResolver(profileUpdateSchema),
@@ -38,6 +41,45 @@ export function ProfileSettingsForm({ initialProfile }: { initialProfile: Profil
       workSchedule: profile.workSchedule,
     },
   });
+  const watchedSchedule = watch("workSchedule");
+  const DAY_SHORT_LABELS: Record<WeekdayKey, string> = {
+    sun: "Sun",
+    mon: "Mon",
+    tue: "Tue",
+    wed: "Wed",
+    thu: "Thu",
+    fri: "Fri",
+    sat: "Sat",
+  };
+
+  const applyScheduleTemplate = (template: "typical_office" | "empty") => {
+    if (template === "empty") {
+      for (const day of weekdayKeys) {
+        setValue(`workSchedule.${day}.enabled`, false);
+      }
+      toast.success("Cleared schedule template");
+      return;
+    }
+
+    for (const day of weekdayKeys) {
+      const isMonWed = day === "mon" || day === "wed";
+      const isFri = day === "fri";
+      const enabled = isMonWed || isFri;
+      setValue(`workSchedule.${day}.enabled`, enabled);
+      if (isMonWed) {
+        setValue(`workSchedule.${day}.start`, "09:00");
+        setValue(`workSchedule.${day}.end`, "17:00");
+        setValue(`workSchedule.${day}.breakStart`, "12:30");
+        setValue(`workSchedule.${day}.breakEnd`, "13:00");
+      } else if (isFri) {
+        setValue(`workSchedule.${day}.start`, "12:00");
+        setValue(`workSchedule.${day}.end`, "17:00");
+        setValue(`workSchedule.${day}.breakStart`, "14:30");
+        setValue(`workSchedule.${day}.breakEnd`, "15:00");
+      }
+    }
+    toast.success("Applied Mon/Wed/Fri template");
+  };
 
   const onSubmit = async (values: ProfileUpdateInput) => {
     const res = await fetch("/api/profile", {
@@ -118,8 +160,8 @@ export function ProfileSettingsForm({ initialProfile }: { initialProfile: Profil
       <Card className="overflow-hidden border-border/65 bg-gradient-to-br from-sky-200/45 via-background to-indigo-200/35 shadow-[0_22px_45px_-30px_rgba(59,130,246,0.25)] dark:from-sky-500/8 dark:to-indigo-500/6 dark:shadow-[0_22px_45px_-30px_rgba(59,130,246,0.45)]">
         <CardContent className="p-3 sm:p-4">
           <div className="overflow-hidden rounded-[1.15rem] border border-border/55 bg-gradient-to-br from-slate-100/70 via-background to-sky-100/45 dark:from-slate-900/35 dark:to-sky-950/25">
-            <div className="grid gap-0 lg:grid-cols-[340px_minmax(0,1fr)]">
-              <div className="border-b border-border/55 bg-gradient-to-b from-slate-100/85 via-background/70 to-slate-100/30 p-6 dark:from-slate-800/30 dark:to-slate-900/20 lg:border-b-0 lg:border-r">
+            <div className="grid gap-0 xl:grid-cols-[340px_minmax(0,1fr)]">
+              <div className="border-b border-border/55 bg-gradient-to-b from-slate-100/85 via-background/70 to-slate-100/30 p-6 dark:from-slate-800/30 dark:to-slate-900/20 xl:border-b-0 xl:border-r">
               <div className="flex items-center gap-4">
                 <UserAvatar
                   name={profile.name}
@@ -128,7 +170,7 @@ export function ProfileSettingsForm({ initialProfile }: { initialProfile: Profil
                   className="h-24 w-24 shrink-0 border-2"
                 />
                 <div className="min-w-0">
-                  <p className="text-xl font-semibold leading-tight sm:text-2xl">{profile.name ?? "Student Assistant"}</p>
+                  <p className="text-xl font-semibold leading-tight sm:text-2xl">{profile.name ?? "Timesheet User"}</p>
                   <p
                     className="mt-1 block w-full overflow-hidden text-ellipsis [white-space:nowrap] text-sm leading-snug text-muted-foreground sm:text-base"
                     title={displayEmail}
@@ -209,40 +251,90 @@ export function ProfileSettingsForm({ initialProfile }: { initialProfile: Profil
                   </div>
 
                   <div className="rounded-xl border border-border/70 bg-card/70 p-4">
-                    <div className="mb-3">
-                      <p className="text-sm font-semibold">Regular Shift Schedule</p>
-                      <p className="text-xs text-muted-foreground">
-                        Used by &quot;Apply Regular Shift&quot; in entry form. Configure times per weekday.
-                      </p>
+                    <div className="mb-3 flex flex-wrap items-end justify-between gap-2">
+                      <div>
+                        <p className="text-sm font-semibold">Regular Shift Schedule</p>
+                        <p className="text-xs text-muted-foreground">
+                          Used by &quot;Apply Regular Shift&quot; in entry form. Configure times per weekday.
+                        </p>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => applyScheduleTemplate("typical_office")}
+                        >
+                          Apply M/W/F Template
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => applyScheduleTemplate("empty")}
+                        >
+                          Clear
+                        </Button>
+                      </div>
                     </div>
 
-                    <div className="space-y-2">
-                      {weekdayKeys.map((day) => (
-                        <div key={day} className="grid gap-2 rounded-lg border border-border/60 bg-background/60 p-3 sm:grid-cols-[120px,1fr,1fr,1fr,1fr] sm:items-center">
-                          <label className="inline-flex items-center gap-2 text-sm font-medium">
-                            <input type="checkbox" {...register(`workSchedule.${day}.enabled`)} />
-                            {DAY_LABELS[day]}
-                          </label>
+                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-7">
+                      {weekdayKeys.map((day) => {
+                        const dayConfig = watchedSchedule?.[day];
+                        const active = activeScheduleDay === day;
+                        const statusText = dayConfig?.enabled
+                          ? `${dayConfig.start}-${dayConfig.end}`
+                          : "Off";
+                        return (
+                          <button
+                            key={day}
+                            type="button"
+                            onClick={() => setActiveScheduleDay(day)}
+                            className={`rounded-lg border px-2.5 py-2 text-left transition ${
+                              active
+                                ? "border-primary/45 bg-primary/10 text-foreground"
+                                : "border-border/70 bg-background/60 text-muted-foreground hover:bg-accent/60"
+                            }`}
+                          >
+                            <p className="text-xs font-semibold">{DAY_SHORT_LABELS[day]}</p>
+                            <p className="truncate text-[10px]">{statusText}</p>
+                          </button>
+                        );
+                      })}
+                    </div>
 
-                          <div className="space-y-1">
-                            <Label className="text-[11px] text-muted-foreground">Start</Label>
-                            <Input type="time" {...register(`workSchedule.${day}.start`)} />
-                          </div>
-                          <div className="space-y-1">
-                            <Label className="text-[11px] text-muted-foreground">End</Label>
-                            <Input type="time" {...register(`workSchedule.${day}.end`)} />
-                          </div>
-                          <div className="space-y-1">
-                            <Label className="text-[11px] text-muted-foreground">Break Start</Label>
-                            <Input type="time" {...register(`workSchedule.${day}.breakStart`)} />
-                          </div>
-                          <div className="space-y-1">
-                            <Label className="text-[11px] text-muted-foreground">Break End</Label>
-                            <Input type="time" {...register(`workSchedule.${day}.breakEnd`)} />
-                          </div>
+                    <div className="mt-3 rounded-lg border border-border/60 bg-background/60 p-3">
+                      <div className="mb-3 flex items-center justify-between gap-2">
+                        <p className="text-sm font-medium">{DAY_LABELS[activeScheduleDay]}</p>
+                        <label className="inline-flex items-center gap-2 rounded-md border border-border/70 bg-background px-2 py-1 text-xs">
+                          <input type="checkbox" {...register(`workSchedule.${activeScheduleDay}.enabled`)} />
+                          Enabled
+                        </label>
+                      </div>
+
+                      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+                        <div className="space-y-1">
+                          <Label className="text-[11px] text-muted-foreground">Start</Label>
+                          <Input type="time" {...register(`workSchedule.${activeScheduleDay}.start`)} />
                         </div>
-                      ))}
+                        <div className="space-y-1">
+                          <Label className="text-[11px] text-muted-foreground">End</Label>
+                          <Input type="time" {...register(`workSchedule.${activeScheduleDay}.end`)} />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-[11px] text-muted-foreground">Break Start</Label>
+                          <Input type="time" {...register(`workSchedule.${activeScheduleDay}.breakStart`)} />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-[11px] text-muted-foreground">Break End</Label>
+                          <Input type="time" {...register(`workSchedule.${activeScheduleDay}.breakEnd`)} />
+                        </div>
+                      </div>
                     </div>
+
+                    <p className="mt-2 text-xs text-muted-foreground">
+                      Used by &quot;Apply Regular Shift&quot; in entry form. Configure times per weekday.
+                    </p>
 
                     {errors.workSchedule && (
                       <p className="mt-2 text-xs text-destructive">

@@ -104,7 +104,7 @@ export function TopBar() {
                   className="h-8 w-8 shrink-0 border"
                 />
                 <div className="max-w-[180px]">
-                  <p className="truncate font-medium text-foreground">{data?.user?.name ?? "Student Assistant"}</p>
+                  <p className="truncate font-medium text-foreground">{data?.user?.name ?? "Timesheet User"}</p>
                   <p className="truncate">{safeEmail}</p>
                 </div>
               </Link>
