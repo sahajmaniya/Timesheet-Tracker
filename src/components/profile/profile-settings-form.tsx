@@ -3,9 +3,18 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2, Mail, Sparkles, Upload, User2 } from "lucide-react";
 import { useRef, useState } from "react";
+import { useSession } from "next-auth/react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { UserAvatar } from "@/components/profile/user-avatar";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -21,10 +30,18 @@ type ProfileData = {
 };
 
 export function ProfileSettingsForm({ initialProfile }: { initialProfile: ProfileData }) {
+  const { update } = useSession();
   const [profile, setProfile] = useState<ProfileData>(initialProfile);
   const [uploading, setUploading] = useState(false);
+  const [editingImage, setEditingImage] = useState(false);
+  const [pendingImageUrl, setPendingImageUrl] = useState<string | null>(null);
+  const [pendingImageFileName, setPendingImageFileName] = useState("avatar.jpg");
+  const [avatarZoom, setAvatarZoom] = useState(1);
+  const [avatarOffsetX, setAvatarOffsetX] = useState(0);
+  const [avatarOffsetY, setAvatarOffsetY] = useState(0);
   const [activeScheduleDay, setActiveScheduleDay] = useState<WeekdayKey>("mon");
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const uploadImageRef = useRef<HTMLImageElement | null>(null);
   const displayEmail = profile.email ? profile.email.replace(/\s+/g, "") : "No email";
 
   const {
@@ -99,6 +116,10 @@ export function ProfileSettingsForm({ initialProfile }: { initialProfile: Profil
       ...body.profile,
       workSchedule: body.profile?.workSchedule ?? prev.workSchedule,
     }));
+    await update({
+      name: body.profile?.name ?? values.name,
+      image: body.profile?.image ?? profile.image ?? null,
+    });
     toast.success("Profile updated");
   };
 
@@ -123,6 +144,10 @@ export function ProfileSettingsForm({ initialProfile }: { initialProfile: Profil
         ...body.profile,
         workSchedule: body.profile?.workSchedule ?? prev.workSchedule,
       }));
+      await update({
+        name: body.profile?.name ?? profile.name ?? null,
+        image: body.profile?.image ?? null,
+      });
       toast.success("Profile photo updated");
     } finally {
       setUploading(false);
@@ -146,7 +171,88 @@ export function ProfileSettingsForm({ initialProfile }: { initialProfile: Profil
       ...body.profile,
       workSchedule: body.profile?.workSchedule ?? prev.workSchedule,
     }));
+    await update({
+      name: body.profile?.name ?? profile.name ?? null,
+      image: null,
+    });
     toast.success("Profile photo removed");
+  };
+
+  const closeImageEditor = () => {
+    setEditingImage(false);
+    setAvatarZoom(1);
+    setAvatarOffsetX(0);
+    setAvatarOffsetY(0);
+    if (pendingImageUrl) {
+      URL.revokeObjectURL(pendingImageUrl);
+      setPendingImageUrl(null);
+    }
+  };
+
+  const startImageEditor = (file: File | null) => {
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      toast.error("Please select a valid image file.");
+      return;
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error("Image must be under 2MB.");
+      return;
+    }
+    const objectUrl = URL.createObjectURL(file);
+    setPendingImageUrl(objectUrl);
+    setPendingImageFileName(file.name);
+    setAvatarZoom(1);
+    setAvatarOffsetX(0);
+    setAvatarOffsetY(0);
+    setEditingImage(true);
+  };
+
+  const buildEditedAvatarFile = async () => {
+    const image = uploadImageRef.current;
+    if (!image || !pendingImageUrl) return null;
+
+    const previewSize = 280;
+    const outputSize = 512;
+
+    const naturalWidth = image.naturalWidth || previewSize;
+    const naturalHeight = image.naturalHeight || previewSize;
+    const coverScale = Math.max(previewSize / naturalWidth, previewSize / naturalHeight);
+    const finalScale = coverScale * avatarZoom;
+    const scaleRatio = outputSize / previewSize;
+
+    const canvas = document.createElement("canvas");
+    canvas.width = outputSize;
+    canvas.height = outputSize;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return null;
+
+    ctx.fillStyle = "#0f172a";
+    ctx.fillRect(0, 0, outputSize, outputSize);
+    ctx.translate(
+      outputSize / 2 + avatarOffsetX * scaleRatio,
+      outputSize / 2 + avatarOffsetY * scaleRatio,
+    );
+    ctx.scale(finalScale * scaleRatio, finalScale * scaleRatio);
+    ctx.drawImage(image, -naturalWidth / 2, -naturalHeight / 2, naturalWidth, naturalHeight);
+
+    const blob = await new Promise<Blob | null>((resolve) => {
+      canvas.toBlob((value) => resolve(value), "image/jpeg", 0.92);
+    });
+    if (!blob) return null;
+    return new File([blob], `edited-${pendingImageFileName.replace(/\.[^.]+$/, "")}.jpg`, {
+      type: "image/jpeg",
+    });
+  };
+
+  const applyEditedAvatar = async () => {
+    const editedFile = await buildEditedAvatarFile();
+    if (!editedFile) {
+      toast.error("Could not prepare edited image.");
+      return;
+    }
+    closeImageEditor();
+    await onUploadAvatar(editedFile);
   };
 
   return (
@@ -191,7 +297,7 @@ export function ProfileSettingsForm({ initialProfile }: { initialProfile: Profil
                     type="file"
                     accept="image/*"
                     className="hidden"
-                    onChange={(e) => onUploadAvatar(e.target.files?.[0] ?? null)}
+                    onChange={(e) => startImageEditor(e.target.files?.[0] ?? null)}
                   />
                   <Button
                     type="button"
@@ -354,6 +460,79 @@ export function ProfileSettingsForm({ initialProfile }: { initialProfile: Profil
           </div>
         </CardContent>
       </Card>
+
+      <Dialog open={editingImage} onOpenChange={(open) => (open ? setEditingImage(true) : closeImageEditor())}>
+        <DialogContent className="max-w-lg p-4 sm:p-5">
+          <DialogHeader>
+            <DialogTitle>Edit Profile Photo</DialogTitle>
+            <DialogDescription>Reposition and zoom your image before upload.</DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="mx-auto h-[280px] w-[280px] overflow-hidden rounded-2xl border border-border bg-muted">
+              {pendingImageUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  ref={uploadImageRef}
+                  src={pendingImageUrl}
+                  alt="Avatar preview"
+                  className="h-full w-full select-none object-cover"
+                  style={{
+                    transform: `translate(${avatarOffsetX}px, ${avatarOffsetY}px) scale(${avatarZoom})`,
+                    transformOrigin: "center",
+                  }}
+                  draggable={false}
+                />
+              ) : null}
+            </div>
+
+            <div className="space-y-3">
+              <div>
+                <Label className="text-xs text-muted-foreground">Zoom</Label>
+                <Input
+                  type="range"
+                  min="1"
+                  max="2.6"
+                  step="0.01"
+                  value={avatarZoom}
+                  onChange={(e) => setAvatarZoom(Number(e.target.value))}
+                />
+              </div>
+              <div>
+                <Label className="text-xs text-muted-foreground">Move Left / Right</Label>
+                <Input
+                  type="range"
+                  min="-120"
+                  max="120"
+                  step="1"
+                  value={avatarOffsetX}
+                  onChange={(e) => setAvatarOffsetX(Number(e.target.value))}
+                />
+              </div>
+              <div>
+                <Label className="text-xs text-muted-foreground">Move Up / Down</Label>
+                <Input
+                  type="range"
+                  min="-120"
+                  max="120"
+                  step="1"
+                  value={avatarOffsetY}
+                  onChange={(e) => setAvatarOffsetY(Number(e.target.value))}
+                />
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter className="mt-4">
+            <Button type="button" variant="outline" onClick={closeImageEditor}>
+              Cancel
+            </Button>
+            <Button type="button" onClick={applyEditedAvatar} disabled={uploading}>
+              {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save Photo"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

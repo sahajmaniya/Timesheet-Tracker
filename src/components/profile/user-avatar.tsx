@@ -21,7 +21,7 @@ export function UserAvatar({
   image?: string | null;
   className?: string;
 }) {
-  const [imageError, setImageError] = useState(false);
+  const [failedSource, setFailedSource] = useState<string | null>(null);
   const initials = initialsFromName(name, email);
   const generated = useMemo(
     () =>
@@ -31,7 +31,7 @@ export function UserAvatar({
     [name, email],
   );
   const source = image || generated;
-  const showFallback = !source || imageError;
+  const showFallback = !source || failedSource === source;
 
   return (
     <div
@@ -51,7 +51,7 @@ export function UserAvatar({
           loading="lazy"
           decoding="async"
           referrerPolicy="no-referrer"
-          onError={() => setImageError(true)}
+          onError={() => setFailedSource(source)}
         />
       )}
       {showFallback && (
