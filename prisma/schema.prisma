@@ -16,6 +16,7 @@ model User {
   image            String?
   workScheduleJson Json?
   entries          TimeEntry[]
+  otpChallenges    LoginOtpChallenge[]
 }
 
 model TimeEntry {
@@ -46,4 +47,17 @@ model Break {
   entry       TimeEntry @relation(fields: [timeEntryId], references: [id], onDelete: Cascade)
 
   @@index([timeEntryId])
+}
+
+model LoginOtpChallenge {
+  id         String   @id @default(cuid())
+  userId     String
+  codeHash   String
+  expiresAt  DateTime
+  attempts   Int      @default(0)
+  consumedAt DateTime?
+  createdAt  DateTime @default(now())
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, expiresAt])
 }

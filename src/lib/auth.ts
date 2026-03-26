@@ -1,13 +1,17 @@
 import { compare } from "bcrypt";
+import { isAfter } from "date-fns";
 import type { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import { getServerSession } from "next-auth";
 import { z } from "zod";
+import { hashOtpCode, OTP_MAX_ATTEMPTS } from "@/lib/otp";
 import { prisma } from "@/lib/prisma";
 
 const credentialsSchema = z.object({
   email: z.string().trim().toLowerCase().email(),
   password: z.string().min(8),
+  otp: z.string().regex(/^\d{6}$/),
+  challengeId: z.string().min(1),
 });
 
 export const authOptions: NextAuthOptions = {
@@ -21,6 +25,8 @@ export const authOptions: NextAuthOptions = {
       credentials: {
         email: { label: "Email", type: "email" },
         password: { label: "Password", type: "password" },
+        otp: { label: "OTP", type: "text" },
+        challengeId: { label: "Challenge Id", type: "text" },
       },
       async authorize(credentials) {
         const parsed = credentialsSchema.safeParse(credentials);
@@ -36,10 +42,39 @@ export const authOptions: NextAuthOptions = {
         const passwordOk = await compare(parsed.data.password, user.password);
         if (!passwordOk) return null;
 
+        const challenge = await prisma.loginOtpChallenge.findFirst({
+          where: {
+            id: parsed.data.challengeId,
+            userId: user.id,
+            consumedAt: null,
+          },
+        });
+
+        if (!challenge) return null;
+        if (isAfter(new Date(), challenge.expiresAt)) return null;
+        if (challenge.attempts >= OTP_MAX_ATTEMPTS) return null;
+
+        const codeHash = hashOtpCode({
+          email: user.email,
+          code: parsed.data.otp,
+        });
+
+        if (codeHash !== challenge.codeHash) {
+          await prisma.loginOtpChallenge.update({
+            where: { id: challenge.id },
+            data: { attempts: { increment: 1 } },
+          });
+          return null;
+        }
+
+        await prisma.loginOtpChallenge.update({
+          where: { id: challenge.id },
+          data: { consumedAt: new Date() },
+        });
+
         return {
           id: user.id,
           name: user.name,
-          image: user.image,
           email: user.email,
         };
       },

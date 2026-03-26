@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
 import { LayoutDashboard, ListChecks, Settings2 } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -20,7 +20,6 @@ const navItems = [
 
 export function TopBar() {
   const pathname = usePathname();
-  const router = useRouter();
   const { data } = useSession();
   const [scrolled, setScrolled] = useState(false);
   const safeEmail = data?.user?.email ? data.user.email.replace(/\s+/g, "") : "";
@@ -33,10 +32,8 @@ export function TopBar() {
   }, []);
 
   const doSignOut = async () => {
-    await signOut({ redirect: false });
     toast.success("Signed out");
-    router.push("/auth/signin");
-    router.refresh();
+    await signOut({ callbackUrl: "/dashboard" });
   };
 
   return (

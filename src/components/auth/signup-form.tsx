@@ -4,7 +4,6 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2, UserPlus } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { signIn } from "next-auth/react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { signupSchema } from "@/lib/validators";
@@ -43,29 +42,15 @@ export function SignUpForm() {
       return;
     }
 
-    const loginResult = await signIn("credentials", {
-      email: values.email,
-      password: values.password,
-      redirect: false,
-      callbackUrl: "/dashboard",
-    });
-
-    if (loginResult?.error) {
-      toast.success("Account created. Please sign in.");
-      router.push("/auth/signin");
-      return;
-    }
-
-    toast.success("Account created");
-    router.push("/dashboard");
-    router.refresh();
+    toast.success("Account created. Please sign in and verify OTP.");
+    router.push(`/auth/signin?email=${encodeURIComponent(values.email)}`);
   };
 
   return (
     <Card className="w-full max-w-md border-0 bg-background/90 shadow-xl backdrop-blur">
       <CardHeader className="space-y-2">
         <div className="inline-flex w-fit items-center rounded-full border bg-muted/40 px-3 py-1 text-xs text-muted-foreground">
-          New Assistant Account
+          New Account
         </div>
         <CardTitle className="text-2xl">Create account</CardTitle>
         <CardDescription>Set up your profile and start logging shifts in minutes.</CardDescription>
