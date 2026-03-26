@@ -2,6 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Coffee, Clock3, Minus, Plus, Sparkles, Trash2 } from "lucide-react";
+import { useEffect } from "react";
 import { useFieldArray, useForm, useWatch } from "react-hook-form";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -38,6 +39,7 @@ export function TimeEntryForm({
     control,
     setValue,
     handleSubmit,
+    reset,
     formState: { errors },
   } = useForm<TimeEntryInput>({
     resolver: zodResolver(timeEntrySchema),
@@ -53,6 +55,36 @@ export function TimeEntryForm({
 
   const breakMinutes = calcBreakMinutes(breaks);
   const workedMinutes = calcWorkedMinutes({ punchIn, punchOut, breaks });
+  const allValues = useWatch({ control });
+
+  useEffect(() => {
+    if (initialValues) return;
+
+    try {
+      const raw = window.localStorage.getItem("time_entry_draft");
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as TimeEntryInput;
+      if (!parsed || !parsed.date || !parsed.punchIn || !parsed.punchOut) return;
+      reset(parsed);
+    } catch {
+      // ignore bad local draft
+    }
+  }, [initialValues, reset]);
+
+  useEffect(() => {
+    if (initialValues) return;
+    if (!allValues?.date || !allValues?.punchIn || !allValues?.punchOut) return;
+
+    const id = window.setTimeout(() => {
+      try {
+        window.localStorage.setItem("time_entry_draft", JSON.stringify(allValues));
+      } catch {
+        // ignore storage issues
+      }
+    }, 250);
+
+    return () => window.clearTimeout(id);
+  }, [allValues, initialValues]);
 
   const setPreset = (start: string, end: string) => {
     setValue("punchIn", start, { shouldValidate: true });

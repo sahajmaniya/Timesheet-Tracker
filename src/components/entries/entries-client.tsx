@@ -29,6 +29,7 @@ export function EntriesClient() {
   const [fillingPdf, setFillingPdf] = useState(false);
   const [deletingMonth, setDeletingMonth] = useState(false);
   const [showWalkthrough, setShowWalkthrough] = useState(false);
+  const [previewPdfBeforeDownload, setPreviewPdfBeforeDownload] = useState(true);
   const [recentActions, setRecentActions] = useState<{ id: number; label: string; at: string }[]>([]);
 
   const addRecentAction = useCallback((label: string) => {
@@ -67,6 +68,8 @@ export function EntriesClient() {
     try {
       const dismissed = window.localStorage.getItem("entries_walkthrough_dismissed");
       setShowWalkthrough(dismissed !== "true");
+      const previewPref = window.localStorage.getItem("entries_preview_pdf_before_download");
+      if (previewPref === "false") setPreviewPdfBeforeDownload(false);
     } catch {
       setShowWalkthrough(true);
     }
@@ -180,10 +183,10 @@ export function EntriesClient() {
     await fetchEntries();
   };
 
-  const onExportCsv = () => {
+  const onExportCsv = useCallback(() => {
     window.open(`/api/entries/export?month=${month}`, "_blank");
     addRecentAction(`Exported CSV (${month})`);
-  };
+  }, [addRecentAction, month]);
 
   const onImportWorkbook = async () => {
     if (!importFile) {
@@ -219,7 +222,7 @@ export function EntriesClient() {
     }
   };
 
-  const onFillTimesheetPdf = async (layoutOverride?: "auto" | "standard" | "carry") => {
+  const onFillTimesheetPdf = useCallback(async (layoutOverride?: "auto" | "standard" | "carry") => {
     if (!timesheetTemplateFile) {
       toast.error("Select a blank timesheet PDF first.");
       return;
@@ -250,14 +253,26 @@ export function EntriesClient() {
       a.href = url;
       const contentDisposition = res.headers.get("content-disposition");
       const filenameFromHeader = getFilenameFromContentDisposition(contentDisposition);
-      a.download =
+      const filename =
         filenameFromHeader ||
         buildDownloadFilename({
           kind: "timesheet_filled_pdf",
           month,
           extension: "pdf",
         });
-      a.click();
+      a.download = filename;
+
+      if (previewPdfBeforeDownload) {
+        window.open(url, "_blank", "noopener,noreferrer");
+        const shouldDownload = window.confirm("Preview opened in a new tab. Download this PDF now?");
+        if (shouldDownload) {
+          a.click();
+        } else {
+          toast.message("Preview opened. You can download after checking alignment.");
+        }
+      } else {
+        a.click();
+      }
       URL.revokeObjectURL(url);
       toast.success(
         selectedLayoutMode === "auto"
@@ -268,7 +283,40 @@ export function EntriesClient() {
     } finally {
       setFillingPdf(false);
     }
-  };
+  }, [addRecentAction, month, previewPdfBeforeDownload, timesheetLayoutMode, timesheetTemplateFile]);
+
+  useEffect(() => {
+    const onKeydown = (event: KeyboardEvent) => {
+      if (event.defaultPrevented) return;
+      if (event.ctrlKey || event.metaKey || event.altKey) return;
+
+      const target = event.target as HTMLElement | null;
+      if (!target) return;
+      const tag = target.tagName.toLowerCase();
+      if (tag === "input" || tag === "textarea" || tag === "select" || target.isContentEditable) return;
+
+      const key = event.key.toLowerCase();
+      if (key === "n") {
+        event.preventDefault();
+        setSelectedEntry(null);
+        setOpen(true);
+      } else if (key === "e") {
+        event.preventDefault();
+        onExportCsv();
+      } else if (key === "p") {
+        event.preventDefault();
+        if (timesheetTemplateFile) {
+          void onFillTimesheetPdf("auto");
+        } else {
+          document.getElementById("entries-pdf-section")?.scrollIntoView({ behavior: "smooth", block: "start" });
+          toast.message("Upload a blank PDF first, then press P again.");
+        }
+      }
+    };
+
+    window.addEventListener("keydown", onKeydown);
+    return () => window.removeEventListener("keydown", onKeydown);
+  }, [onExportCsv, onFillTimesheetPdf, timesheetTemplateFile]);
 
   const onDeleteMonth = async () => {
     if (entries.length === 0) {
@@ -578,6 +626,25 @@ export function EntriesClient() {
                 <p className="text-[11px] text-slate-500 dark:text-slate-400">
                   Default layout mode: <span className="font-semibold capitalize">{timesheetLayoutMode}</span>
                 </p>
+                <label className="flex items-center gap-2 text-xs text-slate-600 dark:text-slate-300/80">
+                  <input
+                    type="checkbox"
+                    checked={previewPdfBeforeDownload}
+                    onChange={(e) => {
+                      const enabled = e.target.checked;
+                      setPreviewPdfBeforeDownload(enabled);
+                      try {
+                        window.localStorage.setItem(
+                          "entries_preview_pdf_before_download",
+                          enabled ? "true" : "false",
+                        );
+                      } catch {
+                        // ignore storage issues
+                      }
+                    }}
+                  />
+                  Preview PDF before download
+                </label>
               </div>
 
               <div className="flex w-full flex-wrap items-center gap-2 md:w-auto md:justify-end">
@@ -592,6 +659,9 @@ export function EntriesClient() {
                 Having alignment issues? Use advanced layout options
               </summary>
               <div className="mt-3 space-y-2">
+                <p className="text-slate-600 dark:text-slate-300/80">
+                  Shortcuts: <span className="font-semibold">N</span> new entry, <span className="font-semibold">E</span> export CSV, <span className="font-semibold">P</span> fill PDF
+                </p>
                 <p className="text-slate-600 dark:text-slate-300/80">
                   If values appear one week above or below, retry using one of these:
                 </p>

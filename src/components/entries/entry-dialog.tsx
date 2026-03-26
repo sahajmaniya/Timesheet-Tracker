@@ -58,6 +58,13 @@ export function EntryDialog({
       }
 
       toast.success(entry ? "Entry updated" : "Entry created");
+      if (!entry) {
+        try {
+          window.localStorage.removeItem("time_entry_draft");
+        } catch {
+          // ignore storage issues
+        }
+      }
       onOpenChange(false);
       await onSaved();
     } finally {
