@@ -533,16 +533,16 @@ export function EntriesClient() {
       </div>
 
       <Card className="border-border/65 bg-gradient-to-br from-sky-200/45 via-background to-indigo-200/35 shadow-[0_22px_45px_-30px_rgba(59,130,246,0.25)] dark:from-sky-500/8 dark:to-indigo-500/6 dark:shadow-[0_22px_45px_-30px_rgba(59,130,246,0.45)]">
-        <CardHeader>
+        <CardHeader className="space-y-3 pb-4">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <CardTitle className="bg-gradient-to-r from-slate-800 via-sky-700 to-indigo-700 bg-clip-text text-transparent dark:from-slate-100 dark:via-sky-100 dark:to-indigo-100">Entries</CardTitle>
               <CardDescription className="text-slate-600 dark:text-slate-300/75">Faster monthly logging and edits.</CardDescription>
             </div>
-            <div className="flex w-full flex-wrap gap-2 sm:w-auto">
+            <div className="grid w-full grid-cols-1 gap-2 sm:flex sm:w-auto sm:flex-wrap">
               <Button
                 variant="outline"
-                className="flex-1 sm:flex-none"
+                className="w-full sm:w-auto"
                 onClick={onExportCsv}
               >
                 <Download className="mr-2 h-4 w-4" />
@@ -550,7 +550,7 @@ export function EntriesClient() {
               </Button>
               <Button
                 variant="outline"
-                className="flex-1 border-red-500/35 text-red-700 hover:bg-red-500/10 hover:text-red-800 dark:text-red-200 dark:hover:bg-red-500/15 dark:hover:text-red-100 sm:flex-none"
+                className="w-full border-red-500/35 text-red-700 hover:bg-red-500/10 hover:text-red-800 dark:text-red-200 dark:hover:bg-red-500/15 dark:hover:text-red-100 sm:w-auto"
                 onClick={onDeleteMonth}
                 disabled={deletingMonth || entries.length === 0}
               >
@@ -558,7 +558,7 @@ export function EntriesClient() {
                 {deletingMonth ? "Deleting..." : "Delete Month"}
               </Button>
               <Button
-                className="flex-1 sm:flex-none"
+                className="w-full sm:w-auto"
                 onClick={() => {
                   setSelectedEntry(null);
                   setOpen(true);
@@ -571,12 +571,12 @@ export function EntriesClient() {
           </div>
         </CardHeader>
 
-        <CardContent>
+        <CardContent className="space-y-4 pt-0">
           <div
             id="entries-import-section"
-            className="mb-5 rounded-xl border border-dashed border-cyan-500/25 bg-gradient-to-r from-cyan-100/65 via-background/80 to-sky-100/60 p-4 dark:border-cyan-300/20 dark:from-cyan-500/10 dark:via-background/70 dark:to-sky-500/10"
+            className="rounded-xl border border-dashed border-cyan-500/25 bg-gradient-to-r from-cyan-100/65 via-background/80 to-sky-100/60 p-3 sm:p-4 dark:border-cyan-300/20 dark:from-cyan-500/10 dark:via-background/70 dark:to-sky-500/10"
           >
-            <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+            <div className="flex flex-col gap-2.5 md:flex-row md:items-end md:justify-between">
               <div className="space-y-1">
                 <p className="text-sm font-semibold text-cyan-800 dark:text-cyan-100">Import Previous Months (.xlsx)</p>
                 <p className="text-xs text-slate-600 dark:text-slate-300/80">
@@ -586,20 +586,20 @@ export function EntriesClient() {
                   type="file"
                   accept=".xlsx,.xls"
                   onChange={(e) => setImportFile(e.target.files?.[0] ?? null)}
-                  className="w-full max-w-sm text-sm"
+                  className="w-full max-w-sm text-sm file:mr-3 file:rounded-md file:border file:border-cyan-500/35 file:bg-cyan-500/10 file:px-2.5 file:py-1.5 file:text-xs file:font-medium file:text-cyan-900 hover:file:bg-cyan-500/15 dark:file:border-cyan-300/30 dark:file:text-cyan-100"
                 />
               </div>
 
-              <div className="flex w-full flex-wrap items-center gap-2 md:w-auto md:justify-end">
+              <div className="grid w-full grid-cols-1 gap-2 sm:grid-cols-2 md:flex md:w-auto md:items-center md:justify-end">
                 <select
                   value={importMode}
                   onChange={(e) => setImportMode(e.target.value === "skip" ? "skip" : "overwrite")}
-                  className="h-10 min-w-0 flex-1 rounded-md border border-cyan-500/30 bg-background/90 px-3 text-sm md:w-56 md:flex-none dark:border-cyan-300/25 dark:bg-background/80"
+                  className="h-10 min-w-0 rounded-md border border-cyan-500/30 bg-background/90 px-3 text-sm md:w-56 dark:border-cyan-300/25 dark:bg-background/80"
                 >
                   <option value="overwrite">Overwrite existing dates</option>
                   <option value="skip">Skip existing dates</option>
                 </select>
-                <Button className="flex-1 md:flex-none" onClick={onImportWorkbook} disabled={importing}>
+                <Button className="w-full md:w-auto" onClick={onImportWorkbook} disabled={importing}>
                   <FileUp className="mr-2 h-4 w-4" />
                   {importing ? "Importing..." : "Import Excel"}
                 </Button>
@@ -609,9 +609,9 @@ export function EntriesClient() {
 
           <div
             id="entries-pdf-section"
-            className="mb-5 rounded-xl border border-dashed border-indigo-500/25 bg-gradient-to-r from-indigo-100/65 via-background/80 to-blue-100/60 p-4 dark:border-indigo-300/20 dark:from-indigo-500/10 dark:via-background/70 dark:to-blue-500/10"
+            className="rounded-xl border border-dashed border-indigo-500/25 bg-gradient-to-r from-indigo-100/65 via-background/80 to-blue-100/60 p-3 sm:p-4 dark:border-indigo-300/20 dark:from-indigo-500/10 dark:via-background/70 dark:to-blue-500/10"
           >
-            <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+            <div className="flex flex-col gap-2.5 md:flex-row md:items-end md:justify-between">
               <div className="space-y-1">
                 <p className="text-sm font-semibold text-indigo-800 dark:text-indigo-100">Auto-Fill Monthly Timesheet PDF</p>
                 <p className="text-xs text-slate-600 dark:text-slate-300/80">
@@ -621,7 +621,7 @@ export function EntriesClient() {
                   type="file"
                   accept=".pdf,application/pdf"
                   onChange={(e) => setTimesheetTemplateFile(e.target.files?.[0] ?? null)}
-                  className="w-full max-w-sm text-sm"
+                  className="w-full max-w-sm text-sm file:mr-3 file:rounded-md file:border file:border-indigo-500/35 file:bg-indigo-500/10 file:px-2.5 file:py-1.5 file:text-xs file:font-medium file:text-indigo-900 hover:file:bg-indigo-500/15 dark:file:border-indigo-300/30 dark:file:text-indigo-100"
                 />
                 <p className="text-[11px] text-slate-500 dark:text-slate-400">
                   Default layout mode: <span className="font-semibold capitalize">{timesheetLayoutMode}</span>
@@ -647,8 +647,8 @@ export function EntriesClient() {
                 </label>
               </div>
 
-              <div className="flex w-full flex-wrap items-center gap-2 md:w-auto md:justify-end">
-                <Button className="flex-1 md:flex-none" onClick={() => onFillTimesheetPdf("auto")} disabled={fillingPdf}>
+              <div className="grid w-full grid-cols-1 gap-2 md:flex md:w-auto md:items-center md:justify-end">
+                <Button className="w-full md:w-auto" onClick={() => onFillTimesheetPdf("auto")} disabled={fillingPdf}>
                   <Download className="mr-2 h-4 w-4" />
                   {fillingPdf ? "Filling..." : "Auto Fill & Download"}
                 </Button>
