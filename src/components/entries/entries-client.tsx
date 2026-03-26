@@ -1,8 +1,8 @@
 "use client";
 
-import { format } from "date-fns";
+import { eachDayOfInterval, endOfMonth, format, getDay, isAfter, startOfMonth } from "date-fns";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Download, FileUp, Plus, Sparkles, Trash2 } from "lucide-react";
+import { AlertTriangle, Download, FileUp, History, Plus, Sparkles, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { EntryDialog } from "@/components/entries/entry-dialog";
 import { EntriesTable } from "@/components/entries/entries-table";
@@ -29,6 +29,14 @@ export function EntriesClient() {
   const [fillingPdf, setFillingPdf] = useState(false);
   const [deletingMonth, setDeletingMonth] = useState(false);
   const [showWalkthrough, setShowWalkthrough] = useState(false);
+  const [recentActions, setRecentActions] = useState<{ id: number; label: string; at: string }[]>([]);
+
+  const addRecentAction = useCallback((label: string) => {
+    setRecentActions((prev) => [
+      { id: Date.now() + Math.floor(Math.random() * 1000), label, at: format(new Date(), "MMM d, h:mm a") },
+      ...prev.slice(0, 5),
+    ]);
+  }, []);
 
   const fetchEntries = useCallback(async (signal?: AbortSignal) => {
     setLoading(true);
@@ -105,6 +113,40 @@ export function EntriesClient() {
     return { total, avg, totalDecimal, avgDecimal };
   }, [entries]);
 
+  const scheduleStats = useMemo(() => {
+    const monthDate = new Date(`${month}-01T00:00:00`);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const isCurrentMonth = format(today, "yyyy-MM") === month;
+    const loggedDates = new Set(entries.map((entry) => entry.date));
+
+    const expectedDates = eachDayOfInterval({
+      start: startOfMonth(monthDate),
+      end: endOfMonth(monthDate),
+    })
+      .filter((day) => {
+        const weekday = getDay(day);
+        const isWorkday = weekday === 1 || weekday === 3 || weekday === 5;
+        if (!isWorkday) return false;
+        if (!isCurrentMonth) return true;
+        return !isAfter(day, today);
+      })
+      .map((day) => format(day, "yyyy-MM-dd"));
+
+    const loggedExpected = expectedDates.filter((date) => loggedDates.has(date)).length;
+    const missing = expectedDates.filter((date) => !loggedDates.has(date));
+    const progress = expectedDates.length
+      ? Math.min(100, Math.round((loggedExpected / expectedDates.length) * 100))
+      : 100;
+
+    return {
+      expectedCount: expectedDates.length,
+      loggedExpected,
+      missing,
+      progress,
+    };
+  }, [entries, month]);
+
   const onDelete = async (entry: TimeEntry) => {
     const ok = window.confirm(`Delete entry for ${entry.date}?`);
     if (!ok) return;
@@ -126,6 +168,7 @@ export function EntriesClient() {
               await restoreEntry(entry);
               await fetchEntries();
               toast.success("Entry restored.");
+              addRecentAction(`Restored deleted entry (${entry.date})`);
             } catch (error) {
               toast.error(error instanceof Error ? error.message : "Could not restore entry.");
             }
@@ -133,7 +176,13 @@ export function EntriesClient() {
         },
       },
     });
+    addRecentAction(`Deleted entry (${entry.date})`);
     await fetchEntries();
+  };
+
+  const onExportCsv = () => {
+    window.open(`/api/entries/export?month=${month}`, "_blank");
+    addRecentAction(`Exported CSV (${month})`);
   };
 
   const onImportWorkbook = async () => {
@@ -162,6 +211,7 @@ export function EntriesClient() {
       toast.success(
         `Import complete: ${summary.created} created, ${summary.updated} updated, ${summary.skipped} skipped`,
       );
+      addRecentAction(`Imported Excel (${summary.created} new, ${summary.updated} updated)`);
       setImportFile(null);
       await fetchEntries();
     } finally {
@@ -214,6 +264,7 @@ export function EntriesClient() {
           ? "Filled timesheet PDF downloaded."
           : `Filled timesheet PDF downloaded (${selectedLayoutMode} layout).`,
       );
+      addRecentAction(`Generated filled PDF (${month}, ${selectedLayoutMode})`);
     } finally {
       setFillingPdf(false);
     }
@@ -253,6 +304,7 @@ export function EntriesClient() {
                 }
                 await fetchEntries();
                 toast.success(`Restored ${restored} entries.`);
+                addRecentAction(`Restored ${restored} deleted entries (${month})`);
               } catch (error) {
                 toast.error(error instanceof Error ? error.message : "Could not restore all entries.");
               }
@@ -260,6 +312,7 @@ export function EntriesClient() {
           },
         },
       });
+      addRecentAction(`Deleted month entries (${month})`);
       await fetchEntries();
     } finally {
       setDeletingMonth(false);
@@ -313,7 +366,7 @@ export function EntriesClient() {
         </Card>
       )}
 
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <Card className="relative overflow-hidden border-border/70 bg-gradient-to-br from-sky-200/70 via-background to-cyan-200/60 shadow-[0_18px_40px_-24px_rgba(34,211,238,0.35)] dark:from-sky-500/15 dark:to-cyan-500/10 dark:shadow-[0_18px_40px_-24px_rgba(34,211,238,0.55)]">
           <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_16%_22%,rgba(56,189,248,0.2),transparent_52%)]" />
           <CardHeader className="relative pb-2">
@@ -350,6 +403,85 @@ export function EntriesClient() {
             </div>
           </CardHeader>
         </Card>
+
+        <Card className="relative overflow-hidden border-border/70 bg-gradient-to-br from-amber-200/60 via-background to-lime-100/65 shadow-[0_18px_40px_-24px_rgba(132,204,22,0.28)] dark:from-amber-500/12 dark:to-lime-500/10 dark:shadow-[0_18px_40px_-24px_rgba(132,204,22,0.45)]">
+          <CardHeader className="relative pb-2">
+            <CardDescription className="font-medium text-amber-700 dark:text-amber-100/80">Schedule progress</CardDescription>
+            <CardTitle className="text-2xl font-bold tracking-tight text-amber-900 dark:text-amber-100">
+              {scheduleStats.loggedExpected}/{scheduleStats.expectedCount}
+            </CardTitle>
+            <div className="mt-1 h-2 overflow-hidden rounded-full bg-amber-200/70 dark:bg-amber-200/15">
+              <div
+                className="h-full rounded-full bg-gradient-to-r from-amber-500 to-lime-500 transition-all"
+                style={{ width: `${scheduleStats.progress}%` }}
+              />
+            </div>
+            <p className="pt-1 text-xs font-medium text-amber-700/80 dark:text-amber-100/75">
+              {scheduleStats.progress}% of expected Mon/Wed/Fri shifts logged
+            </p>
+          </CardHeader>
+        </Card>
+      </div>
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        <Card className="border-border/65 bg-gradient-to-br from-amber-100/70 via-background to-orange-100/60 dark:from-amber-500/8 dark:to-orange-500/8">
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <AlertTriangle className="h-4 w-4 text-amber-500" />
+              Missing Shift Check
+            </CardTitle>
+            <CardDescription>
+              Based on your usual Mon/Wed/Fri schedule for the selected month.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="pt-0 text-sm">
+            {scheduleStats.missing.length === 0 ? (
+              <p className="text-emerald-700 dark:text-emerald-300">All expected shifts are logged. Nice work.</p>
+            ) : (
+              <div className="space-y-2">
+                <p className="text-amber-800 dark:text-amber-200">
+                  {scheduleStats.missing.length} expected shift(s) missing.
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {scheduleStats.missing.slice(0, 6).map((date) => (
+                    <span key={date} className="rounded-full border border-amber-400/40 bg-amber-50 px-2 py-0.5 text-xs text-amber-800 dark:bg-amber-500/10 dark:text-amber-200">
+                      {format(new Date(`${date}T00:00:00`), "MMM d (EEE)")}
+                    </span>
+                  ))}
+                  {scheduleStats.missing.length > 6 && (
+                    <span className="rounded-full border border-border px-2 py-0.5 text-xs text-muted-foreground">
+                      +{scheduleStats.missing.length - 6} more
+                    </span>
+                  )}
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card className="border-border/65 bg-gradient-to-br from-slate-100/70 via-background to-blue-100/60 dark:from-slate-500/8 dark:to-blue-500/8">
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <History className="h-4 w-4 text-blue-500" />
+              Recent Activity
+            </CardTitle>
+            <CardDescription>Your latest import, export, PDF, and restore actions.</CardDescription>
+          </CardHeader>
+          <CardContent className="pt-0 text-sm">
+            {recentActions.length === 0 ? (
+              <p className="text-muted-foreground">No recent actions yet.</p>
+            ) : (
+              <div className="space-y-2">
+                {recentActions.map((item) => (
+                  <div key={item.id} className="rounded-lg border border-border/70 bg-card/70 px-3 py-2">
+                    <p className="font-medium">{item.label}</p>
+                    <p className="text-xs text-muted-foreground">{item.at}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </div>
 
       <Card className="border-border/65 bg-gradient-to-br from-sky-200/45 via-background to-indigo-200/35 shadow-[0_22px_45px_-30px_rgba(59,130,246,0.25)] dark:from-sky-500/8 dark:to-indigo-500/6 dark:shadow-[0_22px_45px_-30px_rgba(59,130,246,0.45)]">
@@ -363,9 +495,7 @@ export function EntriesClient() {
               <Button
                 variant="outline"
                 className="flex-1 sm:flex-none"
-                onClick={() => {
-                  window.open(`/api/entries/export?month=${month}`, "_blank");
-                }}
+                onClick={onExportCsv}
               >
                 <Download className="mr-2 h-4 w-4" />
                 Export CSV
@@ -510,8 +640,34 @@ export function EntriesClient() {
           {loading ? (
             <p className="text-sm text-muted-foreground">Loading entries...</p>
           ) : entries.length === 0 ? (
-            <div className="rounded-xl border border-dashed p-10 text-center text-sm text-muted-foreground">
-              No entries for this month yet.
+            <div className="rounded-xl border border-dashed p-8 text-center text-sm text-muted-foreground">
+              <p>No entries for this month yet.</p>
+              <div className="mt-4 flex flex-wrap justify-center gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    setSelectedEntry(null);
+                    setOpen(true);
+                  }}
+                >
+                  <Plus className="mr-2 h-4 w-4" />
+                  Add First Entry
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    document.getElementById("entries-import-section")?.scrollIntoView({
+                      behavior: "smooth",
+                      block: "start",
+                    });
+                  }}
+                >
+                  <FileUp className="mr-2 h-4 w-4" />
+                  Import Excel
+                </Button>
+              </div>
             </div>
           ) : (
             <Tabs defaultValue="table">
