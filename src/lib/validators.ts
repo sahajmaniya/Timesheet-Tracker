@@ -104,4 +104,3 @@ export const profileUpdateSchema = z.object({
 export type TimeEntryInput = z.infer<typeof timeEntrySchema>;
 export type SignupInput = z.infer<typeof signupSchema>;
 export type ProfileUpdateInput = z.infer<typeof profileUpdateSchema>;
-export type WorkScheduleInput = z.infer<typeof workScheduleSchema>;
