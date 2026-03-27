@@ -12,9 +12,6 @@ export const metadata: Metadata = {
   description: siteConfig.description,
   applicationName: "PunchPilot",
   keywords: [...siteConfig.keywords],
-  alternates: {
-    canonical: "/",
-  },
   openGraph: {
     type: "website",
     url: siteConfig.url,
