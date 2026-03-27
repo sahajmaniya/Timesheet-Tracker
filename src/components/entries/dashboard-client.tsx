@@ -20,6 +20,10 @@ export function DashboardClient() {
   const [selectedEntry, setSelectedEntry] = useState<TimeEntry | null>(null);
 
   const today = format(new Date(), "yyyy-MM-dd");
+  const exportMonthLabel = useMemo(() => {
+    const parsed = new Date(`${month}-01T00:00:00`);
+    return Number.isNaN(parsed.getTime()) ? month : format(parsed, "MMM yyyy");
+  }, [month]);
 
   const fetchEntries = useCallback(async (signal?: AbortSignal) => {
     setLoading(true);
@@ -86,23 +90,27 @@ export function DashboardClient() {
             <p className="mt-2 text-sm text-muted-foreground">Keep your shift updated in a few taps.</p>
           </div>
 
-          <div className="flex w-full flex-wrap gap-2 sm:w-auto">
+          <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto">
             <Button
               variant="outline"
-              className="flex-1 sm:flex-none"
+              className="h-12 w-full whitespace-nowrap px-3 sm:w-auto sm:px-4"
               onClick={() => window.open(`/api/entries/export?month=${month}`, "_blank")}
             >
-              <Download className="mr-2 h-4 w-4" />
-              Export {month}
+              <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center">
+                <Download className="h-4 w-4 shrink-0" />
+              </span>
+              Export {exportMonthLabel}
             </Button>
             <Button
-              className="flex-1 sm:flex-none"
+              className="h-12 w-full whitespace-nowrap px-3 sm:w-auto sm:px-4"
               onClick={() => {
                 setSelectedEntry(todayEntry);
                 setOpen(true);
               }}
             >
-              {todayEntry ? <Pencil className="mr-2 h-4 w-4" /> : <Plus className="mr-2 h-4 w-4" />}
+              <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center">
+                {todayEntry ? <Pencil className="h-4 w-4 shrink-0" /> : <Plus className="h-4 w-4 shrink-0" />}
+              </span>
               {todayEntry ? "Edit Today" : "Log Today"}
             </Button>
           </div>

@@ -16,7 +16,7 @@ export default async function ProtectedLayout({
   return (
     <div className="min-h-screen bg-gradient-to-b from-muted/30 via-background to-muted/20">
       <TopBar />
-      <main className="mx-auto w-full max-w-6xl px-3 py-6 sm:px-4 md:px-6">{children}</main>
+      <main className="mx-auto w-full max-w-6xl px-2 py-4 sm:px-4 sm:py-6 md:px-6">{children}</main>
     </div>
   );
 }

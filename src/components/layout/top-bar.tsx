@@ -46,10 +46,10 @@ export function TopBar() {
             : "border-b border-transparent bg-transparent",
         )}
       >
-        <div className="mx-auto w-full max-w-6xl px-3 py-2.5 md:px-6 md:py-3">
-          <div className="rounded-2xl border border-border/60 bg-gradient-to-r from-sky-200/40 via-background/95 to-indigo-200/30 px-3 py-2 shadow-[0_16px_35px_-24px_rgba(59,130,246,0.45)] dark:from-sky-500/10 dark:to-indigo-500/10">
-          <div className="flex items-center justify-between gap-2">
-            <Link href="/dashboard" className="group flex items-center gap-2.5 text-sm font-semibold tracking-wide">
+        <div className="mx-auto w-full max-w-6xl px-2 py-2 sm:px-4 sm:py-2.5 md:px-6 md:py-3">
+          <div className="rounded-2xl border border-border/60 bg-gradient-to-r from-sky-200/40 via-background/95 to-indigo-200/30 px-2.5 py-2 shadow-[0_16px_35px_-24px_rgba(59,130,246,0.45)] sm:px-3 dark:from-sky-500/10 dark:to-indigo-500/10">
+          <div className="flex items-center justify-between gap-1.5 sm:gap-2">
+            <Link href="/dashboard" className="group flex min-w-0 items-center gap-2 text-sm font-semibold tracking-wide sm:gap-2.5">
               <span className="rounded-xl border border-primary/30 bg-primary/15 p-1 text-primary transition-transform duration-200 group-hover:scale-105">
                 <Image
                   src="/punchpilot-logo.svg"
@@ -60,13 +60,13 @@ export function TopBar() {
                   priority
                 />
               </span>
-              <div className="leading-tight">
-                <p className="text-sm font-bold text-foreground">PunchPilot</p>
-                <p className="hidden text-[11px] text-muted-foreground sm:block">Timesheet workspace</p>
+              <div className="min-w-0 leading-tight">
+                <p className="truncate text-sm font-bold text-foreground">PunchPilot</p>
+                <p className="hidden text-[11px] text-muted-foreground lg:block">Timesheet workspace</p>
               </div>
             </Link>
 
-            <nav className="hidden items-center gap-1 rounded-xl border border-border/65 bg-background/75 p-1 md:flex">
+            <nav className="hidden items-center gap-1 rounded-xl border border-border/65 bg-background/75 p-1 lg:flex">
               {navItems.map((item) => {
                 const Icon = item.icon;
                 const active = pathname.startsWith(item.href);
@@ -88,11 +88,11 @@ export function TopBar() {
               })}
             </nav>
 
-            <div className="flex items-center gap-1.5 sm:gap-2">
+            <div className="flex items-center gap-1 sm:gap-2">
               <ThemeToggle />
               <Link
                 href="/settings"
-                className="hidden items-center gap-2 rounded-xl border border-border/70 bg-background/75 px-2 py-1.5 text-left text-xs text-muted-foreground transition-all hover:-translate-y-0.5 hover:bg-accent/45 hover:shadow-sm sm:flex"
+                className="hidden items-center gap-2 rounded-xl border border-border/70 bg-background/75 px-2 py-1.5 text-left text-xs text-muted-foreground transition-all hover:-translate-y-0.5 hover:bg-accent/45 hover:shadow-sm xl:flex"
               >
                 <UserAvatar
                   name={data?.user?.name}
@@ -105,15 +105,15 @@ export function TopBar() {
                   <p className="truncate">{safeEmail}</p>
                 </div>
               </Link>
-              <Button variant="outline" size="sm" className="rounded-xl" onClick={doSignOut}>
-                <span className="sm:hidden">Out</span>
-                <span className="hidden sm:inline">Sign out</span>
+              <Button variant="outline" size="sm" className="h-10 rounded-xl px-3 sm:h-9 sm:px-3.5" onClick={doSignOut}>
+                <span className="lg:hidden">Out</span>
+                <span className="hidden lg:inline">Sign out</span>
               </Button>
             </div>
           </div>
 
-            <div className="mt-2 md:hidden">
-              <nav className="flex items-center gap-1 rounded-xl border border-border/65 bg-background/80 p-1">
+            <div className="mt-2 lg:hidden">
+              <nav className="grid grid-cols-3 items-center gap-1 rounded-xl border border-border/65 bg-background/80 p-1">
                 {navItems.map((item) => {
                   const Icon = item.icon;
                   const active = pathname.startsWith(item.href);
@@ -122,7 +122,7 @@ export function TopBar() {
                       key={item.href}
                       href={item.href}
                       className={cn(
-                        "flex flex-1 flex-col items-center gap-0.5 rounded-lg px-1.5 py-1.5 text-[11px] font-medium transition-all",
+                        "flex flex-col items-center gap-0.5 rounded-lg px-1 py-1.5 text-[11px] font-medium transition-all",
                         active
                           ? "bg-gradient-to-r from-primary to-sky-500 text-primary-foreground"
                           : "text-muted-foreground hover:bg-accent/70 hover:text-foreground",

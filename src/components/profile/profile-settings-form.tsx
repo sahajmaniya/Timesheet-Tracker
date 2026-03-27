@@ -420,10 +420,10 @@ export function ProfileSettingsForm({ initialProfile }: { initialProfile: Profil
       </section>
 
       <Card className="overflow-hidden border-border/65 bg-gradient-to-br from-sky-200/45 via-background to-indigo-200/35 shadow-[0_22px_45px_-30px_rgba(59,130,246,0.25)] dark:from-sky-500/8 dark:to-indigo-500/6 dark:shadow-[0_22px_45px_-30px_rgba(59,130,246,0.45)]">
-        <CardContent className="p-3 sm:p-4">
+        <CardContent className="p-2.5 sm:p-4">
           <div className="overflow-hidden rounded-[1.15rem] border border-border/55 bg-gradient-to-br from-slate-100/70 via-background to-sky-100/45 dark:from-slate-900/35 dark:to-sky-950/25">
             <div className="grid gap-0 xl:grid-cols-[340px_minmax(0,1fr)]">
-              <div className="border-b border-border/55 bg-gradient-to-b from-slate-100/85 via-background/70 to-slate-100/30 p-6 dark:from-slate-800/30 dark:to-slate-900/20 xl:border-b-0 xl:border-r">
+              <div className="border-b border-border/55 bg-gradient-to-b from-slate-100/85 via-background/70 to-slate-100/30 p-5 sm:p-6 dark:from-slate-800/30 dark:to-slate-900/20 xl:border-b-0 xl:border-r">
               <div className="flex items-center gap-4">
                 <UserAvatar
                   name={profile.name}
@@ -475,7 +475,7 @@ export function ProfileSettingsForm({ initialProfile }: { initialProfile: Profil
               </div>
               </div>
 
-              <div className="bg-gradient-to-b from-background/95 via-background to-slate-100/40 dark:to-slate-900/10 p-6 sm:p-7">
+              <div className="bg-gradient-to-b from-background/95 via-background to-slate-100/40 p-5 sm:p-7 dark:to-slate-900/10">
                 <CardHeader className="p-0">
                   <CardTitle>Account Details</CardTitle>
                   <CardDescription>Edit your name and profile photo.</CardDescription>
