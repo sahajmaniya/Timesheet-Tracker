@@ -95,6 +95,7 @@ export async function fillTimesheetPdfTemplate({
   month,
   entries,
   employeeName,
+  signatureDataUrl,
   generatedDate,
   layoutMode,
 }: {
@@ -102,6 +103,7 @@ export async function fillTimesheetPdfTemplate({
   month: string;
   entries: EntryForPdf[];
   employeeName: string;
+  signatureDataUrl?: string | null;
   generatedDate: string;
   layoutMode: TimesheetLayoutMode;
 }) {
@@ -261,14 +263,53 @@ export async function fillTimesheetPdfTemplate({
     drawColor: color,
   });
 
-  // Signature + date lines in both footer copies (left and right).
-  const signatureY =  65* yScale;
+  // Signature + date row in footer.
+  const signatureTextY = 49 * yScale;
+  const drawSignatureImage = async () => {
+    if (!signatureDataUrl?.startsWith("data:image/")) return false;
+    const commaIndex = signatureDataUrl.indexOf(",");
+    if (commaIndex < 0) return false;
+    const meta = signatureDataUrl.slice(0, commaIndex).toLowerCase();
+    const base64 = signatureDataUrl.slice(commaIndex + 1);
+    if (!base64) return false;
+
+    try {
+      const bytes = Uint8Array.from(Buffer.from(base64, "base64"));
+      const embedded = meta.includes("image/png")
+        ? await pdfDoc.embedPng(bytes)
+        : await pdfDoc.embedJpg(bytes);
+
+      // Keep signature image constrained inside the employee-signature area.
+      // This makes placement stable regardless of signature length/shape.
+      const boxX = -10 * xScale;
+      const boxY = 55 * yScale;
+      const boxWidth = 220 * xScale;
+      const boxHeight = 20 * yScale;
+      const scale = Math.min(boxWidth / embedded.width, boxHeight / embedded.height);
+      const drawWidth = embedded.width * scale;
+      const drawHeight = embedded.height * scale;
+      const drawX = boxX + (boxWidth - drawWidth) / 2;
+      const drawY = boxY + (boxHeight - drawHeight) / 2;
+
+      page.drawImage(embedded, {
+        x: drawX,
+        y: drawY,
+        width: drawWidth,
+        height: drawHeight,
+      });
+      return true;
+    } catch {
+      return false;
+    }
+  };
+
+  const hasDrawnSignature = await drawSignatureImage();
   const signatureText = employeeName.trim();
-  if (signatureText) {
+  if (!hasDrawnSignature && signatureText) {
     drawText({
       text: signatureText,
       x: 28 * xScale,
-      y: signatureY,
+      y: signatureTextY,
       size: 11 * yScale,
       drawFont: signatureFont,
       drawColor: rgb(0.03, 0.09, 0.24),
@@ -276,14 +317,15 @@ export async function fillTimesheetPdfTemplate({
     });
   }
 
-  const dateCenters = [200, 1018];
+  const dateCenters = [200];
   for (const dateCenter of dateCenters) {
     const dateSize = 9.2 * yScale;
+    const dateY = 65 * yScale;
     const dateWidth = bold.widthOfTextAtSize(generatedDate, dateSize);
     drawText({
       text: generatedDate,
       x: dateCenter * xScale - dateWidth / 2,
-      y: signatureY,
+      y: dateY,
       size: dateSize,
       drawFont: bold,
       drawColor: color,

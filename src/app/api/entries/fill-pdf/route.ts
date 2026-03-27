@@ -50,7 +50,13 @@ export async function POST(request: Request) {
     });
 
     const bytes = new Uint8Array(await file.arrayBuffer());
+    const user = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { name: true, email: true, signature: true },
+    });
     const employeeName =
+      user?.name?.trim() ||
+      user?.email?.split("@")[0] ||
       session.user.name?.trim() ||
       session.user.email?.split("@")[0] ||
       "Employee";
@@ -61,6 +67,7 @@ export async function POST(request: Request) {
       month: parsedMonth.data,
       entries,
       employeeName,
+      signatureDataUrl: user?.signature ?? null,
       generatedDate,
       layoutMode,
     });

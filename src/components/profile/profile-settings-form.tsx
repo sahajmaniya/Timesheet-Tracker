@@ -2,7 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2, Mail, Sparkles, Upload, User2 } from "lucide-react";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { useSession } from "next-auth/react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
@@ -26,6 +26,7 @@ type ProfileData = {
   name: string | null;
   email: string | null;
   image: string | null;
+  signature: string | null;
   workSchedule: WorkSchedule;
 };
 
@@ -39,9 +40,13 @@ export function ProfileSettingsForm({ initialProfile }: { initialProfile: Profil
   const [avatarZoom, setAvatarZoom] = useState(1);
   const [avatarOffsetX, setAvatarOffsetX] = useState(0);
   const [avatarOffsetY, setAvatarOffsetY] = useState(0);
+  const [drawingSignature, setDrawingSignature] = useState(false);
   const [activeScheduleDay, setActiveScheduleDay] = useState<WeekdayKey>("mon");
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const uploadImageRef = useRef<HTMLImageElement | null>(null);
+  const signatureCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const signatureDrawingRef = useRef(false);
+  const signatureCtxReadyRef = useRef(false);
   const displayEmail = profile.email ? profile.email.replace(/\s+/g, "") : "No email";
 
   const {
@@ -252,6 +257,160 @@ export function ProfileSettingsForm({ initialProfile }: { initialProfile: Profil
     await onUploadAvatar(editedFile);
   };
 
+  const initSignatureCanvas = () => {
+    const canvas = signatureCanvasRef.current;
+    if (!canvas || signatureCtxReadyRef.current) return;
+
+    const ratio = window.devicePixelRatio || 1;
+    const cssWidth = canvas.clientWidth || 560;
+    const cssHeight = canvas.clientHeight || 170;
+    canvas.width = Math.floor(cssWidth * ratio);
+    canvas.height = Math.floor(cssHeight * ratio);
+
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    ctx.scale(ratio, ratio);
+    ctx.fillStyle = "transparent";
+    ctx.clearRect(0, 0, cssWidth, cssHeight);
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    ctx.lineWidth = 2.2;
+    ctx.strokeStyle = "#0f172a";
+
+    signatureCtxReadyRef.current = true;
+  };
+
+  const clearSignatureCanvas = () => {
+    const canvas = signatureCanvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+  };
+
+  const pointerPosition = (event: ReactPointerEvent<HTMLCanvasElement>) => {
+    const rect = event.currentTarget.getBoundingClientRect();
+    return { x: event.clientX - rect.left, y: event.clientY - rect.top };
+  };
+
+  const startSignatureStroke = (event: ReactPointerEvent<HTMLCanvasElement>) => {
+    const canvas = signatureCanvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    const { x, y } = pointerPosition(event);
+    signatureDrawingRef.current = true;
+    canvas.setPointerCapture(event.pointerId);
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+  };
+
+  const moveSignatureStroke = (event: ReactPointerEvent<HTMLCanvasElement>) => {
+    if (!signatureDrawingRef.current) return;
+    const canvas = signatureCanvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    const { x, y } = pointerPosition(event);
+    ctx.lineTo(x, y);
+    ctx.stroke();
+  };
+
+  const endSignatureStroke = (event: ReactPointerEvent<HTMLCanvasElement>) => {
+    const canvas = signatureCanvasRef.current;
+    if (!canvas) return;
+    if (canvas.hasPointerCapture(event.pointerId)) {
+      canvas.releasePointerCapture(event.pointerId);
+    }
+    signatureDrawingRef.current = false;
+  };
+
+  const saveDrawnSignature = async () => {
+    const canvas = signatureCanvasRef.current;
+    if (!canvas) {
+      toast.error("Signature pad is not ready yet.");
+      return;
+    }
+    const dataUrl = canvas.toDataURL("image/png");
+    if (!dataUrl || dataUrl.length < 200) {
+      toast.error("Please draw your signature first.");
+      return;
+    }
+
+    setDrawingSignature(true);
+    try {
+      const res = await fetch("/api/profile", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: profile.name ?? "", signature: dataUrl }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast.error(body.error || "Could not save signature");
+        return;
+      }
+      setProfile((prev) => ({
+        ...prev,
+        ...body.profile,
+        workSchedule: body.profile?.workSchedule ?? prev.workSchedule,
+      }));
+      toast.success("Signature saved");
+    } finally {
+      setDrawingSignature(false);
+    }
+  };
+
+  const removeSignature = async () => {
+    setDrawingSignature(true);
+    try {
+      const res = await fetch("/api/profile", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: profile.name ?? "", signature: "" }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast.error(body.error || "Could not remove signature");
+        return;
+      }
+      setProfile((prev) => ({
+        ...prev,
+        ...body.profile,
+        workSchedule: body.profile?.workSchedule ?? prev.workSchedule,
+      }));
+      clearSignatureCanvas();
+      toast.success("Signature removed");
+    } finally {
+      setDrawingSignature(false);
+    }
+  };
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      initSignatureCanvas();
+      if (!profile.signature) return;
+      const canvas = signatureCanvasRef.current;
+      if (!canvas) return;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return;
+
+      const img = new Image();
+      img.onload = () => {
+        const displayWidth = canvas.clientWidth || 560;
+        const displayHeight = canvas.clientHeight || 170;
+        clearSignatureCanvas();
+        const ratio = Math.min(displayWidth / img.width, displayHeight / img.height);
+        const drawW = img.width * ratio;
+        const drawH = img.height * ratio;
+        const x = (displayWidth - drawW) / 2;
+        const y = (displayHeight - drawH) / 2;
+        ctx.drawImage(img, x, y, drawW, drawH);
+      };
+      img.src = profile.signature;
+    }, 60);
+    return () => window.clearTimeout(timer);
+  }, [profile.signature]);
+
   return (
     <div className="space-y-6">
       <section className="rounded-2xl border bg-gradient-to-br from-violet-100/70 via-background to-cyan-100/70 p-4 sm:p-6 dark:from-violet-950/30 dark:to-cyan-950/30">
@@ -345,11 +504,40 @@ export function ProfileSettingsForm({ initialProfile }: { initialProfile: Profil
                     <div className="space-y-1 rounded-xl border border-border/70 bg-card/70 p-4 sm:col-span-2">
                       <div className="mb-2 flex items-center gap-2 text-muted-foreground">
                         <Sparkles className="h-4 w-4" />
-                        <span className="text-xs uppercase tracking-wider">Photo Upload</span>
+                        <span className="text-xs uppercase tracking-wider">Draw Signature</span>
                       </div>
-                      <p className="text-sm text-muted-foreground">
-                        Use the upload button on the left panel to select an image from your computer.
-                      </p>
+                      <p className="text-sm text-muted-foreground">Draw once and we will use it in your generated timesheet PDFs.</p>
+                      <div className="mt-3 rounded-xl border border-border/70 bg-background/70 p-3">
+                        <div className="mb-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                          <p className="text-xs text-muted-foreground">Signature Pad</p>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <Button type="button" variant="ghost" size="sm" className="h-8 px-2.5 text-xs sm:h-9 sm:px-3 sm:text-sm" onClick={clearSignatureCanvas}>
+                              Clear
+                            </Button>
+                            {profile.signature && (
+                              <Button type="button" variant="ghost" size="sm" className="h-8 px-2.5 text-xs sm:h-9 sm:px-3 sm:text-sm" onClick={() => void removeSignature()} disabled={drawingSignature}>
+                                Remove saved
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                        <canvas
+                          ref={signatureCanvasRef}
+                          className="h-[140px] w-full touch-none rounded-lg border border-dashed border-slate-300 bg-white sm:h-[170px] dark:border-slate-500 dark:bg-white"
+                          onPointerDown={startSignatureStroke}
+                          onPointerMove={moveSignatureStroke}
+                          onPointerUp={endSignatureStroke}
+                          onPointerLeave={endSignatureStroke}
+                          onPointerCancel={endSignatureStroke}
+                          onMouseEnter={initSignatureCanvas}
+                          onTouchStart={initSignatureCanvas}
+                        />
+                        <div className="mt-3 flex justify-end">
+                          <Button type="button" size="sm" className="h-8 px-2.5 text-xs sm:h-9 sm:px-3 sm:text-sm" onClick={() => void saveDrawnSignature()} disabled={drawingSignature}>
+                            {drawingSignature ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save signature"}
+                          </Button>
+                        </div>
+                      </div>
                     </div>
                   </div>
 

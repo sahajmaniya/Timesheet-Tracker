@@ -17,6 +17,7 @@ export async function GET() {
       name: true,
       email: true,
       image: true,
+      signature: true,
       workScheduleJson: true,
     },
   });
@@ -32,6 +33,7 @@ export async function GET() {
       name: user.name,
       email: user.email,
       image: user.image,
+      signature: user.signature,
       workSchedule: parsedSchedule.success ? parsedSchedule.data : DEFAULT_WORK_SCHEDULE,
     },
   });
@@ -58,6 +60,10 @@ export async function PATCH(request: Request) {
       typeof body === "object" &&
       body !== null &&
       Object.prototype.hasOwnProperty.call(body, "image");
+    const hasSignatureField =
+      typeof body === "object" &&
+      body !== null &&
+      Object.prototype.hasOwnProperty.call(body, "signature");
 
     const updateData: Prisma.UserUpdateInput = {
       name: parsed.data.name,
@@ -65,6 +71,9 @@ export async function PATCH(request: Request) {
 
     if (hasImageField) {
       updateData.image = parsed.data.image || null;
+    }
+    if (hasSignatureField) {
+      updateData.signature = parsed.data.signature || null;
     }
 
     if (parsed.data.workSchedule) {
@@ -78,6 +87,7 @@ export async function PATCH(request: Request) {
         name: true,
         email: true,
         image: true,
+        signature: true,
         workScheduleJson: true,
       },
     });
@@ -89,6 +99,7 @@ export async function PATCH(request: Request) {
         name: updated.name,
         email: updated.email,
         image: updated.image,
+        signature: updated.signature,
         workSchedule: parsedSchedule.success ? parsedSchedule.data : DEFAULT_WORK_SCHEDULE,
       },
     });

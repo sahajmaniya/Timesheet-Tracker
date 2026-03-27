@@ -86,6 +86,18 @@ export const profileUpdateSchema = z.object({
     )
     .optional()
     .or(z.literal("")),
+  signature: z
+    .string()
+    .trim()
+    .refine(
+      (value) =>
+        value.length === 0 ||
+        value.startsWith("data:image/png;base64,") ||
+        value.startsWith("data:image/jpeg;base64,"),
+      "Signature must be a valid drawn signature image",
+    )
+    .optional()
+    .or(z.literal("")),
   workSchedule: workScheduleSchema.optional(),
 });
 

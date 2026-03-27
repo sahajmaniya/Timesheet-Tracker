@@ -15,6 +15,7 @@ export default async function SettingsPage() {
           name: session?.user?.name ?? null,
           email: session?.user?.email ?? null,
           image: session?.user?.image ?? null,
+          signature: null,
           workSchedule: DEFAULT_WORK_SCHEDULE,
         }}
       />
@@ -27,6 +28,7 @@ export default async function SettingsPage() {
       name: true,
       email: true,
       image: true,
+      signature: true,
       workScheduleJson: true,
     },
   });
@@ -39,6 +41,7 @@ export default async function SettingsPage() {
         name: user?.name ?? session?.user?.name ?? null,
         email: user?.email ?? session?.user?.email ?? null,
         image: user?.image ?? session?.user?.image ?? null,
+        signature: user?.signature ?? null,
         workSchedule: parsedSchedule.success ? parsedSchedule.data : DEFAULT_WORK_SCHEDULE,
       }}
     />
