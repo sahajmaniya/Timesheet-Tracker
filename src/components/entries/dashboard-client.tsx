@@ -6,6 +6,7 @@ import { Download, Pencil, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { EntryDialog } from "@/components/entries/entry-dialog";
 import { EntriesTable } from "@/components/entries/entries-table";
+import { useConfirm } from "@/components/providers/confirm-provider";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -13,6 +14,7 @@ import { minutesToHM, minutesToTenthsDecimal } from "@/lib/time";
 import type { TimeEntry } from "@/types/time-entry";
 
 export function DashboardClient() {
+  const confirm = useConfirm();
   const [month, setMonth] = useState(format(new Date(), "yyyy-MM"));
   const [entries, setEntries] = useState<TimeEntry[]>([]);
   const [loading, setLoading] = useState(true);
@@ -66,7 +68,12 @@ export function DashboardClient() {
   const averageDecimal = entries.length ? totalDecimal / entries.length : 0;
 
   const onDelete = async (entry: TimeEntry) => {
-    const ok = window.confirm(`Delete entry for ${entry.date}?`);
+    const ok = await confirm({
+      title: "Delete Entry?",
+      description: `This will permanently remove the entry for ${entry.date}.`,
+      confirmText: "Delete",
+      destructive: true,
+    });
     if (!ok) return;
 
     const res = await fetch(`/api/entries/${entry.id}`, { method: "DELETE" });

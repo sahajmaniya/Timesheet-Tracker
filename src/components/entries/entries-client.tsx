@@ -6,6 +6,7 @@ import { AlertTriangle, Download, FileUp, History, Plus, Sparkles, Trash2 } from
 import { toast } from "sonner";
 import { EntryDialog } from "@/components/entries/entry-dialog";
 import { EntriesTable } from "@/components/entries/entries-table";
+import { useConfirm } from "@/components/providers/confirm-provider";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -16,6 +17,7 @@ import type { TimeEntry } from "@/types/time-entry";
 import type { TimeEntryInput } from "@/lib/validators";
 
 export function EntriesClient() {
+  const confirm = useConfirm();
   const [month, setMonth] = useState(format(new Date(), "yyyy-MM"));
   const [entries, setEntries] = useState<TimeEntry[]>([]);
   const [loading, setLoading] = useState(true);
@@ -151,7 +153,12 @@ export function EntriesClient() {
   }, [entries, month]);
 
   const onDelete = async (entry: TimeEntry) => {
-    const ok = window.confirm(`Delete entry for ${entry.date}?`);
+    const ok = await confirm({
+      title: "Delete Entry?",
+      description: `This will permanently remove the entry for ${entry.date}.`,
+      confirmText: "Delete",
+      destructive: true,
+    });
     if (!ok) return;
 
     const res = await fetch(`/api/entries/${entry.id}`, { method: "DELETE" });
@@ -264,7 +271,12 @@ export function EntriesClient() {
 
       if (previewPdfBeforeDownload) {
         window.open(url, "_blank", "noopener,noreferrer");
-        const shouldDownload = window.confirm("Preview opened in a new tab. Download this PDF now?");
+        const shouldDownload = await confirm({
+          title: "Download Filled PDF?",
+          description: "Preview opened in a new tab. Do you also want to download this PDF now?",
+          confirmText: "Download",
+          cancelText: "Not now",
+        });
         if (shouldDownload) {
           a.click();
         } else {
@@ -283,7 +295,7 @@ export function EntriesClient() {
     } finally {
       setFillingPdf(false);
     }
-  }, [addRecentAction, month, previewPdfBeforeDownload, timesheetLayoutMode, timesheetTemplateFile]);
+  }, [addRecentAction, confirm, month, previewPdfBeforeDownload, timesheetLayoutMode, timesheetTemplateFile]);
 
   useEffect(() => {
     const onKeydown = (event: KeyboardEvent) => {
@@ -324,9 +336,12 @@ export function EntriesClient() {
       return;
     }
 
-    const ok = window.confirm(
-      `Delete all ${entries.length} entries for ${month}? This cannot be undone.`,
-    );
+    const ok = await confirm({
+      title: "Delete Month Entries?",
+      description: `Delete all ${entries.length} entries for ${month}? This cannot be undone.`,
+      confirmText: "Delete month",
+      destructive: true,
+    });
     if (!ok) return;
 
     setDeletingMonth(true);
