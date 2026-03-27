@@ -1,7 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Loader2, Mail, Sparkles, Upload, User2 } from "lucide-react";
+import { Loader2, Mail, Sparkles, Undo2, Upload, User2 } from "lucide-react";
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { useSession } from "next-auth/react";
 import { useForm } from "react-hook-form";
@@ -47,6 +47,8 @@ export function ProfileSettingsForm({ initialProfile }: { initialProfile: Profil
   const signatureCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const signatureDrawingRef = useRef(false);
   const signatureCtxReadyRef = useRef(false);
+  const signatureLastPointRef = useRef<{ x: number; y: number } | null>(null);
+  const signatureHistoryRef = useRef<ImageData[]>([]);
   const displayEmail = profile.email ? profile.email.replace(/\s+/g, "") : "No email";
 
   const {
@@ -285,7 +287,20 @@ export function ProfileSettingsForm({ initialProfile }: { initialProfile: Profil
     if (!canvas) return;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
+    const snapshot = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    signatureHistoryRef.current.push(snapshot);
+    if (signatureHistoryRef.current.length > 30) signatureHistoryRef.current.shift();
     ctx.clearRect(0, 0, canvas.width, canvas.height);
+  };
+
+  const undoSignatureStroke = () => {
+    const canvas = signatureCanvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    const previous = signatureHistoryRef.current.pop();
+    if (!previous) return;
+    ctx.putImageData(previous, 0, 0);
   };
 
   const pointerPosition = (event: ReactPointerEvent<HTMLCanvasElement>) => {
@@ -299,10 +314,14 @@ export function ProfileSettingsForm({ initialProfile }: { initialProfile: Profil
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
     const { x, y } = pointerPosition(event);
+    const snapshot = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    signatureHistoryRef.current.push(snapshot);
+    if (signatureHistoryRef.current.length > 30) signatureHistoryRef.current.shift();
     signatureDrawingRef.current = true;
     canvas.setPointerCapture(event.pointerId);
     ctx.beginPath();
     ctx.moveTo(x, y);
+    signatureLastPointRef.current = { x, y };
   };
 
   const moveSignatureStroke = (event: ReactPointerEvent<HTMLCanvasElement>) => {
@@ -312,8 +331,16 @@ export function ProfileSettingsForm({ initialProfile }: { initialProfile: Profil
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
     const { x, y } = pointerPosition(event);
-    ctx.lineTo(x, y);
+    const last = signatureLastPointRef.current;
+    if (!last) {
+      signatureLastPointRef.current = { x, y };
+      return;
+    }
+    const midX = (last.x + x) / 2;
+    const midY = (last.y + y) / 2;
+    ctx.quadraticCurveTo(last.x, last.y, midX, midY);
     ctx.stroke();
+    signatureLastPointRef.current = { x, y };
   };
 
   const endSignatureStroke = (event: ReactPointerEvent<HTMLCanvasElement>) => {
@@ -323,6 +350,9 @@ export function ProfileSettingsForm({ initialProfile }: { initialProfile: Profil
       canvas.releasePointerCapture(event.pointerId);
     }
     signatureDrawingRef.current = false;
+    signatureLastPointRef.current = null;
+    const ctx = canvas.getContext("2d");
+    if (ctx) ctx.closePath();
   };
 
   const saveDrawnSignature = async () => {
@@ -399,6 +429,7 @@ export function ProfileSettingsForm({ initialProfile }: { initialProfile: Profil
         const displayWidth = canvas.clientWidth || 560;
         const displayHeight = canvas.clientHeight || 170;
         clearSignatureCanvas();
+        signatureHistoryRef.current = [];
         const ratio = Math.min(displayWidth / img.width, displayHeight / img.height);
         const drawW = img.width * ratio;
         const drawH = img.height * ratio;
@@ -511,6 +542,10 @@ export function ProfileSettingsForm({ initialProfile }: { initialProfile: Profil
                         <div className="mb-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                           <p className="text-xs text-muted-foreground">Signature Pad</p>
                           <div className="flex flex-wrap items-center gap-2">
+                            <Button type="button" variant="ghost" size="sm" className="h-8 px-2.5 text-xs sm:h-9 sm:px-3 sm:text-sm" onClick={undoSignatureStroke}>
+                              <Undo2 className="mr-1.5 h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                              Undo
+                            </Button>
                             <Button type="button" variant="ghost" size="sm" className="h-8 px-2.5 text-xs sm:h-9 sm:px-3 sm:text-sm" onClick={clearSignatureCanvas}>
                               Clear
                             </Button>
