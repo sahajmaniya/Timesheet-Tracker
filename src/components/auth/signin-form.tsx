@@ -4,8 +4,8 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2, LogIn, MailCheck } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { signIn } from "next-auth/react";
-import { useState } from "react";
+import { getProviders, signIn } from "next-auth/react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
@@ -31,6 +31,8 @@ export function SignInForm() {
   const params = useSearchParams();
   const [challengeId, setChallengeId] = useState<string | null>(null);
   const [otpLoading, setOtpLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
+  const [googleEnabled, setGoogleEnabled] = useState(false);
 
   const {
     register,
@@ -46,6 +48,13 @@ export function SignInForm() {
       otp: "",
     },
   });
+
+  useEffect(() => {
+    void (async () => {
+      const providers = await getProviders();
+      setGoogleEnabled(Boolean(providers?.google));
+    })();
+  }, []);
 
   const requestOtp = async (values: RequestOtpData) => {
     setOtpLoading(true);
@@ -123,6 +132,13 @@ export function SignInForm() {
     await requestOtp(parsed.data);
   };
 
+  const onGoogleSignIn = async () => {
+    setGoogleLoading(true);
+    const callbackUrl = params.get("callbackUrl") || "/dashboard";
+    await signIn("google", { callbackUrl });
+    setGoogleLoading(false);
+  };
+
   return (
     <Card className="w-full max-w-md border-0 bg-background/90 shadow-xl backdrop-blur">
       <CardHeader className="space-y-2">
@@ -132,11 +148,36 @@ export function SignInForm() {
         <CardTitle className="text-2xl">Sign in</CardTitle>
         <CardDescription>
           {challengeId
-            ? "Enter the 6-digit code sent to your email to complete sign-in."
-            : "Enter your email and password to request a one-time verification code."}
+            ? "Enter the 6-digit code we just sent to your email."
+            : "Use your email and password. We will send a verification code to complete sign in."}
         </CardDescription>
       </CardHeader>
       <CardContent>
+        {googleEnabled && (
+          <div className="mb-4 space-y-3">
+            <Button
+              type="button"
+              variant="outline"
+              className="h-11 w-full rounded-xl border-slate-300 bg-white text-slate-900 shadow-sm hover:bg-slate-100 dark:border-slate-600 dark:bg-slate-50 dark:text-slate-900 dark:hover:bg-slate-200"
+              onClick={() => void onGoogleSignIn()}
+              disabled={googleLoading}
+            >
+              {googleLoading ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <svg viewBox="0 0 24 24" className="mr-2 h-4 w-4" aria-hidden="true">
+                  <path fill="#EA4335" d="M12 10.2v3.9h5.5c-.2 1.3-1.5 3.8-5.5 3.8-3.3 0-6-2.7-6-6s2.7-6 6-6c1.9 0 3.2.8 3.9 1.5l2.7-2.6C16.9 3 14.7 2 12 2 6.5 2 2 6.5 2 12s4.5 10 10 10c5.8 0 9.6-4.1 9.6-9.8 0-.7-.1-1.2-.2-1.9H12z" />
+                </svg>
+              )}
+              Sign in with Google
+            </Button>
+            <div className="relative text-center text-xs tracking-wide text-muted-foreground">
+              <span className="relative z-10 bg-background px-2">Or continue with email and verification code</span>
+              <span className="absolute left-0 top-1/2 h-px w-full -translate-y-1/2 bg-border" />
+            </div>
+          </div>
+        )}
+
         <form className="space-y-4" onSubmit={handleSubmit(onSubmit)}>
           <div className="space-y-1">
             <Label htmlFor="email">Email</Label>
@@ -166,12 +207,12 @@ export function SignInForm() {
 
           {!challengeId ? (
             <Button className="w-full" type="button" disabled={otpLoading} onClick={() => void requestOtp(getValues())}>
-              {otpLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <><MailCheck className="mr-2 h-4 w-4" />Send OTP Code</>}
+              {otpLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <><MailCheck className="mr-2 h-4 w-4" />Send verification code</>}
             </Button>
           ) : (
             <>
               <Button className="w-full" type="submit" disabled={isSubmitting}>
-                {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <><LogIn className="mr-2 h-4 w-4" />Verify & Sign in</>}
+                {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <><LogIn className="mr-2 h-4 w-4" />Verify and sign in</>}
               </Button>
               <Button className="w-full" type="button" variant="outline" onClick={() => void onResendCode()}>
                 Resend Code

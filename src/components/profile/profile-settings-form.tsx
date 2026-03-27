@@ -118,7 +118,6 @@ export function ProfileSettingsForm({ initialProfile }: { initialProfile: Profil
     }));
     await update({
       name: body.profile?.name ?? values.name,
-      image: body.profile?.image ?? profile.image ?? null,
     });
     toast.success("Profile updated");
   };
@@ -146,7 +145,6 @@ export function ProfileSettingsForm({ initialProfile }: { initialProfile: Profil
       }));
       await update({
         name: body.profile?.name ?? profile.name ?? null,
-        image: body.profile?.image ?? null,
       });
       toast.success("Profile photo updated");
     } finally {
@@ -173,7 +171,6 @@ export function ProfileSettingsForm({ initialProfile }: { initialProfile: Profil
     }));
     await update({
       name: body.profile?.name ?? profile.name ?? null,
-      image: null,
     });
     toast.success("Profile photo removed");
   };

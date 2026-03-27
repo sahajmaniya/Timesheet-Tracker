@@ -1,6 +1,6 @@
 # PunchPilot
 
-Modern, responsive timesheet tracker built with Next.js App Router, TypeScript, Tailwind, shadcn/ui style components, NextAuth credentials auth + email OTP verification, Prisma, and Postgres.
+Modern, responsive timesheet tracker built with Next.js App Router, TypeScript, Tailwind, shadcn/ui style components, NextAuth credentials auth + email OTP verification (plus optional Google sign-in), Prisma, and Postgres.
 
 ## Live Demo
 
@@ -8,7 +8,7 @@ Modern, responsive timesheet tracker built with Next.js App Router, TypeScript, 
 
 ## Features
 
-- Sign up / sign in / sign out (NextAuth credentials)
+- Sign up / sign in / sign out (Credentials + optional Google OAuth)
 - 2-step sign-in with email OTP verification
 - Protected pages: `/dashboard`, `/entries`, `/settings`
 - User-isolated data access (server-side userId enforcement)
@@ -27,7 +27,7 @@ Modern, responsive timesheet tracker built with Next.js App Router, TypeScript, 
 - Next.js (App Router) + TypeScript
 - Tailwind CSS
 - shadcn/ui-style components (`Card`, `Button`, `Input`, `Dialog`, `Table`, `Tabs`, `Toast`)
-- NextAuth (Credentials)
+- NextAuth (Credentials + optional Google OAuth)
 - Prisma ORM
 - PostgreSQL (Neon/Supabase compatible)
 - Nodemailer (SMTP for OTP emails)
@@ -68,6 +68,8 @@ cp .env.example .env.local
 ```bash
 NEXTAUTH_SECRET="replace-with-a-long-random-secret"
 NEXTAUTH_URL="http://localhost:3000"
+GOOGLE_CLIENT_ID=""
+GOOGLE_CLIENT_SECRET=""
 
 OTP_SECRET="replace-with-another-random-secret"
 SMTP_HOST="smtp.gmail.com"
@@ -109,6 +111,8 @@ Open `http://localhost:3000`.
    - `DATABASE_URL`
    - `NEXTAUTH_SECRET`
    - `NEXTAUTH_URL` (set to your production URL, e.g. `https://your-app.vercel.app`)
+   - `GOOGLE_CLIENT_ID` (optional, enables Google sign-in)
+   - `GOOGLE_CLIENT_SECRET` (optional, enables Google sign-in)
    - `OTP_SECRET`
    - `SMTP_HOST`
    - `SMTP_PORT`

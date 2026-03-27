@@ -1,7 +1,9 @@
-import { compare } from "bcrypt";
+import { compare, hash } from "bcrypt";
+import { randomUUID } from "crypto";
 import { isAfter } from "date-fns";
 import type { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
+import GoogleProvider from "next-auth/providers/google";
 import { getServerSession } from "next-auth";
 import { z } from "zod";
 import { writeAuthAuditLog } from "@/lib/auth-audit";
@@ -144,10 +146,79 @@ export const authOptions: NextAuthOptions = {
         };
       },
     }),
+    ...(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET
+      ? [
+          GoogleProvider({
+            clientId: process.env.GOOGLE_CLIENT_ID,
+            clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+          }),
+        ]
+      : []),
   ],
   callbacks: {
+    async signIn({ user, account }) {
+      if (account?.provider !== "google") return true;
+
+      const email = user.email?.trim().toLowerCase();
+      if (!email) return false;
+
+      const existing = await prisma.user.findUnique({
+        where: { email },
+        select: { id: true, image: true },
+      });
+
+      if (!existing) {
+        const randomPasswordHash = await hash(randomUUID(), 12);
+        const created = await prisma.user.create({
+          data: {
+            email,
+            name: user.name,
+            image: user.image,
+            password: randomPasswordHash,
+          },
+          select: { id: true },
+        });
+        await writeAuthAuditLog({
+          event: "google_signin_success",
+          success: true,
+          email,
+          userId: created.id,
+          reason: "created_account",
+        });
+        return true;
+      }
+
+      await prisma.user.update({
+        where: { email },
+        data: {
+          name: user.name ?? undefined,
+          image: user.image ?? existing.image ?? undefined,
+        },
+      });
+
+      await writeAuthAuditLog({
+        event: "google_signin_success",
+        success: true,
+        email,
+        userId: existing.id,
+        reason: "existing_account",
+      });
+
+      return true;
+    },
     async jwt({ token, user }) {
       if (user?.id) token.sub = user.id;
+      if (token.email) {
+        const dbUser = await prisma.user.findUnique({
+          where: { email: token.email.toLowerCase() },
+          select: { id: true, name: true, email: true },
+        });
+        if (dbUser) {
+          token.sub = dbUser.id;
+          token.name = dbUser.name;
+          token.email = dbUser.email;
+        }
+      }
       return token;
     },
     async session({ session, token }) {

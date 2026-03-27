@@ -4,6 +4,8 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2, UserPlus } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { getProviders, signIn } from "next-auth/react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { signupSchema } from "@/lib/validators";
@@ -15,6 +17,8 @@ import { Label } from "@/components/ui/label";
 
 export function SignUpForm() {
   const router = useRouter();
+  const [googleLoading, setGoogleLoading] = useState(false);
+  const [googleEnabled, setGoogleEnabled] = useState(false);
 
   const {
     register,
@@ -29,6 +33,13 @@ export function SignUpForm() {
     },
   });
 
+  useEffect(() => {
+    void (async () => {
+      const providers = await getProviders();
+      setGoogleEnabled(Boolean(providers?.google));
+    })();
+  }, []);
+
   const onSubmit = async (values: SignupInput) => {
     const res = await fetch("/api/auth/signup", {
       method: "POST",
@@ -42,8 +53,14 @@ export function SignUpForm() {
       return;
     }
 
-    toast.success("Account created. Please sign in and verify OTP.");
+    toast.success("Account created. Please sign in and verify your code.");
     router.push(`/auth/signin?email=${encodeURIComponent(values.email)}`);
+  };
+
+  const onGoogleSignUp = async () => {
+    setGoogleLoading(true);
+    await signIn("google", { callbackUrl: "/dashboard" });
+    setGoogleLoading(false);
   };
 
   return (
@@ -56,6 +73,31 @@ export function SignUpForm() {
         <CardDescription>Set up your profile and start logging shifts in minutes.</CardDescription>
       </CardHeader>
       <CardContent>
+        {googleEnabled && (
+          <div className="mb-4 space-y-3">
+            <Button
+              type="button"
+              variant="outline"
+              className="h-11 w-full rounded-xl border-slate-300 bg-white text-slate-900 shadow-sm hover:bg-slate-100 dark:border-slate-600 dark:bg-slate-50 dark:text-slate-900 dark:hover:bg-slate-200"
+              onClick={() => void onGoogleSignUp()}
+              disabled={googleLoading}
+            >
+              {googleLoading ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <svg viewBox="0 0 24 24" className="mr-2 h-4 w-4" aria-hidden="true">
+                  <path fill="#EA4335" d="M12 10.2v3.9h5.5c-.2 1.3-1.5 3.8-5.5 3.8-3.3 0-6-2.7-6-6s2.7-6 6-6c1.9 0 3.2.8 3.9 1.5l2.7-2.6C16.9 3 14.7 2 12 2 6.5 2 2 6.5 2 12s4.5 10 10 10c5.8 0 9.6-4.1 9.6-9.8 0-.7-.1-1.2-.2-1.9H12z" />
+                </svg>
+              )}
+              Sign up with Google
+            </Button>
+            <div className="relative text-center text-xs tracking-wide text-muted-foreground">
+              <span className="relative z-10 bg-background px-2">Or create an account with email</span>
+              <span className="absolute left-0 top-1/2 h-px w-full -translate-y-1/2 bg-border" />
+            </div>
+          </div>
+        )}
+
         <form className="space-y-4" onSubmit={handleSubmit(onSubmit)}>
           <div className="space-y-1">
             <Label htmlFor="name">Full name</Label>
