@@ -4,7 +4,7 @@ Modern, responsive timesheet tracker built with Next.js App Router, TypeScript, 
 
 ## Live Demo
 
-- Production URL: https://punch-pilot.vercel.app
+- Production URL: https://punchpilot.online
 
 ## Features
 
@@ -68,6 +68,7 @@ cp .env.example .env.local
 ```bash
 NEXTAUTH_SECRET="replace-with-a-long-random-secret"
 NEXTAUTH_URL="http://localhost:3000"
+NEXT_PUBLIC_SITE_URL="http://localhost:3000"
 GOOGLE_CLIENT_ID=""
 GOOGLE_CLIENT_SECRET=""
 
@@ -110,7 +111,8 @@ Open `http://localhost:3000`.
 3. Add environment variables in Vercel Project Settings:
    - `DATABASE_URL`
    - `NEXTAUTH_SECRET`
-   - `NEXTAUTH_URL` (set to your production URL, e.g. `https://your-app.vercel.app`)
+   - `NEXTAUTH_URL` (set to your production URL, e.g. `https://punchpilot.online`)
+   - `NEXT_PUBLIC_SITE_URL` (set to your production URL, e.g. `https://punchpilot.online`)
    - `GOOGLE_CLIENT_ID` (optional, enables Google sign-in)
    - `GOOGLE_CLIENT_SECRET` (optional, enables Google sign-in)
    - `OTP_SECRET`
