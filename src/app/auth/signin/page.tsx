@@ -22,7 +22,7 @@ export default async function SignInPage() {
   return (
     <main className="min-h-screen bg-gradient-to-br from-sky-100/60 via-background to-indigo-100/60 px-4 py-10 sm:py-16 dark:from-slate-950 dark:via-background dark:to-indigo-950/30">
       <div className="mx-auto grid w-full max-w-6xl items-center gap-8 lg:grid-cols-2">
-        <section className="order-2 space-y-5 lg:order-1">
+        <section className="order-1 space-y-5">
           <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">PunchPilot</p>
           <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">Welcome back to your timesheet workspace.</h1>
           <p className="max-w-lg text-sm text-muted-foreground sm:text-base">
@@ -35,7 +35,7 @@ export default async function SignInPage() {
           </div>
         </section>
 
-        <section className="order-1 lg:order-2">
+        <section className="order-2">
           <div className="mx-auto w-full max-w-md">
             <SignInForm />
           </div>
