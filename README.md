@@ -24,13 +24,22 @@ Modern, responsive timesheet tracker built with Next.js App Router, TypeScript, 
 
 ## Tech Stack
 
-- Next.js (App Router) + TypeScript
-- Tailwind CSS
-- shadcn/ui-style components (`Card`, `Button`, `Input`, `Dialog`, `Table`, `Tabs`, `Toast`)
-- NextAuth (Credentials + optional Google OAuth)
-- Prisma ORM
-- PostgreSQL (Neon/Supabase compatible)
-- Nodemailer (SMTP for OTP emails)
+| Technology | Where it's used in this project | Why it's used |
+| --- | --- | --- |
+| Next.js 16 (App Router) | App pages, API routes, server rendering | Full-stack React framework for UI + backend endpoints in one codebase |
+| React 19 + TypeScript | UI components and app logic in `src/` | Strong typing, better maintainability, and safer refactoring |
+| Tailwind CSS 4 | Styling in `globals.css` and component classes | Fast utility-first styling with responsive design support |
+| shadcn/ui + Radix UI + CVA | Reusable UI primitives (`Button`, `Dialog`, `Tabs`, etc.) | Accessible, consistent, and customizable design system |
+| NextAuth.js | Credential/Google login and session handling | Secure authentication and protected routes |
+| Email OTP (custom flow) + Nodemailer | 2-step sign-in verification via email code | Adds extra account security during login |
+| Prisma ORM + `pg` driver | Database schema, queries, migrations | Type-safe DB access and reliable schema evolution |
+| PostgreSQL | Persistent storage for users, entries, settings, audit logs | Relational database fit for structured timesheet data |
+| Zod + React Hook Form | Form validation and form state handling | Client/server validation with cleaner form UX |
+| `date-fns` | Time/date math for totals and validations | Reliable utilities for time calculations |
+| `xlsx` | Excel import endpoint (`/api/import/excel`) | Bulk import entries from spreadsheet files |
+| `pdf-lib` + `pdfjs-dist` | PDF fill/export endpoint (`/api/entries/fill-pdf`) | Generate filled monthly timesheet PDFs |
+| Playwright | E2E smoke tests in `tests/e2e` | Automated browser testing for key user journeys |
+| ESLint | Static analysis/linting | Keeps code quality and consistency high |
 
 ## Data Model Choice
 
