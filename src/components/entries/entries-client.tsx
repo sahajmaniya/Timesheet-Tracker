@@ -1366,8 +1366,8 @@ export function EntriesClient() {
             id="entries-pdf-section"
             className="rounded-xl border border-dashed border-indigo-500/25 bg-gradient-to-r from-indigo-100/65 via-background/80 to-blue-100/60 p-3 sm:p-4 dark:border-indigo-300/20 dark:from-indigo-500/10 dark:via-background/70 dark:to-blue-500/10"
           >
-            <div className="flex flex-col gap-2.5 md:flex-row md:items-end md:justify-between">
-              <div className="space-y-1">
+            <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(280px,320px)]">
+              <div className="space-y-2">
                 <p className="text-sm font-semibold text-indigo-800 dark:text-indigo-100">Auto-Fill Monthly Timesheet PDF</p>
                 <p className="text-xs text-slate-600 dark:text-slate-300/80">
                   Upload your blank monthly timesheet PDF template. We fill In/Out/Hours and break ranges from your selected month entries.
@@ -1376,14 +1376,8 @@ export function EntriesClient() {
                   type="file"
                   accept=".pdf,application/pdf"
                   onChange={(e) => setTimesheetTemplateFile(e.target.files?.[0] ?? null)}
-                  className="w-full max-w-sm text-sm file:mr-3 file:rounded-md file:border file:border-indigo-500/35 file:bg-indigo-500/10 file:px-2.5 file:py-1.5 file:text-xs file:font-medium file:text-indigo-900 hover:file:bg-indigo-500/15 dark:file:border-indigo-300/30 dark:file:text-indigo-100"
+                  className="w-full text-sm file:mr-3 file:rounded-md file:border file:border-indigo-500/35 file:bg-indigo-500/10 file:px-2.5 file:py-1.5 file:text-xs file:font-medium file:text-indigo-900 hover:file:bg-indigo-500/15 dark:file:border-indigo-300/30 dark:file:text-indigo-100"
                 />
-                <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                  Timesheet Type: <span className="font-semibold">{selectedTemplate.label}</span>
-                </p>
-                <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                  Default layout mode: <span className="font-semibold capitalize">{timesheetLayoutMode}</span>
-                </p>
                 <select
                   value={timesheetRole}
                   onChange={(e) => {
@@ -1399,7 +1393,7 @@ export function EntriesClient() {
                       // ignore storage issues
                     }
                   }}
-                  className="h-10 w-full max-w-sm rounded-md border border-indigo-500/30 bg-background/90 px-3 text-sm dark:border-indigo-300/25 dark:bg-background/80"
+                  className="h-10 w-full rounded-md border border-indigo-500/30 bg-background/90 px-3 text-sm dark:border-indigo-300/25 dark:bg-background/80"
                 >
                   {timesheetRoleOptions.map((option) => (
                     <option key={option.value} value={option.value}>
@@ -1407,11 +1401,9 @@ export function EntriesClient() {
                     </option>
                   ))}
                 </select>
-                <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                  {selectedTemplate.description}
-                </p>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400">{selectedTemplate.description}</p>
                 {showRoleHints && (
-                  <div className="max-w-sm pt-1">
+                  <div className="pt-1">
                     <div className="flex flex-wrap gap-1">
                       {roleBehaviorHints.map((hint) => (
                         <span
@@ -1438,13 +1430,7 @@ export function EntriesClient() {
                     </button>
                   </div>
                 )}
-                {lastGenerated && (
-                  <p className="text-[11px] text-emerald-700 dark:text-emerald-300">
-                    Last generated: {format(new Date(lastGenerated.generatedAtIso), "MMM d, yyyy h:mm a")} (
-                    {lastGenerated.month}, {timesheetTemplates[lastGenerated.role].label})
-                  </p>
-                )}
-                <div className="grid max-w-sm grid-cols-1 gap-2 sm:grid-cols-[1fr_auto]">
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-[1fr_auto]">
                   <Input
                     value={presetName}
                     onChange={(e) => setPresetName(e.target.value)}
@@ -1456,7 +1442,7 @@ export function EntriesClient() {
                   </Button>
                 </div>
                 {savedPresets.length > 0 && (
-                  <div className="flex max-w-sm flex-wrap gap-2">
+                  <div className="flex flex-wrap gap-2">
                     <select
                       className="h-9 min-w-0 flex-1 rounded-md border border-indigo-500/30 bg-background/90 px-2 text-xs dark:border-indigo-300/25"
                       defaultValue=""
@@ -1482,7 +1468,25 @@ export function EntriesClient() {
                     </Button>
                   </div>
                 )}
-                <label className="flex items-center gap-2 text-xs text-slate-600 dark:text-slate-300/80">
+              </div>
+
+              <div className="rounded-lg border border-indigo-500/20 bg-background/55 p-3 dark:bg-background/35">
+                <div className="space-y-1 text-[11px] text-slate-600 dark:text-slate-300/80">
+                  <p>
+                    Timesheet Type: <span className="font-semibold text-slate-800 dark:text-slate-100">{selectedTemplate.label}</span>
+                  </p>
+                  <p>
+                    Default layout mode: <span className="font-semibold capitalize text-slate-800 dark:text-slate-100">{timesheetLayoutMode}</span>
+                  </p>
+                  {lastGenerated && (
+                    <p className="text-emerald-700 dark:text-emerald-300">
+                      Last generated: {format(new Date(lastGenerated.generatedAtIso), "MMM d, yyyy h:mm a")} (
+                      {lastGenerated.month}, {timesheetTemplates[lastGenerated.role].label})
+                    </p>
+                  )}
+                </div>
+
+                <label className="mt-3 flex items-center gap-2 text-xs text-slate-600 dark:text-slate-300/80">
                   <input
                     type="checkbox"
                     checked={previewPdfBeforeDownload}
@@ -1501,13 +1505,12 @@ export function EntriesClient() {
                   />
                   Open PDF preview before saving
                 </label>
-                <p className="text-[11px] text-slate-500 dark:text-slate-400">
+
+                <p className="mt-2 text-[11px] text-slate-500 dark:text-slate-400">
                   Checklist: {submissionChecklist.items.filter((item) => item.done).length}/{submissionChecklist.items.length} complete
                 </p>
-              </div>
 
-              <div className="grid w-full grid-cols-1 gap-2 md:flex md:w-auto md:items-center md:justify-end">
-                <Button className="w-full md:w-auto" onClick={() => onFillTimesheetPdf("auto")} disabled={fillingPdf}>
+                <Button className="mt-3 w-full" onClick={() => onFillTimesheetPdf("auto")} disabled={fillingPdf}>
                   <Download className="mr-2 h-4 w-4" />
                   {fillingPdf ? "Generating..." : "Generate Timesheet PDF"}
                 </Button>
