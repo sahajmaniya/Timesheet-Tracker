@@ -131,6 +131,7 @@
 
   html {
     @apply font-sans;
+    scroll-behavior: smooth;
   }
 
   ::selection {
@@ -142,5 +143,11 @@
 @media (min-width: 768px) {
   body {
     background-attachment: fixed;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
   }
 }

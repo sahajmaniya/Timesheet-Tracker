@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { siteConfig } from "@/lib/site";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -79,7 +78,6 @@ export default function PunchInOutWebAppPage() {
           .
         </p>
 
-        <p className="mt-4 text-xs text-muted-foreground">Source: {siteConfig.url}</p>
       </section>
     </main>
   );
