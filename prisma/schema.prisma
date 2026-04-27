@@ -11,6 +11,8 @@ model User {
   name             String?
   email            String      @unique
   password         String
+  sessionVersion   Int         @default(0)
+  passwordChangedAt DateTime?
   createdAt        DateTime    @default(now())
   updatedAt        DateTime    @updatedAt
   image            String?
@@ -18,6 +20,7 @@ model User {
   workScheduleJson Json?
   entries          TimeEntry[]
   otpChallenges    LoginOtpChallenge[]
+  passwordResets   PasswordResetToken[]
   authAuditLogs    AuthAuditLog[]
 }
 
@@ -79,4 +82,16 @@ model AuthAuditLog {
   @@index([event, createdAt])
   @@index([email, createdAt])
   @@index([userId, createdAt])
+}
+
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  userId    String
+  tokenHash String   @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, expiresAt])
 }

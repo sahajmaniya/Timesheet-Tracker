@@ -33,7 +33,7 @@ export function TopBar() {
 
   const doSignOut = async () => {
     toast.success("Signed out");
-    await signOut({ callbackUrl: "/dashboard" });
+    await signOut({ callbackUrl: "/" });
   };
 
   return (
@@ -47,8 +47,8 @@ export function TopBar() {
         )}
       >
         <div className="mx-auto w-full max-w-6xl px-2 py-2 sm:px-4 sm:py-2.5 md:px-6 md:py-3">
-          <div className="rounded-2xl border border-border/60 bg-gradient-to-r from-sky-200/40 via-background/95 to-indigo-200/30 px-2.5 py-2 shadow-[0_16px_35px_-24px_rgba(59,130,246,0.45)] sm:px-3 dark:from-sky-500/10 dark:to-indigo-500/10">
-          <div className="flex items-center justify-between gap-1.5 sm:gap-2">
+          <div className="rounded-2xl border border-border/60 bg-gradient-to-r from-sky-200/40 via-background/95 to-indigo-200/30 px-2 py-2 shadow-[0_16px_35px_-24px_rgba(59,130,246,0.45)] sm:px-3 dark:from-sky-500/10 dark:to-indigo-500/10">
+          <div className="flex items-center justify-between gap-1 sm:gap-2">
             <Link href="/dashboard" className="group flex min-w-0 items-center gap-2 text-sm font-semibold tracking-wide sm:gap-2.5">
               <span className="rounded-xl border border-primary/30 bg-primary/15 p-1 text-primary transition-transform duration-200 group-hover:scale-105">
                 <Image
@@ -105,7 +105,7 @@ export function TopBar() {
                   <p className="truncate">{safeEmail}</p>
                 </div>
               </Link>
-              <Button variant="outline" size="sm" className="h-10 rounded-xl px-3 sm:h-9 sm:px-3.5" onClick={doSignOut}>
+              <Button variant="outline" size="sm" className="h-9 min-w-0 rounded-xl px-2.5 sm:px-3.5" onClick={doSignOut}>
                 <span className="lg:hidden">Out</span>
                 <span className="hidden lg:inline">Sign out</span>
               </Button>

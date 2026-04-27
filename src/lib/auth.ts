@@ -13,12 +13,48 @@ import { prisma } from "@/lib/prisma";
 const credentialsSchema = z.object({
   email: z.string().trim().toLowerCase().email(),
   password: z.string().min(8),
-  otp: z.string().regex(/^\d{6}$/),
-  challengeId: z.string().min(1),
+  otp: z.string().trim().regex(/^\d{6}$/),
+  challengeId: z.string().trim().min(1).optional(),
 });
+
+async function getUserSessionSnapshot(params: {
+  id?: string | null;
+  email?: string | null;
+}) {
+  if (params.id) {
+    const byId = await prisma.user.findUnique({
+      where: { id: params.id },
+      select: { id: true, name: true, email: true, image: true, sessionVersion: true },
+    });
+    if (byId) return byId;
+  }
+
+  if (params.email) {
+    return prisma.user.findUnique({
+      where: { email: params.email.toLowerCase() },
+      select: { id: true, name: true, email: true, image: true, sessionVersion: true },
+    });
+  }
+
+  return null;
+}
 
 export const authOptions: NextAuthOptions = {
   session: { strategy: "jwt" },
+  debug: process.env.NEXTAUTH_DEBUG === "true",
+  logger: {
+    error(code, metadata) {
+      console.error("[NextAuth][error]", code, metadata);
+    },
+    warn(code) {
+      console.warn("[NextAuth][warn]", code);
+    },
+    debug(code, metadata) {
+      if (process.env.NODE_ENV === "development") {
+        console.info("[NextAuth][debug]", code, metadata);
+      }
+    },
+  },
   pages: {
     signIn: "/auth/signin",
   },
@@ -32,6 +68,12 @@ export const authOptions: NextAuthOptions = {
         challengeId: { label: "Challenge Id", type: "text" },
       },
       async authorize(credentials) {
+        await writeAuthAuditLog({
+          event: "signin_attempt",
+          success: true,
+          email: typeof credentials?.email === "string" ? credentials.email.trim().toLowerCase() : undefined,
+        });
+
         const parsed = credentialsSchema.safeParse(credentials);
         if (!parsed.success) {
           await writeAuthAuditLog({
@@ -68,13 +110,19 @@ export const authOptions: NextAuthOptions = {
           return null;
         }
 
-        const challenge = await prisma.loginOtpChallenge.findFirst({
+        const activeChallenges = await prisma.loginOtpChallenge.findMany({
           where: {
-            id: parsed.data.challengeId,
             userId: user.id,
             consumedAt: null,
           },
+          orderBy: { createdAt: "desc" },
+          take: 5,
         });
+
+        const challenge =
+          (parsed.data.challengeId
+            ? activeChallenges.find((item) => item.id === parsed.data.challengeId)
+            : null) ?? activeChallenges[0];
 
         if (!challenge) {
           await writeAuthAuditLog({
@@ -207,32 +255,61 @@ export const authOptions: NextAuthOptions = {
       return true;
     },
     async jwt({ token, user }) {
-      if (user?.id) token.sub = user.id;
-      if (token.email) {
-        const dbUser = await prisma.user.findUnique({
-          where: { email: token.email.toLowerCase() },
-          select: { id: true, name: true, email: true },
+      // Fresh sign-in: always synchronize token with the current DB snapshot first.
+      // This prevents false "SessionRevoked" on newly issued credentials.
+      if (user?.id) {
+        const dbUser = await getUserSessionSnapshot({
+          id: user.id,
+          email: user.email?.toLowerCase(),
         });
-        if (dbUser) {
-          token.sub = dbUser.id;
-          token.name = dbUser.name;
-          token.email = dbUser.email;
-        }
+
+        token.sub = dbUser?.id ?? user.id;
+        token.name = dbUser?.name ?? user.name;
+        token.email = dbUser?.email ?? user.email;
+        token.image = dbUser?.image ?? null;
+        token.sessionVersion = dbUser?.sessionVersion ?? 0;
+        delete token.error;
+        return token;
       }
+
+      if (typeof token.sessionVersion !== "number") {
+        token.sessionVersion = 0;
+      }
+
+      const dbUser = await getUserSessionSnapshot({
+        id: token.sub,
+        email: typeof token.email === "string" ? token.email : undefined,
+      });
+
+      if (dbUser) {
+        if (token.sessionVersion !== dbUser.sessionVersion) {
+          delete token.sub;
+          delete token.email;
+          delete token.name;
+          delete token.image;
+          token.error = "SessionRevoked";
+          token.sessionVersion = dbUser.sessionVersion;
+          return token;
+        }
+
+        token.sub = dbUser.id;
+        token.name = dbUser.name;
+        token.email = dbUser.email;
+        token.image = dbUser.image ?? null;
+        token.sessionVersion = dbUser.sessionVersion;
+      }
+
       return token;
     },
     async session({ session, token }) {
+      if (token.error === "SessionRevoked") {
+        session.error = "SessionRevoked";
+      }
       if (session.user && token.sub) {
         session.user.id = token.sub;
-        const dbUser = await prisma.user.findUnique({
-          where: { id: token.sub },
-          select: { name: true, email: true, image: true },
-        });
-        if (dbUser) {
-          session.user.name = dbUser.name;
-          session.user.email = dbUser.email;
-          session.user.image = dbUser.image;
-        }
+        session.user.name = typeof token.name === "string" ? token.name : null;
+        session.user.email = typeof token.email === "string" ? token.email : null;
+        session.user.image = typeof token.image === "string" ? token.image : null;
       }
       return session;
     },

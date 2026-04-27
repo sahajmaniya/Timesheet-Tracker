@@ -1,7 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Loader2, LogIn, MailCheck } from "lucide-react";
+import { Loader2, LogIn, MailCheck, ShieldCheck } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { getProviders, signIn } from "next-auth/react";
@@ -57,12 +57,16 @@ export function SignInForm() {
   }, []);
 
   const requestOtp = async (values: RequestOtpData) => {
+    const normalizedEmail = values.email.trim().toLowerCase();
     setOtpLoading(true);
     try {
       const res = await fetch("/api/auth/request-otp", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(values),
+        body: JSON.stringify({
+          email: normalizedEmail,
+          password: values.password,
+        }),
       });
       const body = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -71,7 +75,11 @@ export function SignInForm() {
       }
 
       setChallengeId(body.challengeId);
+      setValue("otp", "");
       toast.success("Verification code sent to your email.");
+      if (typeof body.devOtp === "string") {
+        toast.message(`DEV OTP: ${body.devOtp}`);
+      }
     } catch (error) {
       toast.error(
         error instanceof Error
@@ -89,7 +97,9 @@ export function SignInForm() {
       return;
     }
 
-    if (!/^\d{6}$/.test(values.otp)) {
+    const normalizedOtp = values.otp.replace(/\D/g, "").slice(0, 6);
+
+    if (!/^\d{6}$/.test(normalizedOtp)) {
       toast.error("Enter a valid 6-digit verification code.");
       return;
     }
@@ -97,16 +107,22 @@ export function SignInForm() {
     try {
       const callbackUrl = params.get("callbackUrl") || "/dashboard";
       const result = await signIn("credentials", {
-        email: values.email,
+        email: values.email.trim().toLowerCase(),
         password: values.password,
-        otp: values.otp,
+        otp: normalizedOtp,
         challengeId,
         redirect: false,
         callbackUrl,
       });
 
       if (result?.error) {
-        toast.error("Invalid verification code or expired session");
+        toast.error(
+          result.error === "CredentialsSignin"
+            ? "Sign-in rejected (CredentialsSignin). Request a new code and retry."
+            : `Sign-in failed (${result.error}). Request a new code and retry.`,
+        );
+        setChallengeId(null);
+        setValue("otp", "");
         return;
       }
 
@@ -140,12 +156,13 @@ export function SignInForm() {
   };
 
   return (
-    <Card className="w-full max-w-md border-0 bg-background/90 shadow-xl backdrop-blur">
-      <CardHeader className="space-y-2">
-        <div className="inline-flex w-fit items-center rounded-full border bg-muted/40 px-3 py-1 text-xs text-muted-foreground">
-          PunchPilot
+    <Card className="w-full max-w-md rounded-[1.35rem] border border-border/70 bg-background/90 shadow-none">
+      <CardHeader className="space-y-2 pb-5">
+        <div className="inline-flex w-fit items-center gap-1.5 rounded-full border border-cyan-300/45 bg-cyan-100/70 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-cyan-900 dark:border-cyan-700/50 dark:bg-cyan-900/30 dark:text-cyan-100">
+          <ShieldCheck className="h-3 w-3" />
+          Secure Access
         </div>
-        <CardTitle className="text-2xl">Sign in</CardTitle>
+        <CardTitle className="text-2xl font-black tracking-tight">Sign in</CardTitle>
         <CardDescription>
           {challengeId
             ? "Enter the 6-digit code we just sent to your email."
@@ -181,16 +198,20 @@ export function SignInForm() {
         <form className="space-y-4" onSubmit={handleSubmit(onSubmit)}>
           <div className="space-y-1">
             <Label htmlFor="email">Email</Label>
-            <Input id="email" type="email" autoComplete="email" {...register("email")} />
+            <Input id="email" type="email" autoComplete="email" className="h-10 rounded-xl" disabled={Boolean(challengeId)} {...register("email")} />
             {errors.email && <p className="text-xs text-destructive">{errors.email.message}</p>}
           </div>
 
           <div className="space-y-1">
-            <Label htmlFor="password">Password</Label>
-            <Input id="password" type="password" autoComplete="current-password" {...register("password")} />
+            <div className="flex items-center justify-between">
+              <Label htmlFor="password">Password</Label>
+              <Link className="text-xs font-medium text-foreground underline-offset-4 hover:underline" href="/auth/forgot-password">
+                Forgot password?
+              </Link>
+            </div>
+            <Input id="password" type="password" autoComplete="current-password" className="h-10 rounded-xl" disabled={Boolean(challengeId)} {...register("password")} />
             {errors.password && <p className="text-xs text-destructive">{errors.password.message}</p>}
           </div>
-
           {challengeId && (
             <div className="space-y-1">
               <Label htmlFor="otp">Verification Code</Label>
@@ -200,25 +221,26 @@ export function SignInForm() {
                 pattern="\d{6}"
                 maxLength={6}
                 placeholder="123456"
+                className="h-10 rounded-xl"
                 {...register("otp")}
               />
             </div>
           )}
 
           {!challengeId ? (
-            <Button className="w-full" type="button" disabled={otpLoading} onClick={() => void requestOtp(getValues())}>
+            <Button className="h-11 w-full rounded-xl" type="button" disabled={otpLoading} onClick={() => void requestOtp(getValues())}>
               {otpLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <><MailCheck className="mr-2 h-4 w-4" />Send verification code</>}
             </Button>
           ) : (
             <>
-              <Button className="w-full" type="submit" disabled={isSubmitting}>
+              <Button className="h-11 w-full rounded-xl" type="submit" disabled={isSubmitting}>
                 {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <><LogIn className="mr-2 h-4 w-4" />Verify and sign in</>}
               </Button>
-              <Button className="w-full" type="button" variant="outline" onClick={() => void onResendCode()}>
+              <Button className="h-11 w-full rounded-xl" type="button" variant="outline" onClick={() => void onResendCode()}>
                 Resend Code
               </Button>
               <Button
-                className="w-full"
+                className="h-11 w-full rounded-xl"
                 type="button"
                 variant="ghost"
                 onClick={() => {

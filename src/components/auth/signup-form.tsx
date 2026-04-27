@@ -1,7 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Loader2, UserPlus } from "lucide-react";
+import { Loader2, ShieldCheck, UserPlus } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { getProviders, signIn } from "next-auth/react";
@@ -64,12 +64,13 @@ export function SignUpForm() {
   };
 
   return (
-    <Card className="w-full max-w-md border-0 bg-background/90 shadow-xl backdrop-blur">
-      <CardHeader className="space-y-2">
-        <div className="inline-flex w-fit items-center rounded-full border bg-muted/40 px-3 py-1 text-xs text-muted-foreground">
+    <Card className="w-full max-w-md rounded-[1.35rem] border border-border/70 bg-background/90 shadow-none">
+      <CardHeader className="space-y-2 pb-5">
+        <div className="inline-flex w-fit items-center gap-1.5 rounded-full border border-cyan-300/45 bg-cyan-100/70 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-cyan-900 dark:border-cyan-700/50 dark:bg-cyan-900/30 dark:text-cyan-100">
+          <ShieldCheck className="h-3 w-3" />
           New Account
         </div>
-        <CardTitle className="text-2xl">Create account</CardTitle>
+        <CardTitle className="text-2xl font-black tracking-tight">Create account</CardTitle>
         <CardDescription>Set up your profile and start logging shifts in minutes.</CardDescription>
       </CardHeader>
       <CardContent>
@@ -101,19 +102,19 @@ export function SignUpForm() {
         <form className="space-y-4" onSubmit={handleSubmit(onSubmit)}>
           <div className="space-y-1">
             <Label htmlFor="name">Full name</Label>
-            <Input id="name" autoComplete="name" {...register("name")} />
+            <Input id="name" autoComplete="name" className="h-10 rounded-xl" {...register("name")} />
             {errors.name && <p className="text-xs text-destructive">{errors.name.message}</p>}
           </div>
 
           <div className="space-y-1">
             <Label htmlFor="email">Email</Label>
-            <Input id="email" type="email" autoComplete="email" {...register("email")} />
+            <Input id="email" type="email" autoComplete="email" className="h-10 rounded-xl" {...register("email")} />
             {errors.email && <p className="text-xs text-destructive">{errors.email.message}</p>}
           </div>
 
           <div className="space-y-1">
             <Label htmlFor="password">Password</Label>
-            <Input id="password" type="password" autoComplete="new-password" {...register("password")} />
+            <Input id="password" type="password" autoComplete="new-password" className="h-10 rounded-xl" {...register("password")} />
             {errors.password && <p className="text-xs text-destructive">{errors.password.message}</p>}
           </div>
 
@@ -121,7 +122,7 @@ export function SignUpForm() {
             Use at least 8 characters, including uppercase, lowercase, and a number.
           </p>
 
-          <Button className="w-full" type="submit" disabled={isSubmitting}>
+          <Button className="h-11 w-full rounded-xl" type="submit" disabled={isSubmitting}>
             {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <><UserPlus className="mr-2 h-4 w-4" />Create account</>}
           </Button>
         </form>
