@@ -639,21 +639,21 @@ export function ProfileSettingsForm({ initialProfile }: { initialProfile: Profil
                       </div>
 
                       <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-                        <div className="space-y-1">
+                        <div className="min-w-0 space-y-1">
                           <Label className="text-[11px] text-muted-foreground">Start</Label>
-                          <Input type="time" {...register(`workSchedule.${activeScheduleDay}.start`)} />
+                          <Input type="time" className="min-w-0" {...register(`workSchedule.${activeScheduleDay}.start`)} />
                         </div>
-                        <div className="space-y-1">
+                        <div className="min-w-0 space-y-1">
                           <Label className="text-[11px] text-muted-foreground">End</Label>
-                          <Input type="time" {...register(`workSchedule.${activeScheduleDay}.end`)} />
+                          <Input type="time" className="min-w-0" {...register(`workSchedule.${activeScheduleDay}.end`)} />
                         </div>
-                        <div className="space-y-1">
+                        <div className="min-w-0 space-y-1">
                           <Label className="text-[11px] text-muted-foreground">Break Start</Label>
-                          <Input type="time" {...register(`workSchedule.${activeScheduleDay}.breakStart`)} />
+                          <Input type="time" className="min-w-0" {...register(`workSchedule.${activeScheduleDay}.breakStart`)} />
                         </div>
-                        <div className="space-y-1">
+                        <div className="min-w-0 space-y-1">
                           <Label className="text-[11px] text-muted-foreground">Break End</Label>
-                          <Input type="time" {...register(`workSchedule.${activeScheduleDay}.breakEnd`)} />
+                          <Input type="time" className="min-w-0" {...register(`workSchedule.${activeScheduleDay}.breakEnd`)} />
                         </div>
                       </div>
                     </div>

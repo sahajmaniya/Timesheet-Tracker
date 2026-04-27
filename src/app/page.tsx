@@ -167,7 +167,7 @@ export default async function HomePage() {
 
       <a
         href="#top"
-        className="sr-only focus:not-sr-only focus:absolute focus:left-3 focus:top-3 focus:z-[60] focus:rounded-md focus:bg-background focus:px-3 focus:py-2"
+        className="sr-only focus:not-sr-only focus:absolute focus:left-3 focus:top-3 focus:z-60 focus:rounded-md focus:bg-background focus:px-3 focus:py-2"
       >
         Skip to content
       </a>
@@ -183,7 +183,7 @@ export default async function HomePage() {
 
           <h1 className="mt-5 max-w-2xl text-balance text-4xl font-black leading-[1.03] tracking-[-0.02em] text-slate-900 sm:text-5xl lg:text-6xl dark:text-slate-50">
             Modern Timesheet Tracking
-            <span className="block bg-gradient-to-r from-cyan-600 via-sky-600 to-emerald-600 bg-clip-text text-transparent dark:from-cyan-300 dark:via-sky-300 dark:to-emerald-300">
+            <span className="block bg-linear-to-r from-cyan-600 via-sky-600 to-emerald-600 bg-clip-text text-transparent dark:from-cyan-300 dark:via-sky-300 dark:to-emerald-300">
               Built For Real Department Work
             </span>
           </h1>
@@ -253,7 +253,7 @@ export default async function HomePage() {
         </section>
       </RevealOnScroll>
 
-      <div aria-hidden className="mx-auto h-px w-full max-w-6xl bg-gradient-to-r from-transparent via-border/80 to-transparent px-4 sm:px-6 lg:px-8" />
+      <div aria-hidden className="mx-auto h-px w-full max-w-6xl bg-linear-to-r from-transparent via-border/80 to-transparent px-4 sm:px-6 lg:px-8" />
 
       <RevealOnScroll delayMs={60}>
         <section id="features" className="scroll-mt-28 mx-auto w-full max-w-6xl px-4 pb-16 sm:px-6 lg:px-8">
@@ -279,7 +279,7 @@ export default async function HomePage() {
       <RevealOnScroll delayMs={80}>
         <section aria-label="Who uses PunchPilot" className="mx-auto w-full max-w-6xl px-4 pb-16 sm:px-6 lg:px-8">
           <div className="grid gap-5 lg:grid-cols-[0.95fr_1.05fr] lg:items-start">
-            <div className="rounded-3xl border border-cyan-300/45 bg-gradient-to-br from-cyan-100/85 via-background to-emerald-100/65 p-6 dark:border-cyan-800/55 dark:from-cyan-950/35 dark:via-background dark:to-emerald-950/25">
+            <div className="rounded-3xl border border-cyan-300/45 bg-linear-to-br from-cyan-100/85 via-background to-emerald-100/65 p-6 dark:border-cyan-800/55 dark:from-cyan-950/35 dark:via-background dark:to-emerald-950/25">
               <p className="text-xs font-bold uppercase tracking-[0.2em] text-muted-foreground">Who It&apos;s For</p>
               <h2 className="mt-2 text-balance text-3xl font-black leading-tight tracking-[-0.015em] sm:text-4xl">
                 Built for every role in the timesheet workflow
@@ -312,15 +312,15 @@ export default async function HomePage() {
         </section>
       </RevealOnScroll>
 
-      <div aria-hidden className="mx-auto h-px w-full max-w-6xl bg-gradient-to-r from-transparent via-border/80 to-transparent px-4 sm:px-6 lg:px-8" />
+      <div aria-hidden className="mx-auto h-px w-full max-w-6xl bg-linear-to-r from-transparent via-border/80 to-transparent px-4 sm:px-6 lg:px-8" />
 
       <RevealOnScroll delayMs={100}>
         <section id="workflow" className="scroll-mt-28 mx-auto w-full max-w-6xl px-4 pb-16 sm:px-6 lg:px-8">
           <div className="grid gap-4 lg:grid-cols-[1.2fr_0.8fr] lg:gap-5">
-            <div className="rounded-3xl border border-cyan-300/35 bg-gradient-to-br from-cyan-100/50 via-background/90 to-background/80 p-6 dark:border-cyan-800/45 dark:from-cyan-950/20 dark:via-background/85 dark:to-background/80">
+            <div className="rounded-3xl border border-cyan-300/35 bg-linear-to-br from-cyan-100/50 via-background/90 to-background/80 p-6 dark:border-cyan-800/45 dark:from-cyan-950/20 dark:via-background/85 dark:to-background/80">
               <p className="text-xs font-bold uppercase tracking-[0.2em] text-muted-foreground">How It Works</p>
               <div className="relative mt-5 space-y-4">
-                <div className="absolute left-3.5 top-1 h-[calc(100%-8px)] w-px bg-gradient-to-b from-cyan-400/50 to-cyan-400/5 dark:from-cyan-500/45 dark:to-cyan-500/10" />
+                <div className="absolute left-3.5 top-1 h-[calc(100%-8px)] w-px bg-linear-to-b from-cyan-400/50 to-cyan-400/5 dark:from-cyan-500/45 dark:to-cyan-500/10" />
                 {workflowSteps.map((step, index) => (
                   <div
                     key={step.title}
@@ -338,7 +338,7 @@ export default async function HomePage() {
               </div>
             </div>
 
-            <div className="rounded-3xl border border-emerald-300/35 bg-gradient-to-br from-emerald-100/45 via-card/80 to-background p-6 dark:border-emerald-800/45 dark:from-emerald-950/20 dark:via-card/80 dark:to-background">
+            <div className="rounded-3xl border border-emerald-300/35 bg-linear-to-br from-emerald-100/45 via-card/80 to-background p-6 dark:border-emerald-800/45 dark:from-emerald-950/20 dark:via-card/80 dark:to-background">
               <p className="inline-flex items-center gap-2 rounded-full border border-emerald-400/60 bg-emerald-100/80 px-3 py-1 text-xs font-semibold text-emerald-900 dark:border-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-100">
                 <Rocket className="h-3.5 w-3.5" />
                 Start in 60 Seconds
@@ -349,7 +349,7 @@ export default async function HomePage() {
                   <span>4/4</span>
                 </div>
                 <div className="mt-2 h-2 rounded-full bg-muted">
-                  <div className="h-2 w-full rounded-full bg-gradient-to-r from-emerald-500 to-cyan-500" />
+                  <div className="h-2 w-full rounded-full bg-linear-to-r from-emerald-500 to-cyan-500" />
                 </div>
               </div>
               <ul className="mt-4 space-y-2 text-sm text-muted-foreground">
@@ -364,7 +364,7 @@ export default async function HomePage() {
                 href="/auth/signup"
                 className={cn(
                   buttonVariants({ variant: "default" }),
-                  "mt-4 h-10 w-full bg-gradient-to-r from-emerald-600 to-cyan-600 text-sm font-semibold text-white hover:from-emerald-500 hover:to-cyan-500",
+                  "mt-4 h-10 w-full bg-linear-to-r from-emerald-600 to-cyan-600 text-sm font-semibold text-white hover:from-emerald-500 hover:to-cyan-500",
                 )}
               >
                 Start Setup
@@ -422,7 +422,7 @@ export default async function HomePage() {
       <RevealOnScroll delayMs={150}>
         <section id="faq" className="scroll-mt-28 mx-auto w-full max-w-6xl px-4 pb-20 sm:px-6 lg:px-8">
           <div className="grid gap-5 lg:grid-cols-[0.95fr_1.05fr]">
-            <div className="rounded-3xl border border-indigo-300/40 bg-gradient-to-br from-indigo-100/70 via-background/95 to-cyan-100/55 p-6 dark:border-indigo-800/45 dark:from-indigo-950/25 dark:via-background/85 dark:to-cyan-950/20 sm:p-7">
+            <div className="rounded-3xl border border-indigo-300/40 bg-linear-to-br from-indigo-100/70 via-background/95 to-cyan-100/55 p-6 dark:border-indigo-800/45 dark:from-indigo-950/25 dark:via-background/85 dark:to-cyan-950/20 sm:p-7">
               <p className="text-xs font-bold uppercase tracking-[0.2em] text-muted-foreground">FAQ</p>
               <h2 className="mt-2 text-balance text-3xl font-black leading-tight tracking-[-0.015em] sm:text-4xl">Answers for teams moving fast</h2>
               <p className="mt-3 text-sm leading-6 text-muted-foreground sm:text-base">
@@ -432,7 +432,7 @@ export default async function HomePage() {
                 href="/auth/signup"
                 className={cn(
                   buttonVariants({ variant: "default" }),
-                  "mt-5 h-10 bg-gradient-to-r from-cyan-600 to-indigo-600 px-5 text-sm font-semibold text-white hover:from-cyan-500 hover:to-indigo-500",
+                  "mt-5 h-10 bg-linear-to-r from-cyan-600 to-indigo-600 px-5 text-sm font-semibold text-white hover:from-cyan-500 hover:to-indigo-500",
                 )}
               >
                 Get Started
@@ -468,7 +468,7 @@ export default async function HomePage() {
 
       <RevealOnScroll delayMs={170}>
         <footer className="mx-auto w-full max-w-6xl px-4 pb-28 sm:px-6 md:pb-10 lg:px-8">
-          <div className="relative overflow-hidden rounded-3xl border border-border/70 bg-gradient-to-br from-card via-card/90 to-cyan-50/35 p-6 shadow-[0_24px_40px_-30px_rgba(8,47,73,0.65)] dark:from-slate-900/85 dark:via-slate-900/80 dark:to-cyan-950/20 sm:p-7">
+          <div className="relative overflow-hidden rounded-3xl border border-border/70 bg-linear-to-br from-card via-card/90 to-cyan-50/35 p-6 shadow-[0_24px_40px_-30px_rgba(8,47,73,0.65)] dark:from-slate-900/85 dark:via-slate-900/80 dark:to-cyan-950/20 sm:p-7">
             <div className="pointer-events-none absolute inset-0">
               <div className="absolute -left-10 top-0 h-24 w-24 rounded-full bg-cyan-300/30 blur-2xl dark:bg-cyan-600/25" />
               <div className="absolute -right-12 bottom-0 h-24 w-24 rounded-full bg-emerald-300/25 blur-2xl dark:bg-emerald-600/20" />

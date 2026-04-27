@@ -270,23 +270,23 @@ export function TimeEntryForm({
       </Card>
 
       <div className="grid gap-4 sm:grid-cols-3">
-        <div className="space-y-1">
+        <div className="min-w-0 space-y-1">
           <Label htmlFor="date">Date</Label>
-          <Input id="date" type="date" {...register("date")} />
+          <Input id="date" type="date" className="min-w-0" {...register("date")} />
           {errors.date && <p className="text-xs text-destructive">{errors.date.message}</p>}
           {!errors.date && <p className="text-xs text-muted-foreground">Pick the exact work day this row should represent.</p>}
         </div>
 
-        <div className="space-y-1">
+        <div className="min-w-0 space-y-1">
           <Label htmlFor="punchIn">Punch In</Label>
-          <Input id="punchIn" type="time" {...register("punchIn")} />
+          <Input id="punchIn" type="time" className="min-w-0" {...register("punchIn")} />
           {errors.punchIn && <p className="text-xs text-destructive">{errors.punchIn.message}</p>}
           {!errors.punchIn && <p className="text-xs text-muted-foreground">Use 24-hour time, for example `09:00`.</p>}
         </div>
 
-        <div className="space-y-1">
+        <div className="min-w-0 space-y-1">
           <Label htmlFor="punchOut">Punch Out</Label>
-          <Input id="punchOut" type="time" {...register("punchOut")} />
+          <Input id="punchOut" type="time" className="min-w-0" {...register("punchOut")} />
           {errors.punchOut && <p className="text-xs text-destructive">{errors.punchOut.message}</p>}
           {!errors.punchOut && <p className="text-xs text-muted-foreground">Set when the shift ended, for example `17:00`.</p>}
         </div>
@@ -320,10 +320,10 @@ export function TimeEntryForm({
           {fields.map((field, index) => (
             <div
               key={field.id}
-              className="grid grid-cols-1 items-center gap-2 rounded-lg border bg-card p-2 sm:grid-cols-[1fr_1fr_auto]"
+              className="grid min-w-0 grid-cols-1 items-center gap-2 rounded-lg border bg-card p-2 sm:grid-cols-[1fr_1fr_auto]"
             >
-              <Input type="time" {...register(`breaks.${index}.start`)} />
-              <Input type="time" {...register(`breaks.${index}.end`)} />
+              <Input type="time" className="min-w-0" {...register(`breaks.${index}.start`)} />
+              <Input type="time" className="min-w-0" {...register(`breaks.${index}.end`)} />
               <Button
                 type="button"
                 variant="ghost"

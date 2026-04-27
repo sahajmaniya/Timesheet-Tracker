@@ -193,9 +193,9 @@ export function DashboardClient() {
           <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_78%_70%,rgba(16,185,129,0.16),transparent_56%)]" />
           <CardHeader className="relative pb-2">
             <CardDescription className="font-medium text-emerald-700 dark:text-emerald-100/80">Month</CardDescription>
-            <div className="pt-1">
+            <div className="min-w-0 pt-1">
               <Input
-                className="border-emerald-500/30 bg-background/85 font-semibold text-emerald-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] focus-visible:ring-emerald-500/45 dark:border-emerald-300/25 dark:text-emerald-50 dark:focus-visible:ring-emerald-400/50"
+                className="min-w-0 border-emerald-500/30 bg-background/85 font-semibold text-emerald-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] focus-visible:ring-emerald-500/45 dark:border-emerald-300/25 dark:text-emerald-50 dark:focus-visible:ring-emerald-400/50"
                 type="month"
                 value={month}
                 onChange={(e) => setMonth(e.target.value)}
