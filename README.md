@@ -176,3 +176,53 @@ E2E_EMAIL=your_email@example.com E2E_PASSWORD=your_password npm run test:e2e
 ```
 
 Without `E2E_EMAIL` and `E2E_PASSWORD`, only public/unauthenticated smoke tests run.
+
+## Performance & Analysis
+
+### Bundle analyzer
+
+Generate webpack bundle reports:
+
+```bash
+npm run analyze
+```
+
+This enables Next.js bundle analyzer via `ANALYZE=true` and opens bundle report output.
+
+### Lighthouse CI
+
+Run Lighthouse against key public pages:
+
+```bash
+npm run perf:lighthouse
+```
+
+Configuration file: `.lighthouserc.json`  
+Reports are saved to `.lighthouseci/`.
+
+### API latency benchmark
+
+Run API response-time benchmark summary:
+
+```bash
+npm run perf:api
+```
+
+Optional environment variables:
+
+- `BENCH_BASE_URL` (default: `http://127.0.0.1:3000`)
+- `BENCH_MONTH` (default: current `YYYY-MM`)
+- `BENCH_RUNS` (default: `8`)
+- `BENCH_SESSION_COOKIE` (required for authenticated API timings)
+- `BENCH_PDF_TEMPLATE_PATH` (optional; include to benchmark `/api/entries/fill-pdf`)
+- `BENCH_TIMESHEET_ROLE` (default: `student_assistant`)
+- `BENCH_LAYOUT_MODE` (default: `auto`)
+
+Example with authenticated endpoints:
+
+```bash
+BENCH_BASE_URL=http://127.0.0.1:3000 \
+BENCH_SESSION_COOKIE='next-auth.session-token=...' \
+BENCH_PDF_TEMPLATE_PATH=./exports/blank-timesheet.pdf \
+npm run perf:api
+```

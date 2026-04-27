@@ -5,9 +5,12 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build --webpack",
+    "analyze": "ANALYZE=true next build --webpack",
     "start": "next start",
     "lint": "eslint src prisma --ext .ts,.tsx",
     "typecheck": "next typegen && tsc --noEmit",
+    "perf:lighthouse": "lhci autorun --config=.lighthouserc.json",
+    "perf:api": "node scripts/benchmark-api.mjs",
     "test:e2e": "playwright test",
     "test:e2e:headed": "playwright test --headed",
     "test:e2e:ui": "playwright test --ui",
@@ -45,6 +48,8 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
+    "@lhci/cli": "^0.15.1",
+    "@next/bundle-analyzer": "^16.1.6",
     "@playwright/test": "^1.58.2",
     "@tailwindcss/postcss": "^4",
     "@types/bcrypt": "^6.0.0",
