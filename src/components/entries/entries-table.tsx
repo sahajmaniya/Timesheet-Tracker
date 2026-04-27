@@ -17,44 +17,16 @@ export function EntriesTable({
   onDelete: (entry: TimeEntry) => void;
 }) {
   return (
-    <Table className="min-w-[900px] rounded-xl border bg-card">
-      <TableHeader>
-        <TableRow>
-          <TableHead>Date</TableHead>
-          <TableHead>In</TableHead>
-          <TableHead>Out</TableHead>
-          <TableHead>Break</TableHead>
-          <TableHead>Worked</TableHead>
-          <TableHead>Notes</TableHead>
-          <TableHead className="text-right">Actions</TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
+    <>
+      <div className="grid gap-3 md:hidden">
         {entries.map((entry) => (
-          <TableRow key={entry.id}>
-            <TableCell>
-              <div className="font-medium">{format(new Date(`${entry.date}T00:00:00`), "MMM d, yyyy")}</div>
-              <div className="text-xs text-muted-foreground">{format(new Date(`${entry.date}T00:00:00`), "EEEE")}</div>
-            </TableCell>
-            <TableCell>{formatTime12h(entry.punchIn)}</TableCell>
-            <TableCell>{formatTime12h(entry.punchOut)}</TableCell>
-            <TableCell>
-              <div>{minutesToHM(entry.breakMinutes)}</div>
-              <div className="mt-1 text-xs text-muted-foreground">
-                {entry.breaks.length > 0
-                  ? entry.breaks
-                      .map((item) => `${formatTime12h(item.start)} - ${formatTime12h(item.end)}`)
-                      .join(" | ")
-                  : "No break logged"}
+          <div key={entry.id} className="rounded-xl border border-border/70 bg-card/70 p-3">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="font-semibold">{format(new Date(`${entry.date}T00:00:00`), "MMM d, yyyy")}</p>
+                <p className="text-xs text-muted-foreground">{format(new Date(`${entry.date}T00:00:00`), "EEEE")}</p>
               </div>
-            </TableCell>
-            <TableCell>
-              <div className="font-semibold text-primary">{minutesToHM(entry.workedMinutes)}</div>
-              <div className="text-xs text-muted-foreground">{formatTenthsDecimal(entry.workedMinutes)} decimal hrs</div>
-            </TableCell>
-            <TableCell className="max-w-56 truncate text-muted-foreground">{entry.notes || "No notes"}</TableCell>
-            <TableCell className="text-right">
-              <div className="flex justify-end gap-1">
+              <div className="flex gap-1">
                 <Button variant="ghost" size="icon" onClick={() => onEdit(entry)}>
                   <Pencil className="h-4 w-4" />
                 </Button>
@@ -62,10 +34,86 @@ export function EntriesTable({
                   <Trash2 className="h-4 w-4 text-destructive" />
                 </Button>
               </div>
-            </TableCell>
-          </TableRow>
+            </div>
+
+            <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
+              <p>
+                <span className="text-muted-foreground">In:</span> {formatTime12h(entry.punchIn)}
+              </p>
+              <p>
+                <span className="text-muted-foreground">Out:</span> {formatTime12h(entry.punchOut)}
+              </p>
+              <p>
+                <span className="text-muted-foreground">Break:</span> {minutesToHM(entry.breakMinutes)}
+              </p>
+              <p className="font-semibold text-primary">
+                <span className="text-muted-foreground">Worked:</span> {minutesToHM(entry.workedMinutes)}
+              </p>
+            </div>
+
+            <p className="mt-1 text-xs text-muted-foreground">
+              {entry.breaks.length > 0
+                ? entry.breaks.map((item) => `${formatTime12h(item.start)} - ${formatTime12h(item.end)}`).join(" | ")
+                : "No break logged"}
+            </p>
+            <p className="mt-2 text-xs text-muted-foreground">{formatTenthsDecimal(entry.workedMinutes)} decimal hrs</p>
+            <p className="mt-2 break-words text-sm text-muted-foreground">{entry.notes || "No notes"}</p>
+          </div>
         ))}
-      </TableBody>
-    </Table>
+      </div>
+
+      <div className="hidden overflow-x-auto md:block">
+        <Table className="min-w-[900px] rounded-xl border bg-card">
+          <TableHeader>
+            <TableRow>
+              <TableHead>Date</TableHead>
+              <TableHead>In</TableHead>
+              <TableHead>Out</TableHead>
+              <TableHead>Break</TableHead>
+              <TableHead>Worked</TableHead>
+              <TableHead>Notes</TableHead>
+              <TableHead className="text-right">Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {entries.map((entry) => (
+              <TableRow key={entry.id}>
+                <TableCell>
+                  <div className="font-medium">{format(new Date(`${entry.date}T00:00:00`), "MMM d, yyyy")}</div>
+                  <div className="text-xs text-muted-foreground">{format(new Date(`${entry.date}T00:00:00`), "EEEE")}</div>
+                </TableCell>
+                <TableCell>{formatTime12h(entry.punchIn)}</TableCell>
+                <TableCell>{formatTime12h(entry.punchOut)}</TableCell>
+                <TableCell>
+                  <div>{minutesToHM(entry.breakMinutes)}</div>
+                  <div className="mt-1 text-xs text-muted-foreground">
+                    {entry.breaks.length > 0
+                      ? entry.breaks
+                          .map((item) => `${formatTime12h(item.start)} - ${formatTime12h(item.end)}`)
+                          .join(" | ")
+                      : "No break logged"}
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <div className="font-semibold text-primary">{minutesToHM(entry.workedMinutes)}</div>
+                  <div className="text-xs text-muted-foreground">{formatTenthsDecimal(entry.workedMinutes)} decimal hrs</div>
+                </TableCell>
+                <TableCell className="max-w-56 truncate text-muted-foreground">{entry.notes || "No notes"}</TableCell>
+                <TableCell className="text-right">
+                  <div className="flex justify-end gap-1">
+                    <Button variant="ghost" size="icon" onClick={() => onEdit(entry)}>
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                    <Button variant="ghost" size="icon" onClick={() => onDelete(entry)}>
+                      <Trash2 className="h-4 w-4 text-destructive" />
+                    </Button>
+                  </div>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+    </>
   );
 }

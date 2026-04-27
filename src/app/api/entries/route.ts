@@ -2,14 +2,16 @@ import { startOfMonth, endOfMonth, format } from "date-fns";
 import { NextResponse } from "next/server";
 import { getServerAuthSession } from "@/lib/auth";
 import { serializeEntry } from "@/lib/entries";
+import { finalizeApiTimer, startApiTimer } from "@/lib/perf";
 import { prisma } from "@/lib/prisma";
 import { validateChronology } from "@/lib/time";
 import { monthQuerySchema, timeEntrySchema } from "@/lib/validators";
 
 export async function GET(request: Request) {
+  const startedAt = startApiTimer();
   const session = await getServerAuthSession();
   if (!session?.user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return finalizeApiTimer(NextResponse.json({ error: "Unauthorized" }, { status: 401 }), "entries.get", startedAt);
   }
 
   const { searchParams } = new URL(request.url);
@@ -17,7 +19,11 @@ export async function GET(request: Request) {
   const parsedMonth = monthQuerySchema.safeParse(monthParam);
 
   if (!parsedMonth.success) {
-    return NextResponse.json({ error: parsedMonth.error.issues[0]?.message }, { status: 400 });
+    return finalizeApiTimer(
+      NextResponse.json({ error: parsedMonth.error.issues[0]?.message }, { status: 400 }),
+      "entries.get",
+      startedAt,
+    );
   }
 
   const monthDate = new Date(`${parsedMonth.data}-01T00:00:00`);
@@ -36,9 +42,13 @@ export async function GET(request: Request) {
     orderBy: { date: "asc" },
   });
 
-  return NextResponse.json({
-    entries: entries.map(serializeEntry),
-  });
+  return finalizeApiTimer(
+    NextResponse.json({
+      entries: entries.map(serializeEntry),
+    }),
+    "entries.get",
+    startedAt,
+  );
 }
 
 export async function POST(request: Request) {

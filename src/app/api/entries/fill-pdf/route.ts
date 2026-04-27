@@ -2,14 +2,17 @@ import { endOfMonth, format, startOfMonth } from "date-fns";
 import { NextResponse } from "next/server";
 import { getServerAuthSession } from "@/lib/auth";
 import { buildDownloadFilename } from "@/lib/downloads";
+import { finalizeApiTimer, startApiTimer } from "@/lib/perf";
 import { prisma } from "@/lib/prisma";
 import { fillTimesheetPdfTemplate } from "@/lib/timesheet-pdf";
-import { monthQuerySchema } from "@/lib/validators";
+import { parseTimesheetRole } from "@/lib/timesheet-templates";
+import { monthQuerySchema, timesheetCalibrationSchema } from "@/lib/validators";
 
 export async function POST(request: Request) {
+  const startedAt = startApiTimer();
   const session = await getServerAuthSession();
   if (!session?.user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return finalizeApiTimer(NextResponse.json({ error: "Unauthorized" }, { status: 401 }), "entries.fill-pdf", startedAt);
   }
 
   try {
@@ -17,23 +20,41 @@ export async function POST(request: Request) {
     const file = formData.get("file");
     const monthRaw = String(formData.get("month") ?? format(new Date(), "yyyy-MM"));
     const layoutModeRaw = String(formData.get("layoutMode") ?? "auto");
+    const calibrationRaw = formData.get("calibration");
+    const timesheetRole = parseTimesheetRole(formData.get("timesheetRole"));
     const layoutMode =
       layoutModeRaw === "standard" || layoutModeRaw === "carry" || layoutModeRaw === "auto"
         ? layoutModeRaw
         : "auto";
+    const parsedCalibration =
+      typeof calibrationRaw === "string"
+        ? timesheetCalibrationSchema.safeParse(
+            (() => {
+              try {
+                return JSON.parse(calibrationRaw) as unknown;
+              } catch {
+                return {};
+              }
+            })(),
+          )
+        : timesheetCalibrationSchema.safeParse({});
     const parsedMonth = monthQuerySchema.safeParse(monthRaw);
 
     if (!parsedMonth.success) {
-      return NextResponse.json({ error: "Invalid month format." }, { status: 400 });
+      return finalizeApiTimer(NextResponse.json({ error: "Invalid month format." }, { status: 400 }), "entries.fill-pdf", startedAt);
     }
 
     if (!(file instanceof File)) {
-      return NextResponse.json({ error: "Please upload a blank timesheet PDF." }, { status: 400 });
+      return finalizeApiTimer(
+        NextResponse.json({ error: "Please upload a blank timesheet PDF." }, { status: 400 }),
+        "entries.fill-pdf",
+        startedAt,
+      );
     }
     const isPdfMime = file.type === "application/pdf";
     const isPdfExt = file.name.toLowerCase().endsWith(".pdf");
     if (!isPdfMime && !isPdfExt) {
-      return NextResponse.json({ error: "Only PDF files are supported." }, { status: 400 });
+      return finalizeApiTimer(NextResponse.json({ error: "Only PDF files are supported." }, { status: 400 }), "entries.fill-pdf", startedAt);
     }
 
     const monthDate = new Date(`${parsedMonth.data}-01T00:00:00`);
@@ -70,6 +91,8 @@ export async function POST(request: Request) {
       signatureDataUrl: user?.signature ?? null,
       generatedDate,
       layoutMode,
+      role: timesheetRole,
+      calibration: parsedCalibration.success ? parsedCalibration.data : undefined,
     });
 
     const filename = buildDownloadFilename({
@@ -78,24 +101,32 @@ export async function POST(request: Request) {
       extension: "pdf",
     });
 
-    return new NextResponse(Buffer.from(filled), {
-      status: 200,
-      headers: {
-        "Content-Type": "application/pdf",
-        "Content-Disposition": `attachment; filename="${filename}"`,
-      },
-    });
+    return finalizeApiTimer(
+      new NextResponse(Buffer.from(filled), {
+        status: 200,
+        headers: {
+          "Content-Type": "application/pdf",
+          "Content-Disposition": `attachment; filename="${filename}"`,
+        },
+      }),
+      "entries.fill-pdf",
+      startedAt,
+    );
   } catch (error) {
     console.error("Fill timesheet PDF failed:", error);
     const message = error instanceof Error ? error.message : "Could not fill this template.";
-    return NextResponse.json(
-      {
-        error:
-          process.env.NODE_ENV === "development"
-            ? `Could not fill this template: ${message}`
-            : "Could not fill this template. Upload a compatible blank monthly timesheet PDF template.",
-      },
-      { status: 500 },
+    return finalizeApiTimer(
+      NextResponse.json(
+        {
+          error:
+            process.env.NODE_ENV === "development"
+              ? `Could not fill this template: ${message}`
+              : "Could not fill this template. Upload a compatible blank monthly timesheet PDF template.",
+        },
+        { status: 500 },
+      ),
+      "entries.fill-pdf",
+      startedAt,
     );
   }
 }

@@ -465,7 +465,7 @@ export function ProfileSettingsForm({ initialProfile }: { initialProfile: Profil
                 <div className="min-w-0">
                   <p className="text-xl font-semibold leading-tight sm:text-2xl">{profile.name ?? "Timesheet User"}</p>
                   <p
-                    className="mt-1 block w-full overflow-hidden text-ellipsis [white-space:nowrap] text-sm leading-snug text-muted-foreground sm:text-base"
+                    className="mt-1 block w-full break-all text-sm leading-snug text-muted-foreground sm:truncate sm:break-normal sm:text-base"
                     title={displayEmail}
                   >
                     {displayEmail}
@@ -490,7 +490,7 @@ export function ProfileSettingsForm({ initialProfile }: { initialProfile: Profil
                     type="button"
                     variant="outline"
                     size="sm"
-                    className="whitespace-nowrap"
+                    className="max-w-full"
                     onClick={() => fileInputRef.current?.click()}
                     disabled={uploading}
                   >
@@ -498,7 +498,7 @@ export function ProfileSettingsForm({ initialProfile }: { initialProfile: Profil
                     <span className="ml-2">{uploading ? "Uploading..." : "Upload Photo"}</span>
                   </Button>
                   {profile.image && (
-                    <Button type="button" variant="ghost" size="sm" className="whitespace-nowrap" onClick={removeAvatar}>
+                    <Button type="button" variant="ghost" size="sm" className="max-w-full" onClick={removeAvatar}>
                       Remove
                     </Button>
                   )}
@@ -689,7 +689,7 @@ export function ProfileSettingsForm({ initialProfile }: { initialProfile: Profil
           </DialogHeader>
 
           <div className="space-y-4">
-            <div className="mx-auto h-[280px] w-[280px] overflow-hidden rounded-2xl border border-border bg-muted">
+            <div className="mx-auto aspect-square w-full max-w-[280px] overflow-hidden rounded-2xl border border-border bg-muted">
               {pendingImageUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img

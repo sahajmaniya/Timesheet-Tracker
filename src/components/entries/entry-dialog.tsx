@@ -57,7 +57,9 @@ export function EntryDialog({
         return;
       }
 
-      toast.success(entry ? "Entry updated" : "Entry created");
+      toast.success(entry ? "Entry updated" : "Entry created", {
+        description: entry ? "Your timesheet row was saved successfully." : "Your new row is now included in monthly totals.",
+      });
       if (!entry) {
         try {
           window.localStorage.removeItem("time_entry_draft");

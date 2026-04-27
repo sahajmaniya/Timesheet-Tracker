@@ -1,14 +1,16 @@
 import { endOfMonth, format, startOfMonth } from "date-fns";
 import { getServerAuthSession } from "@/lib/auth";
 import { buildDownloadFilename } from "@/lib/downloads";
+import { finalizeApiTimer, startApiTimer } from "@/lib/perf";
 import { prisma } from "@/lib/prisma";
 import { calcBreakMinutes, calcWorkedMinutes, formatTime12h, minutesToTenthsDecimal } from "@/lib/time";
 import { monthQuerySchema } from "@/lib/validators";
 
 export async function GET(request: Request) {
+  const startedAt = startApiTimer();
   const session = await getServerAuthSession();
   if (!session?.user?.id) {
-    return new Response("Unauthorized", { status: 401 });
+    return finalizeApiTimer(new Response("Unauthorized", { status: 401 }), "entries.export", startedAt);
   }
 
   const { searchParams } = new URL(request.url);
@@ -16,7 +18,7 @@ export async function GET(request: Request) {
   const parsedMonth = monthQuerySchema.safeParse(monthParam);
 
   if (!parsedMonth.success) {
-    return new Response("Invalid month", { status: 400 });
+    return finalizeApiTimer(new Response("Invalid month", { status: 400 }), "entries.export", startedAt);
   }
 
   const monthDate = new Date(`${parsedMonth.data}-01T00:00:00`);
@@ -94,11 +96,15 @@ export async function GET(request: Request) {
     extension: "csv",
   });
 
-  return new Response(csv, {
-    status: 200,
-    headers: {
-      "Content-Type": "text/csv; charset=utf-8",
-      "Content-Disposition": `attachment; filename=${filename}`,
-    },
-  });
+  return finalizeApiTimer(
+    new Response(csv, {
+      status: 200,
+      headers: {
+        "Content-Type": "text/csv; charset=utf-8",
+        "Content-Disposition": `attachment; filename=${filename}`,
+      },
+    }),
+    "entries.export",
+    startedAt,
+  );
 }

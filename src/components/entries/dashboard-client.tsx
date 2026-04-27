@@ -13,6 +13,43 @@ import { Input } from "@/components/ui/input";
 import { minutesToHM, minutesToTenthsDecimal } from "@/lib/time";
 import type { TimeEntry } from "@/types/time-entry";
 
+function DashboardEntriesSkeleton() {
+  return (
+    <div className="space-y-3" aria-hidden="true">
+      <div className="hidden overflow-hidden rounded-xl border border-border/70 bg-card md:block">
+        <div className="grid grid-cols-7 gap-4 border-b border-border/70 px-4 py-3">
+          {Array.from({ length: 7 }).map((_, index) => (
+            <div key={`dash-head-${index}`} className="h-3 animate-pulse rounded bg-muted/70" />
+          ))}
+        </div>
+        <div className="space-y-3 px-4 py-4">
+          {Array.from({ length: 5 }).map((_, row) => (
+            <div key={`dash-row-${row}`} className="grid grid-cols-7 gap-4">
+              {Array.from({ length: 7 }).map((__, col) => (
+                <div key={`dash-cell-${row}-${col}`} className="h-3 animate-pulse rounded bg-muted/70" />
+              ))}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="grid gap-3 md:hidden">
+        {Array.from({ length: 3 }).map((_, card) => (
+          <div key={`dash-mobile-${card}`} className="rounded-xl border border-border/70 bg-card/80 p-3">
+            <div className="h-4 w-1/2 animate-pulse rounded bg-muted/70" />
+            <div className="mt-2 h-3 w-1/3 animate-pulse rounded bg-muted/60" />
+            <div className="mt-3 grid grid-cols-2 gap-2">
+              {Array.from({ length: 4 }).map((__, cell) => (
+                <div key={`dash-mobile-cell-${card}-${cell}`} className="h-3 animate-pulse rounded bg-muted/70" />
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export function DashboardClient() {
   const confirm = useConfirm();
   const [month, setMonth] = useState(format(new Date(), "yyyy-MM"));
@@ -97,11 +134,16 @@ export function DashboardClient() {
             <p className="mt-2 text-sm text-muted-foreground">Keep your shift updated in a few taps.</p>
           </div>
 
-          <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto">
+          <div className="grid w-full grid-cols-1 gap-2 sm:grid-cols-2 sm:w-auto md:flex">
             <Button
               variant="outline"
-              className="h-12 w-full whitespace-nowrap px-3 sm:w-auto sm:px-4"
-              onClick={() => window.open(`/api/entries/export?month=${month}`, "_blank")}
+              className="h-11 w-full px-3 text-sm sm:h-12 sm:w-auto sm:px-4"
+              onClick={() => {
+                window.open(`/api/entries/export?month=${month}`, "_blank");
+                toast.success("CSV export started", {
+                  description: `Your ${month} file opened in a new tab.`,
+                });
+              }}
             >
               <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center">
                 <Download className="h-4 w-4 shrink-0" />
@@ -109,7 +151,7 @@ export function DashboardClient() {
               Export {exportMonthLabel}
             </Button>
             <Button
-              className="h-12 w-full whitespace-nowrap px-3 sm:w-auto sm:px-4"
+              className="h-11 w-full px-3 text-sm sm:h-12 sm:w-auto sm:px-4"
               onClick={() => {
                 setSelectedEntry(todayEntry);
                 setOpen(true);
@@ -171,7 +213,9 @@ export function DashboardClient() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {entries.length === 0 ? (
+          {loading ? (
+            <DashboardEntriesSkeleton />
+          ) : entries.length === 0 ? (
             <div className="rounded-xl border border-dashed p-10 text-center text-sm text-muted-foreground">
               No entries for this month. Click <span className="font-medium">Log Today</span> to start.
             </div>

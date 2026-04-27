@@ -45,6 +45,8 @@ export function TimeEntryForm({
     formState: { errors },
   } = useForm<TimeEntryInput>({
     resolver: zodResolver(timeEntrySchema),
+    mode: "onChange",
+    reValidateMode: "onChange",
     defaultValues: initialValues ?? defaultEntry,
   });
 
@@ -58,6 +60,7 @@ export function TimeEntryForm({
   const breakMinutes = calcBreakMinutes(breaks);
   const workedMinutes = calcWorkedMinutes({ punchIn, punchOut, breaks });
   const allValues = useWatch({ control });
+  const hasInvalidShiftWindow = Boolean(punchIn && punchOut && punchOut <= punchIn);
 
   useEffect(() => {
     if (initialValues) return;
@@ -271,20 +274,28 @@ export function TimeEntryForm({
           <Label htmlFor="date">Date</Label>
           <Input id="date" type="date" {...register("date")} />
           {errors.date && <p className="text-xs text-destructive">{errors.date.message}</p>}
+          {!errors.date && <p className="text-xs text-muted-foreground">Pick the exact work day this row should represent.</p>}
         </div>
 
         <div className="space-y-1">
           <Label htmlFor="punchIn">Punch In</Label>
           <Input id="punchIn" type="time" {...register("punchIn")} />
           {errors.punchIn && <p className="text-xs text-destructive">{errors.punchIn.message}</p>}
+          {!errors.punchIn && <p className="text-xs text-muted-foreground">Use 24-hour time, for example `09:00`.</p>}
         </div>
 
         <div className="space-y-1">
           <Label htmlFor="punchOut">Punch Out</Label>
           <Input id="punchOut" type="time" {...register("punchOut")} />
           {errors.punchOut && <p className="text-xs text-destructive">{errors.punchOut.message}</p>}
+          {!errors.punchOut && <p className="text-xs text-muted-foreground">Set when the shift ended, for example `17:00`.</p>}
         </div>
       </div>
+      {hasInvalidShiftWindow && (
+        <p className="text-xs text-amber-700 dark:text-amber-300">
+          Punch-out should be later than punch-in. Try adjusting one of the times.
+        </p>
+      )}
 
       <div className="space-y-2">
         <div className="flex flex-wrap items-center justify-between gap-2">
@@ -307,12 +318,26 @@ export function TimeEntryForm({
 
         <div className="space-y-2">
           {fields.map((field, index) => (
-            <div key={field.id} className="grid grid-cols-[1fr_1fr_auto] items-center gap-2 rounded-lg border bg-card p-2">
+            <div
+              key={field.id}
+              className="grid grid-cols-1 items-center gap-2 rounded-lg border bg-card p-2 sm:grid-cols-[1fr_1fr_auto]"
+            >
               <Input type="time" {...register(`breaks.${index}.start`)} />
               <Input type="time" {...register(`breaks.${index}.end`)} />
-              <Button type="button" variant="ghost" size="icon" onClick={() => remove(index)}>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="justify-self-end"
+                onClick={() => remove(index)}
+              >
                 <Trash2 className="h-4 w-4" />
               </Button>
+              {breaks[index]?.start && breaks[index]?.end && breaks[index].end <= breaks[index].start && (
+                <p className="text-xs text-amber-700 dark:text-amber-300 sm:col-span-3">
+                  Break end should be later than break start.
+                </p>
+              )}
             </div>
           ))}
         </div>
@@ -325,13 +350,13 @@ export function TimeEntryForm({
         <Textarea id="notes" placeholder="Tasks completed, reminders, supervisor requests..." {...register("notes")} />
       </div>
 
-      <div className="flex justify-end gap-2 border-t pt-4">
+      <div className="flex flex-col-reverse gap-2 border-t pt-4 sm:flex-row sm:justify-end">
         {onCancel && (
-          <Button type="button" variant="outline" onClick={onCancel}>
+          <Button type="button" variant="outline" className="w-full sm:w-auto" onClick={onCancel}>
             Cancel
           </Button>
         )}
-        <Button type="submit" disabled={submitting}>
+        <Button type="submit" className="w-full sm:w-auto" disabled={submitting}>
           {submitLabel}
         </Button>
       </div>

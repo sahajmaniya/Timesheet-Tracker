@@ -1,6 +1,7 @@
 import { PDFDocument, StandardFonts, degrees, rgb } from "pdf-lib";
 import type { Break } from "@prisma/client";
 import { calcWorkedMinutes, minutesToTenthsDecimal } from "@/lib/time";
+import { getTimesheetTemplate, type TimesheetRole } from "@/lib/timesheet-templates";
 
 type EntryForPdf = {
   date: string;
@@ -10,6 +11,27 @@ type EntryForPdf = {
 };
 
 export type TimesheetLayoutMode = "auto" | "standard" | "carry";
+export type TimesheetCalibration = {
+  shiftX: number;
+  shiftY: number;
+  totalsShiftX: number;
+  totalsShiftY: number;
+  signatureShiftX: number;
+  signatureShiftY: number;
+  dateShiftX: number;
+  dateShiftY: number;
+};
+
+export const DEFAULT_TIMESHEET_CALIBRATION: TimesheetCalibration = {
+  shiftX: 0,
+  shiftY: 0,
+  totalsShiftX: 0,
+  totalsShiftY: 0,
+  signatureShiftX: 0,
+  signatureShiftY: 0,
+  dateShiftX: 0,
+  dateShiftY: 0,
+};
 
 type TemplateDateCell = {
   date: string;
@@ -19,9 +41,6 @@ type TemplateDateCell = {
   weekday: number;
 };
 
-const GRID_X_BY_WEEKDAY = [69, 159, 249, 339, 429, 519, 609];
-const FIRST_WEEK_Y = 416;
-const WEEK_Y_STEP = 55;
 
 function to12hNoMeridiem(timeHHmm: string) {
   const [hhRaw, mmRaw] = timeHHmm.split(":").map(Number);
@@ -63,7 +82,19 @@ function getWeekRowOffset({
   return firstWeekday === 0 && daysInMonth === 28 ? 1 : 0;
 }
 
-function buildMonthGridCells(month: string, layoutMode: TimesheetLayoutMode): TemplateDateCell[] {
+function buildMonthGridCells({
+  month,
+  layoutMode,
+  gridXByWeekday,
+  firstWeekY,
+  weekYStep,
+}: {
+  month: string;
+  layoutMode: TimesheetLayoutMode;
+  gridXByWeekday: [number, number, number, number, number, number, number];
+  firstWeekY: number;
+  weekYStep: number;
+}): TemplateDateCell[] {
   const [yearRaw, monthRaw] = month.split("-").map(Number);
   const year = yearRaw;
   const monthIndex = monthRaw - 1;
@@ -76,8 +107,8 @@ function buildMonthGridCells(month: string, layoutMode: TimesheetLayoutMode): Te
     const linearIndex = firstWeekday + (day - 1);
     const week = Math.floor(linearIndex / 7) + weekRowOffset;
     const weekday = linearIndex % 7;
-    const x = GRID_X_BY_WEEKDAY[weekday] ?? GRID_X_BY_WEEKDAY[0];
-    const y = FIRST_WEEK_Y - week * WEEK_Y_STEP;
+    const x = gridXByWeekday[weekday] ?? gridXByWeekday[0];
+    const y = firstWeekY - week * weekYStep;
 
     cells.push({
       date: `${month}-${String(day).padStart(2, "0")}`,
@@ -98,6 +129,8 @@ export async function fillTimesheetPdfTemplate({
   signatureDataUrl,
   generatedDate,
   layoutMode,
+  role,
+  calibration,
 }: {
   templateBytes: Uint8Array;
   month: string;
@@ -106,10 +139,26 @@ export async function fillTimesheetPdfTemplate({
   signatureDataUrl?: string | null;
   generatedDate: string;
   layoutMode: TimesheetLayoutMode;
+  role: TimesheetRole;
+  calibration?: Partial<TimesheetCalibration> | null;
 }) {
-  const cells = buildMonthGridCells(month, layoutMode);
-
-  const entryMap = new Map(entries.map((entry) => [entry.date, entry]));
+  const activeCalibration: TimesheetCalibration = {
+    ...DEFAULT_TIMESHEET_CALIBRATION,
+    ...(calibration ?? {}),
+  };
+  const template = getTimesheetTemplate(role);
+  const isIsaRole = role === "instructional_student_assistant";
+  const useBreakSplitRows = template.hoursRenderMode === "split_by_break";
+  const showInOutTimes = useBreakSplitRows;
+  const showWeeklyTotals = useBreakSplitRows;
+  const useFixedDaySlots = Boolean(template.layout.fixedDaySlotMapping?.enabled);
+  const cells = buildMonthGridCells({
+    month,
+    layoutMode,
+    gridXByWeekday: template.layout.gridXByWeekday,
+    firstWeekY: template.layout.firstWeekY,
+    weekYStep: template.layout.weekYStep,
+  });
 
   const pdfDoc = await PDFDocument.load(templateBytes, { ignoreEncryption: true });
   const page = pdfDoc.getPage(0);
@@ -165,9 +214,34 @@ export async function fillTimesheetPdfTemplate({
   const weeklyTenthsByWeek = new Map<number, number>();
   let monthlyTenths = 0;
 
-  for (const cell of cells) {
-    const entry = entryMap.get(cell.date);
-    if (!entry) continue;
+  const getFixedDaySlot = (date: string) => {
+    const fixed = template.layout.fixedDaySlotMapping;
+    if (!fixed?.enabled) return null;
+    const day = Number(date.slice(-2));
+    if (!Number.isFinite(day) || day < 1 || day > 31) return null;
+
+    let columnIndex = 0;
+    let rowIndex = 0;
+    if (day <= 10) {
+      columnIndex = 0;
+      rowIndex = day;
+    } else if (day <= 21) {
+      columnIndex = 1;
+      rowIndex = day - 11;
+    } else {
+      columnIndex = 2;
+      rowIndex = day - 22;
+    }
+
+    const baseX = fixed.columnBaseX[columnIndex];
+    const textY = fixed.firstRowTextY - rowIndex * fixed.rowStepY;
+    return { baseX, textY };
+  };
+
+  for (const entry of entries) {
+    const fixedSlot = useFixedDaySlots ? getFixedDaySlot(entry.date) : null;
+    const cell = fixedSlot ? { x: fixedSlot.baseX, y: fixedSlot.textY - template.layout.topRowOffsetY, week: 0 } : cells.find((item) => item.date === entry.date);
+    if (!cell) continue;
 
     const safeBreaks = entry.breaks.filter((item) => isHHmm(item.start) && isHHmm(item.end));
     const workedMinutesTotal = calcWorkedMinutes({
@@ -175,32 +249,42 @@ export async function fillTimesheetPdfTemplate({
       punchOut: entry.punchOut,
       breaks: safeBreaks,
     });
-    const lunch = pickLunchBreak(safeBreaks);
+    const lunch = useBreakSplitRows ? pickLunchBreak(safeBreaks) : undefined;
 
     const topIn = entry.punchIn;
     const topOut = lunch?.start ?? entry.punchOut;
-    const topWorked = lunch
-      ? minutesBetweenHHmm(entry.punchIn, lunch.start)
-      : workedMinutesTotal;
+    const topWorked = lunch ? minutesBetweenHHmm(entry.punchIn, lunch.start) : workedMinutesTotal;
 
     const bottomIn = lunch?.end ?? "";
     const bottomOut = lunch ? entry.punchOut : "";
     const dayTenths = minutesToTenthsDecimal(workedMinutesTotal);
     const topTenths = lunch ? minutesToTenthsDecimal(topWorked) : dayTenths;
     const bottomTenths = lunch ? Math.max(0, Number((dayTenths - topTenths).toFixed(1))) : 0;
-    weeklyTenthsByWeek.set(cell.week, (weeklyTenthsByWeek.get(cell.week) ?? 0) + dayTenths);
+    if (!useFixedDaySlots) {
+      weeklyTenthsByWeek.set(cell.week, (weeklyTenthsByWeek.get(cell.week) ?? 0) + dayTenths);
+    }
     monthlyTenths += dayTenths;
 
     // Template row layout:
     // - date/day row in the middle
     // - first (top) work segment above that row
     // - second (bottom) work segment below that row
-    const topY = (cell.y + 14) * yScale;
-    const bottomY = (cell.y - 22) * yScale;
-    const textSize = 7.8 * yScale;
-    const inCenterX = (cell.x + 12) * xScale;
-    const outCenterX = (cell.x + 36) * xScale;
-    const hoursCenterX = (cell.x + 63) * xScale;
+    const topY = fixedSlot
+      ? fixedSlot.textY + activeCalibration.shiftY
+      : (cell.y + template.layout.topRowOffsetY) * yScale + activeCalibration.shiftY;
+    const bottomY = (cell.y + template.layout.bottomRowOffsetY) * yScale + activeCalibration.shiftY;
+    const textSize = fixedSlot
+      ? 10.1
+      : (role === "instructional_student_assistant" ? 10.1 : 7.8) * yScale;
+    const inCenterX = fixedSlot
+      ? cell.x + template.layout.inOffsetX + activeCalibration.shiftX
+      : (cell.x + template.layout.inOffsetX) * xScale + activeCalibration.shiftX;
+    const outCenterX = fixedSlot
+      ? cell.x + template.layout.outOffsetX + activeCalibration.shiftX
+      : (cell.x + template.layout.outOffsetX) * xScale + activeCalibration.shiftX;
+    const hoursCenterX = fixedSlot
+      ? cell.x + template.layout.hoursOffsetX + activeCalibration.shiftX
+      : (cell.x + template.layout.hoursOffsetX) * xScale + activeCalibration.shiftX;
     const drawCenteredAt = ({
       text,
       centerX,
@@ -224,11 +308,13 @@ export async function fillTimesheetPdfTemplate({
       });
     };
 
-    drawCenteredAt({ text: to12hNoMeridiem(topIn), centerX: inCenterX, y: topY });
-    drawCenteredAt({ text: to12hNoMeridiem(topOut), centerX: outCenterX, y: topY });
+    if (showInOutTimes) {
+      drawCenteredAt({ text: to12hNoMeridiem(topIn), centerX: inCenterX, y: topY });
+      drawCenteredAt({ text: to12hNoMeridiem(topOut), centerX: outCenterX, y: topY });
+    }
     drawCenteredAt({ text: topTenths.toFixed(1), centerX: hoursCenterX, y: topY, textFont: bold });
 
-    if (bottomIn && bottomOut) {
+    if (showInOutTimes && useBreakSplitRows && bottomIn && bottomOut) {
       drawCenteredAt({ text: to12hNoMeridiem(bottomIn), centerX: inCenterX, y: bottomY });
       drawCenteredAt({ text: to12hNoMeridiem(bottomOut), centerX: outCenterX, y: bottomY });
       drawCenteredAt({ text: bottomTenths.toFixed(1), centerX: hoursCenterX, y: bottomY, textFont: bold });
@@ -236,35 +322,61 @@ export async function fillTimesheetPdfTemplate({
   }
 
   // Weekly totals column (right side).
-  const weeklyX = 724 * xScale;
-  for (const [week, weeklyTenths] of weeklyTenthsByWeek.entries()) {
-    const weeklyY = (FIRST_WEEK_Y - week * WEEK_Y_STEP - 2) * yScale;
+  const weeklyX = template.layout.weeklyTotalX * xScale + activeCalibration.shiftX + activeCalibration.totalsShiftX;
+  if (showWeeklyTotals) {
+    for (const [week, weeklyTenths] of weeklyTenthsByWeek.entries()) {
+      const weeklyY =
+        (template.layout.firstWeekY - week * template.layout.weekYStep + template.layout.weeklyTotalOffsetY) * yScale +
+        activeCalibration.shiftY +
+        activeCalibration.totalsShiftY;
+      drawText({
+        text: weeklyTenths.toFixed(1),
+        x: weeklyX,
+        y: weeklyY,
+        size: 9.2 * yScale,
+        drawFont: bold,
+        drawColor: color,
+      });
+    }
+  }
+
+  const monthlyText = monthlyTenths.toFixed(1);
+  if (isIsaRole) {
+    // ISA sheets typically expose two total fields:
+    // 1) TOTAL REGULAR HOURS WORKED (upper total box)
+    // 2) TOTAL HOURS WORKED (bottom blue total box)
+    // We render the same monthly total into both fixed coordinates.
+    const isaTotalCenters = [
+      { x: 540.52, y: 231.96 },
+      { x: 540.52, y: 93.24 },
+    ];
+    for (const target of isaTotalCenters) {
+      const w = bold.widthOfTextAtSize(monthlyText, 10);
+      drawText({
+        text: monthlyText,
+        x: target.x - w / 2 + activeCalibration.shiftX + activeCalibration.totalsShiftX,
+        y: target.y + activeCalibration.shiftY + activeCalibration.totalsShiftY,
+        size: 10,
+        drawFont: bold,
+        drawColor: color,
+      });
+    }
+  } else {
+    // Monthly total inside the "TOTAL HOURS" value box.
+    const monthlyTotalCenterX = weeklyX;
+    const monthlyTotalY = template.layout.monthlyTotalY * yScale;
+    const monthlyTextWidth = bold.widthOfTextAtSize(monthlyText, 10 * yScale);
     drawText({
-      text: weeklyTenths.toFixed(1),
-      x: weeklyX,
-      y: weeklyY,
-      size: 9.2 * yScale,
+      text: monthlyText,
+      x: monthlyTotalCenterX - monthlyTextWidth / 2,
+      y: monthlyTotalY + activeCalibration.shiftY + activeCalibration.totalsShiftY,
+      size: 10 * yScale,
       drawFont: bold,
       drawColor: color,
     });
   }
 
-  // Monthly total inside the "TOTAL HOURS" value box.
-  const monthlyTotalCenterX = weeklyX;
-  const monthlyTotalY = 92 * yScale;
-  const monthlyText = monthlyTenths.toFixed(1);
-  const monthlyTextWidth = bold.widthOfTextAtSize(monthlyText, 10 * yScale);
-  drawText({
-    text: monthlyText,
-    x: monthlyTotalCenterX - monthlyTextWidth / 2,
-    y: monthlyTotalY,
-    size: 10 * yScale,
-    drawFont: bold,
-    drawColor: color,
-  });
-
   // Signature + date row in footer.
-  const signatureTextY = 49 * yScale;
   const drawSignatureImage = async () => {
     if (!signatureDataUrl?.startsWith("data:image/")) return false;
     const commaIndex = signatureDataUrl.indexOf(",");
@@ -281,10 +393,10 @@ export async function fillTimesheetPdfTemplate({
 
       // Keep signature image constrained inside the employee-signature area.
       // This makes placement stable regardless of signature length/shape.
-      const boxX = -10 * xScale;
-      const boxY = 55 * yScale;
-      const boxWidth = 220 * xScale;
-      const boxHeight = 20 * yScale;
+      const boxX = isIsaRole ? 100 : template.layout.signatureBox.x * xScale;
+      const boxY = isIsaRole ? 101 : template.layout.signatureBox.y * yScale;
+      const boxWidth = isIsaRole ? 120 : template.layout.signatureBox.width * xScale;
+      const boxHeight = isIsaRole ? 25 : template.layout.signatureBox.height * yScale;
       const scale = Math.min(boxWidth / embedded.width, boxHeight / embedded.height);
       const drawWidth = embedded.width * scale;
       const drawHeight = embedded.height * scale;
@@ -292,8 +404,8 @@ export async function fillTimesheetPdfTemplate({
       const drawY = boxY + (boxHeight - drawHeight) / 2;
 
       page.drawImage(embedded, {
-        x: drawX,
-        y: drawY,
+        x: drawX + activeCalibration.signatureShiftX,
+        y: drawY + activeCalibration.signatureShiftY,
         width: drawWidth,
         height: drawHeight,
       });
@@ -308,28 +420,42 @@ export async function fillTimesheetPdfTemplate({
   if (!hasDrawnSignature && signatureText) {
     drawText({
       text: signatureText,
-      x: 28 * xScale,
-      y: signatureTextY,
-      size: 11 * yScale,
+      x: (isIsaRole ? 120 : template.layout.typedSignature.x * xScale) + activeCalibration.signatureShiftX,
+      y: (isIsaRole ? 116.4 : template.layout.typedSignature.y * yScale) + activeCalibration.signatureShiftY,
+      size: isIsaRole ? 11 : 11 * yScale,
       drawFont: signatureFont,
       drawColor: rgb(0.03, 0.09, 0.24),
-      extraRotateDeg: -2,
+      extraRotateDeg: template.layout.typedSignature.rotateDeg,
     });
   }
 
-  const dateCenters = [200];
-  for (const dateCenter of dateCenters) {
-    const dateSize = 9.2 * yScale;
-    const dateY = 65 * yScale;
+  if (isIsaRole) {
+    const dateSize = 10.18;
+    const dateCenter = 277.06;
+    const dateY = 115.44;
     const dateWidth = bold.widthOfTextAtSize(generatedDate, dateSize);
     drawText({
       text: generatedDate,
-      x: dateCenter * xScale - dateWidth / 2,
-      y: dateY,
+      x: dateCenter - dateWidth / 2 + activeCalibration.dateShiftX,
+      y: dateY + activeCalibration.dateShiftY,
       size: dateSize,
       drawFont: bold,
       drawColor: color,
     });
+  } else {
+    for (const dateCenter of template.layout.generatedDateCenters) {
+      const dateSize = 9.2 * yScale;
+      const dateY = template.layout.generatedDateY * yScale;
+      const dateWidth = bold.widthOfTextAtSize(generatedDate, dateSize);
+      drawText({
+        text: generatedDate,
+        x: dateCenter * xScale - dateWidth / 2 + activeCalibration.dateShiftX,
+        y: dateY + activeCalibration.dateShiftY,
+        size: dateSize,
+        drawFont: bold,
+        drawColor: color,
+      });
+    }
   }
 
   return pdfDoc.save();
