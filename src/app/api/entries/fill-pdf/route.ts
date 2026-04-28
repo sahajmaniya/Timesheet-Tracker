@@ -19,6 +19,7 @@ export async function POST(request: Request) {
     const formData = await request.formData();
     const file = formData.get("file");
     const monthRaw = String(formData.get("month") ?? format(new Date(), "yyyy-MM"));
+    const generatedDateRaw = String(formData.get("generatedDate") ?? "").trim();
     const layoutModeRaw = String(formData.get("layoutMode") ?? "auto");
     const calibrationRaw = formData.get("calibration");
     const timesheetRole = parseTimesheetRole(formData.get("timesheetRole"));
@@ -81,7 +82,9 @@ export async function POST(request: Request) {
       session.user.name?.trim() ||
       session.user.email?.split("@")[0] ||
       "Employee";
-    const generatedDate = format(new Date(), "M/d/yyyy");
+    const generatedDate = /^\d{1,2}\/\d{1,2}\/\d{4}$/.test(generatedDateRaw)
+      ? generatedDateRaw
+      : format(new Date(), "M/d/yyyy");
 
     const filled = await fillTimesheetPdfTemplate({
       templateBytes: bytes,

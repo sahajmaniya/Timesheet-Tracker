@@ -790,6 +790,7 @@ export function EntriesClient() {
     formData.append("month", month);
     formData.append("layoutMode", selectedLayoutMode);
     formData.append("timesheetRole", timesheetRole);
+    formData.append("generatedDate", format(new Date(), "M/d/yyyy"));
 
     setFillingPdf(true);
     try {

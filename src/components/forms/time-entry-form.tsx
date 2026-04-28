@@ -1,6 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
+import { format } from "date-fns";
 import { Coffee, Clock3, Minus, Plus, Sparkles, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useFieldArray, useForm, useWatch } from "react-hook-form";
@@ -15,7 +16,7 @@ import { timeEntrySchema, type TimeEntryInput } from "@/lib/validators";
 import { type WorkSchedule } from "@/lib/work-schedule";
 
 const defaultEntry: TimeEntryInput = {
-  date: new Date().toISOString().slice(0, 10),
+  date: format(new Date(), "yyyy-MM-dd"),
   punchIn: "09:00",
   punchOut: "13:00",
   notes: "",
