@@ -28,15 +28,32 @@ export const metadata: Metadata = {
   title: "Timesheet Tracker for Punch In/Out",
   description:
     "PunchPilot is a modern timesheet tracker for punch in/out, role-based layouts, monthly totals, and export-ready CSV.",
+  keywords: [
+    "timesheet tracker",
+    "punch in punch out app",
+    "student assistant timesheet",
+    "monthly timesheet export",
+    "role-based timesheet",
+    "timesheet pdf generator",
+  ],
+  category: "business",
   alternates: {
     canonical: "/",
   },
   openGraph: {
+    type: "website",
     title: "PunchPilot | Timesheet Tracker",
     description:
       "Track work hours with punch in/out, role-based timesheets, and export-ready monthly output.",
     url: siteConfig.url,
     images: [{ url: "/og-image.svg", width: 1200, height: 630, alt: "PunchPilot timesheet tracker" }],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "PunchPilot | Timesheet Tracker",
+    description:
+      "Track work hours with punch in/out, role-based timesheets, and export-ready monthly output.",
+    images: ["/og-image.svg"],
   },
 };
 
@@ -147,6 +164,21 @@ export default async function HomePage() {
     },
   };
 
+  const websiteJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    name: siteConfig.name,
+    url: siteConfig.url,
+  };
+
+  const organizationJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    name: siteConfig.name,
+    url: siteConfig.url,
+    logo: `${siteConfig.url}/icon.svg`,
+  };
+
   const faqJsonLd = {
     "@context": "https://schema.org",
     "@type": "FAQPage",
@@ -163,6 +195,8 @@ export default async function HomePage() {
   return (
     <main className="relative min-h-screen scroll-smooth overflow-x-clip bg-[radial-gradient(circle_at_10%_12%,rgba(56,189,248,0.22),transparent_32%),radial-gradient(circle_at_90%_2%,rgba(20,184,166,0.2),transparent_30%),linear-gradient(145deg,#f8fbff_0%,#f5f9ff_45%,#f8fffb_100%)] pb-20 dark:bg-[radial-gradient(circle_at_10%_12%,rgba(14,116,144,0.35),transparent_32%),radial-gradient(circle_at_90%_2%,rgba(13,148,136,0.28),transparent_30%),linear-gradient(145deg,#0a1324_0%,#101827_45%,#0b1621_100%)] sm:pb-8">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(productJsonLd) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteJsonLd) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationJsonLd) }} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }} />
 
       <a
