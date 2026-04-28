@@ -10,6 +10,7 @@ Modern, responsive timesheet tracker built with Next.js App Router, TypeScript, 
 
 - Sign up / sign in / sign out (Credentials + optional Google OAuth)
 - 2-step sign-in with email OTP verification
+- Forgot-password + reset-password recovery flow
 - Protected pages: `/dashboard`, `/entries`, `/settings`
 - User-isolated data access (server-side userId enforcement)
 - Daily time log: date, punch in/out, breaks, notes
@@ -18,8 +19,12 @@ Modern, responsive timesheet tracker built with Next.js App Router, TypeScript, 
 - Monthly totals + average/day analytics
 - CSV export by month
 - Fill monthly timesheet PDF templates from saved entries
+- Role-based timesheet generation: SA / ISA / Full-Time
+- PDF layout modes: `auto`, `standard`, `carry` with advanced alignment options
+- PDF preset save/apply workflow and optional preview-before-download
 - Per-user regular shift schedule in Settings
-- Mobile-responsive UI + dark mode toggle
+- Mobile-responsive UI, dark/light theme support, modern landing page
+- SEO baseline: metadata, JSON-LD, robots, sitemap, canonical URLs
 - Seed script for demo data
 
 ## Tech Stack
@@ -53,6 +58,7 @@ This prevents accidental duplicates and matches monthly timesheet workflows.
 
 - `date` stored as local `YYYY-MM-DD` string
 - `punchIn`, `punchOut`, breaks stored as local `HH:mm` strings
+- Generated PDF signature date uses client-local date input to avoid server timezone drift
 
 This avoids UTC date-shift issues when users record local workday times.
 
@@ -137,10 +143,18 @@ Open `http://localhost:3000`.
 npx prisma migrate deploy
 ```
 
+6. For Google OAuth in production, configure Google Cloud OAuth app with:
+   - Authorized JavaScript origins:
+     - `https://punchpilot.online`
+   - Authorized redirect URI:
+     - `https://punchpilot.online/api/auth/callback/google`
+
 ## API Routes
 
 - `POST /api/auth/signup`
 - `POST /api/auth/request-otp`
+- `POST /api/auth/forgot-password`
+- `POST /api/auth/reset-password`
 - `GET /api/entries?month=YYYY-MM`
 - `POST /api/entries`
 - `GET /api/entries/:id`
@@ -148,6 +162,9 @@ npx prisma migrate deploy
 - `DELETE /api/entries/:id`
 - `GET /api/entries/export?month=YYYY-MM`
 - `POST /api/entries/fill-pdf`
+- `POST /api/import/excel`
+- `GET /api/profile`
+- `PATCH /api/profile`
 
 ## Notes
 
