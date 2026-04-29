@@ -66,7 +66,7 @@ const features = [
   {
     icon: Users,
     title: "Role-Based Timesheets",
-    description: "Switch layouts for SA, ISA, and full-time roles.",
+    description: "Switch layouts for SA and ISA workflows.",
   },
   {
     icon: CalendarRange,
@@ -98,7 +98,7 @@ const workflowSteps = [
 const trustStats = [
   { label: "Entry Time", value: "< 30 sec" },
   { label: "Export Time", value: "1-click CSV" },
-  { label: "Layout Modes", value: "SA / ISA / FT" },
+  { label: "Layout Modes", value: "SA / ISA" },
   { label: "Device Support", value: "Mobile + Desktop" },
 ];
 
@@ -130,7 +130,7 @@ const audienceGroups = [
 const faqs = [
   {
     q: "Can I use different timesheet layouts by role?",
-    a: "Yes. PunchPilot supports role-based generation so SA, ISA, and full-time workflows can differ cleanly.",
+    a: "Yes. PunchPilot supports role-based generation so SA and ISA workflows can differ cleanly.",
   },
   {
     q: "Does this work on mobile?",
@@ -239,7 +239,7 @@ export default async function HomePage() {
           <div className="mt-6 flex flex-wrap gap-x-5 gap-y-2 text-xs font-medium text-slate-600 dark:text-slate-300">
             <p className="inline-flex items-center gap-1.5">
               <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-300" />
-              SA / ISA / Full-Time support
+              SA / ISA role support
             </p>
             <p className="inline-flex items-center gap-1.5">
               <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-300" />

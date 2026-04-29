@@ -19,7 +19,7 @@ Modern, responsive timesheet tracker built with Next.js App Router, TypeScript, 
 - Monthly totals + average/day analytics
 - CSV export by month
 - Fill monthly timesheet PDF templates from saved entries
-- Role-based timesheet generation: SA / ISA / Full-Time
+- Role-based timesheet generation: SA / ISA
 - PDF layout modes: `auto`, `standard`, `carry` with advanced alignment options
 - PDF preset save/apply workflow and optional preview-before-download
 - Per-user regular shift schedule in Settings

@@ -767,19 +767,19 @@ export function EntriesClient() {
 
     const fileName = timesheetTemplateFile.name.toLowerCase();
     const looksIsa = fileName.includes("isa") || fileName.includes("instructional");
-    const looksSaOrFull = fileName.includes("sa") || fileName.includes("student") || fileName.includes("full");
-    if (timesheetRole === "instructional_student_assistant" && looksSaOrFull && !looksIsa) {
+    const looksSa = fileName.includes("sa") || fileName.includes("student");
+    if (timesheetRole === "instructional_student_assistant" && looksSa && !looksIsa) {
       const ok = await confirm({
         title: "Template Type Mismatch?",
-        description: "Selected Timesheet Type is ISA, but this filename looks like SA/Full-Time. Continue anyway?",
+        description: "Selected Timesheet Type is ISA, but this filename looks like SA. Continue anyway?",
         confirmText: "Continue",
       });
       if (!ok) return;
     }
-    if (timesheetRole !== "instructional_student_assistant" && looksIsa && !looksSaOrFull) {
+    if (timesheetRole !== "instructional_student_assistant" && looksIsa && !looksSa) {
       const ok = await confirm({
         title: "Template Type Mismatch?",
-        description: "Selected Timesheet Type is SA/Full-Time, but this filename looks like ISA. Continue anyway?",
+        description: "Selected Timesheet Type is SA, but this filename looks like ISA. Continue anyway?",
         confirmText: "Continue",
       });
       if (!ok) return;

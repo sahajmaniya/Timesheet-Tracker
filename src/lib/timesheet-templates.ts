@@ -1,4 +1,4 @@
-export type TimesheetRole = "student_assistant" | "instructional_student_assistant" | "full_time_employee";
+export type TimesheetRole = "student_assistant" | "instructional_student_assistant";
 
 export type TimesheetLayoutConfig = {
   gridXByWeekday: [number, number, number, number, number, number, number];
@@ -104,23 +104,6 @@ export const timesheetTemplates: Record<TimesheetRole, TimesheetTemplateDefiniti
         columnBaseX: [74, 247, 420],
         firstRowTextY: 572.2,
         rowStepY: 12.36,
-      },
-    },
-  },
-  full_time_employee: {
-    role: "full_time_employee",
-    label: "Full-Time Employee",
-    description: "Full-time role template. Tune offsets as your department form requires.",
-    section1TrcCodes: ["REG"],
-    section2TrcCodes: ["HOL", "OTPR", "PH", "SHE08", "SHGRV", "SHIN08", "SHSWG", "SL", "VA"],
-    hoursRenderMode: "split_by_break",
-    layout: {
-      ...baseLayout,
-      fixedDaySlotMapping: {
-        enabled: false,
-        columnBaseX: [69, 339, 609],
-        firstRowTextY: 430,
-        rowStepY: 18,
       },
     },
   },
