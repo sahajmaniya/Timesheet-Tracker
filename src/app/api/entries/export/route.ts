@@ -3,6 +3,7 @@ import { getServerAuthSession } from "@/lib/auth";
 import { buildDownloadFilename } from "@/lib/downloads";
 import { finalizeApiTimer, startApiTimer } from "@/lib/perf";
 import { prisma } from "@/lib/prisma";
+import { clientIpFromHeaders, enforceRateLimit } from "@/lib/security";
 import { calcBreakMinutes, calcWorkedMinutes, formatTime12h, minutesToTenthsDecimal } from "@/lib/time";
 import { monthQuerySchema } from "@/lib/validators";
 
@@ -11,6 +12,22 @@ export async function GET(request: Request) {
   const session = await getServerAuthSession();
   if (!session?.user?.id) {
     return finalizeApiTimer(new Response("Unauthorized", { status: 401 }), "entries.export", startedAt);
+  }
+  const ip = clientIpFromHeaders(request.headers);
+  const rateLimit = enforceRateLimit({
+    key: `entries-export:${session.user.id}:${ip}`,
+    limit: 25,
+    windowMs: 10 * 60 * 1000,
+  });
+  if (!rateLimit.ok) {
+    return finalizeApiTimer(
+      new Response("Too many export requests. Try again later.", {
+        status: 429,
+        headers: { "Retry-After": String(rateLimit.retryAfterSeconds) },
+      }),
+      "entries.export",
+      startedAt,
+    );
   }
 
   const { searchParams } = new URL(request.url);

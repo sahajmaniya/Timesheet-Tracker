@@ -171,6 +171,27 @@ npx prisma migrate deploy
 - All entry APIs derive `userId` from authenticated session.
 - Client-submitted `userId` is never trusted.
 - Chronology validation blocks invalid ranges (e.g., punch out before punch in).
+- Conservative API rate limits are enabled for OTP, password reset, CSV export, PDF generation, and Excel import.
+
+## Backups (Recommended)
+
+Create a PostgreSQL backup dump:
+
+```bash
+DATABASE_URL="your_database_url" npm run backup:db
+```
+
+Optional custom backup folder:
+
+```bash
+DATABASE_URL="your_database_url" BACKUP_DIR=./backups npm run backup:db
+```
+
+Restore example:
+
+```bash
+pg_restore --clean --if-exists --no-owner --no-privileges -d "your_database_url" ./backups/<dump-file>.dump
+```
 
 ## E2E Smoke Tests (Playwright)
 

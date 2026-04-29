@@ -4,6 +4,7 @@ import { getServerAuthSession } from "@/lib/auth";
 import { buildDownloadFilename } from "@/lib/downloads";
 import { finalizeApiTimer, startApiTimer } from "@/lib/perf";
 import { prisma } from "@/lib/prisma";
+import { clientIpFromHeaders, enforceRateLimit } from "@/lib/security";
 import { fillTimesheetPdfTemplate } from "@/lib/timesheet-pdf";
 import { parseTimesheetRole } from "@/lib/timesheet-templates";
 import { monthQuerySchema, timesheetCalibrationSchema } from "@/lib/validators";
@@ -13,6 +14,25 @@ export async function POST(request: Request) {
   const session = await getServerAuthSession();
   if (!session?.user?.id) {
     return finalizeApiTimer(NextResponse.json({ error: "Unauthorized" }, { status: 401 }), "entries.fill-pdf", startedAt);
+  }
+  const ip = clientIpFromHeaders(request.headers);
+  const rateLimit = enforceRateLimit({
+    key: `entries-fill-pdf:${session.user.id}:${ip}`,
+    limit: 12,
+    windowMs: 10 * 60 * 1000,
+  });
+  if (!rateLimit.ok) {
+    return finalizeApiTimer(
+      NextResponse.json(
+        { error: "Too many PDF generation requests. Try again later." },
+        {
+          status: 429,
+          headers: { "Retry-After": String(rateLimit.retryAfterSeconds) },
+        },
+      ),
+      "entries.fill-pdf",
+      startedAt,
+    );
   }
 
   try {

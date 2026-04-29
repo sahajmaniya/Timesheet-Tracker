@@ -2,12 +2,28 @@ import { NextResponse } from "next/server";
 import { getServerAuthSession } from "@/lib/auth";
 import { parseTimesheetWorkbook } from "@/lib/excel-import";
 import { prisma } from "@/lib/prisma";
+import { clientIpFromHeaders, enforceRateLimit } from "@/lib/security";
 import { validateChronology } from "@/lib/time";
 
 export async function POST(request: Request) {
   const session = await getServerAuthSession();
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  const ip = clientIpFromHeaders(request.headers);
+  const rateLimit = enforceRateLimit({
+    key: `entries-import-excel:${session.user.id}:${ip}`,
+    limit: 8,
+    windowMs: 10 * 60 * 1000,
+  });
+  if (!rateLimit.ok) {
+    return NextResponse.json(
+      { error: "Too many import requests. Try again later." },
+      {
+        status: 429,
+        headers: { "Retry-After": String(rateLimit.retryAfterSeconds) },
+      },
+    );
   }
 
   try {

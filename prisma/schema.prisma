@@ -65,6 +65,7 @@ model LoginOtpChallenge {
   user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, expiresAt])
+  @@index([userId, consumedAt])
 }
 
 model AuthAuditLog {
@@ -94,4 +95,5 @@ model PasswordResetToken {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, expiresAt])
+  @@index([userId, usedAt])
 }
