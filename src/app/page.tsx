@@ -25,9 +25,9 @@ import { cn } from "@/lib/utils";
 import { siteConfig } from "@/lib/site";
 
 export const metadata: Metadata = {
-  title: "Timesheet Tracker for Punch In/Out",
+  title: "SA & ISA Timesheet Tracker | Punch In/Out + CSV Export",
   description:
-    "PunchPilot is a modern timesheet tracker for punch in/out, role-based layouts, monthly totals, and export-ready CSV.",
+    "PunchPilot is a modern SA/ISA timesheet tracker for punch in/out, monthly totals, CSV export, and PDF-ready output.",
   keywords: [
     "timesheet tracker",
     "punch in punch out app",

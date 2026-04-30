@@ -1,6 +1,7 @@
 export const siteConfig = {
   name: "PunchPilot",
-  description: "Modern timesheet tracker for punch in/out, break logging, monthly totals, and CSV export.",
+  description:
+    "Timesheet tracker for SA and ISA workflows with punch in/out tracking, monthly CSV export, and PDF-ready output.",
   url:
     process.env.NEXT_PUBLIC_SITE_URL ||
     process.env.NEXTAUTH_URL ||
@@ -8,11 +9,11 @@ export const siteConfig = {
   keywords: [
     "PunchPilot",
     "timesheet tracker",
-    "employee timesheet app",
-    "online timesheet app",
+    "student assistant timesheet",
+    "instructional student assistant timesheet",
     "work hours tracker",
     "punch in punch out app",
     "monthly timesheet export",
-    "break time tracker",
+    "timesheet pdf generator",
   ],
 } as const;

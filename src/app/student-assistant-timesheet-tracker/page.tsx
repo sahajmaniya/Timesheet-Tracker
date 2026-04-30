@@ -1,13 +1,28 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { buttonVariants } from "@/components/ui/button";
+import { siteConfig } from "@/lib/site";
 import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = {
-  title: "Timesheet Tracker Guide",
+  title: "Student Assistant Timesheet Tracker Guide",
   description:
-    "PunchPilot helps teams and individuals track punch in/out, breaks, and monthly totals with export-ready timesheets.",
+    "Student Assistant timesheet tracking guide for daily punch in/out, breaks, monthly totals, and clean exports.",
   alternates: { canonical: "/student-assistant-timesheet-tracker" },
+  openGraph: {
+    title: "Student Assistant Timesheet Tracker Guide | PunchPilot",
+    description:
+      "Student Assistant timesheet tracking guide for daily punch in/out, breaks, monthly totals, and clean exports.",
+    url: `${siteConfig.url}/student-assistant-timesheet-tracker`,
+    images: [{ url: "/og-image.svg", width: 1200, height: 630, alt: "Student assistant timesheet tracker guide" }],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Student Assistant Timesheet Tracker Guide | PunchPilot",
+    description:
+      "Student Assistant timesheet tracking guide for daily punch in/out, breaks, monthly totals, and clean exports.",
+    images: ["/og-image.svg"],
+  },
 };
 
 export default function StudentAssistantTimesheetPage() {

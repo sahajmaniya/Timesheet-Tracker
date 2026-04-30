@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { buttonVariants } from "@/components/ui/button";
+import { siteConfig } from "@/lib/site";
 import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = {
@@ -8,6 +9,20 @@ export const metadata: Metadata = {
   description:
     "Use PunchPilot as a punch in punch out web app with break tracking, notes, and automatic worked-hour calculations.",
   alternates: { canonical: "/punch-in-punch-out-web-app" },
+  openGraph: {
+    title: "Punch In Punch Out Web App | PunchPilot",
+    description:
+      "Use PunchPilot as a punch in punch out web app with break tracking, notes, and automatic worked-hour calculations.",
+    url: `${siteConfig.url}/punch-in-punch-out-web-app`,
+    images: [{ url: "/og-image.svg", width: 1200, height: 630, alt: "Punch in punch out web app" }],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Punch In Punch Out Web App | PunchPilot",
+    description:
+      "Use PunchPilot as a punch in punch out web app with break tracking, notes, and automatic worked-hour calculations.",
+    images: ["/og-image.svg"],
+  },
 };
 
 export default function PunchInOutWebAppPage() {
