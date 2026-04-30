@@ -109,6 +109,15 @@ export function LandingNavbar() {
         <div className="hidden items-center gap-2 md:flex">
           <ThemeToggle />
           <Link
+            href="/about"
+            className={cn(
+              buttonVariants({ variant: "outline" }),
+              "h-9 border-slate-300/80 bg-white px-4 text-sm dark:border-slate-700 dark:bg-slate-900",
+            )}
+          >
+            About
+          </Link>
+          <Link
             href="/auth/signin"
             className={cn(
               buttonVariants({ variant: "outline" }),
@@ -163,6 +172,9 @@ export function LandingNavbar() {
             <div className="flex justify-end">
               <ThemeToggle />
             </div>
+            <Link href="/about" className={cn(buttonVariants({ variant: "outline" }), "h-9 text-sm")} onClick={() => setMobileOpen(false)}>
+              About
+            </Link>
             <Link href="/auth/signin" className={cn(buttonVariants({ variant: "outline" }), "h-9 text-sm")} onClick={() => setMobileOpen(false)}>
               Sign In
             </Link>

@@ -522,10 +522,10 @@ export default async function HomePage() {
               <div className="grid grid-cols-1 gap-5 text-sm sm:grid-cols-2">
                 <div className="space-y-2">
                   <p className="text-xs font-bold uppercase tracking-[0.16em] text-muted-foreground">Navigate</p>
-                  <a href="#features" className="block text-muted-foreground hover:text-foreground">Product</a>
-                  <a href="#workflow" className="block text-muted-foreground hover:text-foreground">Workflow</a>
-                  <a href="#preview" className="block text-muted-foreground hover:text-foreground">Preview</a>
-                  <a href="#faq" className="block text-muted-foreground hover:text-foreground">FAQ</a>
+                  <Link href="/about" className="block text-muted-foreground hover:text-foreground">About</Link>
+                  <Link href="/student-assistant-timesheet-tracker" className="block text-muted-foreground hover:text-foreground">SA Timesheet Guide</Link>
+                  <Link href="/punch-in-punch-out-web-app" className="block text-muted-foreground hover:text-foreground">Punch In/Out App</Link>
+                  <Link href="/monthly-timesheet-csv-export" className="block text-muted-foreground hover:text-foreground">Monthly CSV Export</Link>
                 </div>
                 <div className="space-y-2">
                   <p className="text-xs font-bold uppercase tracking-[0.16em] text-muted-foreground">Account</p>
