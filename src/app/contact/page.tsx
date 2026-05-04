@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Mail, MessageCircleHeart, Sparkles } from "lucide-react";
 import { LandingNavbar } from "@/components/landing/landing-navbar";
+import { MarketingFooter } from "@/components/layout/marketing-footer";
 import { buttonVariants } from "@/components/ui/button";
 import { siteConfig } from "@/lib/site";
 import { resolveSupportEmail } from "@/lib/support-email";
@@ -84,6 +85,7 @@ export default function ContactPage() {
           </Link>
         </div>
       </section>
+      <MarketingFooter />
     </main>
   );
 }

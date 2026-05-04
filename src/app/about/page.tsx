@@ -10,6 +10,7 @@ import {
   TimerReset,
 } from "lucide-react";
 import { LandingNavbar } from "@/components/landing/landing-navbar";
+import { MarketingFooter } from "@/components/layout/marketing-footer";
 import { buttonVariants } from "@/components/ui/button";
 import { siteConfig } from "@/lib/site";
 import { cn } from "@/lib/utils";
@@ -168,6 +169,7 @@ export default function AboutPage() {
           </aside>
         </div>
       </section>
+      <MarketingFooter />
     </main>
   );
 }

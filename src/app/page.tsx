@@ -20,6 +20,7 @@ import { getServerAuthSession } from "@/lib/auth";
 import { LandingNavbar } from "@/components/landing/landing-navbar";
 import { PreviewCard } from "@/components/landing/preview-card";
 import { RevealOnScroll } from "@/components/landing/reveal-on-scroll";
+import { MarketingFooter } from "@/components/layout/marketing-footer";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { siteConfig } from "@/lib/site";
@@ -501,48 +502,7 @@ export default async function HomePage() {
       </RevealOnScroll>
 
       <RevealOnScroll delayMs={170}>
-        <footer className="mx-auto w-full max-w-6xl px-4 pb-28 sm:px-6 md:pb-10 lg:px-8">
-          <div className="relative overflow-hidden rounded-3xl border border-border/70 bg-linear-to-br from-card via-card/90 to-cyan-50/35 p-6 shadow-[0_24px_40px_-30px_rgba(8,47,73,0.65)] dark:from-slate-900/85 dark:via-slate-900/80 dark:to-cyan-950/20 sm:p-7">
-            <div className="pointer-events-none absolute inset-0">
-              <div className="absolute -left-10 top-0 h-24 w-24 rounded-full bg-cyan-300/30 blur-2xl dark:bg-cyan-600/25" />
-              <div className="absolute -right-12 bottom-0 h-24 w-24 rounded-full bg-emerald-300/25 blur-2xl dark:bg-emerald-600/20" />
-            </div>
-
-            <div className="relative grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
-              <div>
-                <p className="inline-flex items-center gap-2 text-sm font-black tracking-tight">
-                  <Image src="/punchpilot-logo.svg" alt="PunchPilot logo" width={18} height={18} />
-                  PunchPilot
-                </p>
-                <p className="mt-2 max-w-md text-sm leading-6 text-muted-foreground">
-                  Role-based timesheet tracking for students, supervisors, and payroll teams with cleaner exports and faster month-end submission.
-                </p>
-              </div>
-
-              <div className="grid grid-cols-1 gap-5 text-sm sm:grid-cols-2">
-                <div className="space-y-2">
-                  <p className="text-xs font-bold uppercase tracking-[0.16em] text-muted-foreground">Navigate</p>
-                  <Link href="/about" className="block text-muted-foreground hover:text-foreground">About</Link>
-                  <Link href="/support" className="block text-muted-foreground hover:text-foreground">Support</Link>
-                  <Link href="/contact" className="block text-muted-foreground hover:text-foreground">Contact</Link>
-                  <Link href="/student-assistant-timesheet-tracker" className="block text-muted-foreground hover:text-foreground">SA Timesheet Guide</Link>
-                  <Link href="/punch-in-punch-out-web-app" className="block text-muted-foreground hover:text-foreground">Punch In/Out App</Link>
-                  <Link href="/monthly-timesheet-csv-export" className="block text-muted-foreground hover:text-foreground">Monthly CSV Export</Link>
-                </div>
-                <div className="space-y-2">
-                  <p className="text-xs font-bold uppercase tracking-[0.16em] text-muted-foreground">Account</p>
-                  <Link href="/auth/signin" className="block text-muted-foreground hover:text-foreground">Sign In</Link>
-                  <Link href="/auth/signup" className="block text-muted-foreground hover:text-foreground">Create Account</Link>
-                </div>
-              </div>
-            </div>
-
-            <div className="relative mt-6 flex flex-col gap-3 border-t border-border/70 pt-4 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
-              <p>© {new Date().getFullYear()} PunchPilot. All rights reserved.</p>
-              <p>Built for reliable monthly timesheet submission.</p>
-            </div>
-          </div>
-        </footer>
+        <MarketingFooter className="pb-28 md:pb-10" />
       </RevealOnScroll>
 
       <div className="fixed inset-x-0 bottom-0 z-40 border-t border-border/70 bg-background/95 p-3 backdrop-blur md:hidden">

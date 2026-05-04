@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { CalendarDays, CheckCircle2, Download, FileSpreadsheet, Sparkles, TableProperties } from "lucide-react";
 import { LandingNavbar } from "@/components/landing/landing-navbar";
+import { MarketingFooter } from "@/components/layout/marketing-footer";
 import { buttonVariants } from "@/components/ui/button";
 import { siteConfig } from "@/lib/site";
 import { cn } from "@/lib/utils";
@@ -148,6 +149,7 @@ export default function MonthlyTimesheetCsvExportPage() {
           </div>
         </div>
       </section>
+      <MarketingFooter />
     </main>
   );
 }

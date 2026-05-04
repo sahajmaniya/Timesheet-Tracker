@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { BarChart3, CalendarDays, Clock3, Sparkles } from "lucide-react";
 import { redirect } from "next/navigation";
 import { SignInForm } from "@/components/auth/signin-form";
+import { MarketingFooter } from "@/components/layout/marketing-footer";
 import { getServerAuthSession } from "@/lib/auth";
 
 export const metadata: Metadata = {
@@ -64,6 +65,7 @@ export default async function SignInPage() {
           </div>
         </section>
       </div>
+      <MarketingFooter className="mt-10" />
     </main>
   );
 }

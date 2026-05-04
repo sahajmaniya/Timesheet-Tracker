@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowRight, CircleHelp, Clock3, FileSpreadsheet, FileUp, LifeBuoy, MessageSquareText } from "lucide-react";
 import { LandingNavbar } from "@/components/landing/landing-navbar";
+import { MarketingFooter } from "@/components/layout/marketing-footer";
 import { SupportQueryForm } from "@/components/support/support-query-form";
 import { buttonVariants } from "@/components/ui/button";
 import { siteConfig } from "@/lib/site";
@@ -161,6 +162,7 @@ export default function SupportPage() {
           </Link>
         </div>
       </section>
+      <MarketingFooter />
     </main>
   );
 }
