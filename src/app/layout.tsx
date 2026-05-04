@@ -27,9 +27,12 @@ export const metadata: Metadata = {
     images: ["/og-image.svg"],
   },
   icons: {
-    icon: [{ url: "/icon.svg", type: "image/svg+xml" }],
-    shortcut: [{ url: "/icon.svg", type: "image/svg+xml" }],
-    apple: [{ url: "/icon.svg", type: "image/svg+xml" }],
+    icon: [
+      { url: "/favicon.ico", type: "image/x-icon", sizes: "any" },
+      { url: "/icon.svg", type: "image/svg+xml" },
+    ],
+    shortcut: [{ url: "/favicon.ico", type: "image/x-icon" }],
+    apple: [{ url: "/favicon.ico", sizes: "180x180" }],
   },
   robots: {
     index: true,
