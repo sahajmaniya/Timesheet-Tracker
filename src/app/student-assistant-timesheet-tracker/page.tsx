@@ -1,26 +1,35 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { CheckCircle2, Clock3, FileSpreadsheet, GraduationCap, ShieldCheck, Sparkles } from "lucide-react";
+import { LandingNavbar } from "@/components/landing/landing-navbar";
 import { buttonVariants } from "@/components/ui/button";
 import { siteConfig } from "@/lib/site";
 import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = {
-  title: "Student Assistant Timesheet Tracker Guide",
+  title: "SA Timesheet Tracker Guide",
   description:
-    "Student Assistant timesheet tracking guide for daily punch in/out, breaks, monthly totals, and clean exports.",
+    "Student Assistant timesheet tracker guide for daily punch in/out, break logging, monthly totals, and CSV export.",
+  keywords: [
+    "student assistant timesheet tracker",
+    "SA timesheet guide",
+    "punch in punch out student assistant",
+    "monthly timesheet export",
+  ],
+  category: "business",
   alternates: { canonical: "/student-assistant-timesheet-tracker" },
   openGraph: {
-    title: "Student Assistant Timesheet Tracker Guide | PunchPilot",
+    title: "SA Timesheet Tracker Guide | PunchPilot",
     description:
-      "Student Assistant timesheet tracking guide for daily punch in/out, breaks, monthly totals, and clean exports.",
+      "Student Assistant timesheet tracker guide for daily punch in/out, break logging, monthly totals, and CSV export.",
     url: `${siteConfig.url}/student-assistant-timesheet-tracker`,
     images: [{ url: "/og-image.svg", width: 1200, height: 630, alt: "Student assistant timesheet tracker guide" }],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Student Assistant Timesheet Tracker Guide | PunchPilot",
+    title: "SA Timesheet Tracker Guide | PunchPilot",
     description:
-      "Student Assistant timesheet tracking guide for daily punch in/out, breaks, monthly totals, and clean exports.",
+      "Student Assistant timesheet tracker guide for daily punch in/out, break logging, monthly totals, and CSV export.",
     images: ["/og-image.svg"],
   },
 };
@@ -58,52 +67,71 @@ export default function StudentAssistantTimesheetPage() {
   };
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-slate-100 via-cyan-50 to-blue-100 px-4 py-12 dark:from-slate-950 dark:via-slate-900 dark:to-sky-950">
+    <main className="min-h-screen bg-[radial-gradient(circle_at_8%_8%,rgba(56,189,248,0.24),transparent_34%),radial-gradient(circle_at_90%_6%,rgba(20,184,166,0.22),transparent_30%),linear-gradient(145deg,#f8fbff_0%,#f4f8ff_48%,#f8fffb_100%)] pb-16 dark:bg-[radial-gradient(circle_at_8%_8%,rgba(14,116,144,0.35),transparent_34%),radial-gradient(circle_at_90%_6%,rgba(13,148,136,0.28),transparent_30%),linear-gradient(145deg,#0a1324_0%,#111827_48%,#0a1623_100%)]">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }} />
-      <section className="mx-auto max-w-4xl rounded-3xl border border-border/60 bg-white/75 p-6 shadow-[0_26px_60px_-40px_rgba(15,23,42,0.45)] backdrop-blur-xl sm:p-10 dark:bg-slate-900/65">
-        <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Guide</p>
-        <h1 className="mt-3 text-3xl font-extrabold tracking-tight sm:text-5xl">Timesheet Tracker Guide</h1>
-        <p className="mt-4 text-base text-muted-foreground sm:text-lg">
-          PunchPilot is designed for work schedules where you need accurate daily logging and clean monthly reporting.
-          You can track punch in/out time, unpaid breaks, and shift notes without jumping between spreadsheets.
-        </p>
+      <LandingNavbar mode="subpage" />
+      <section className="mx-auto max-w-6xl px-4 pt-12 sm:px-6 lg:px-8 lg:pt-16">
+        <div className="rounded-3xl border border-cyan-300/45 bg-white/75 p-6 shadow-[0_30px_60px_-40px_rgba(15,23,42,0.55)] backdrop-blur-xl dark:border-cyan-900/45 dark:bg-slate-900/65 sm:p-10">
+          <p className="inline-flex items-center gap-2 rounded-full border border-cyan-500/45 bg-cyan-100/85 px-3 py-1 text-[11px] font-extrabold uppercase tracking-[0.18em] text-cyan-900 dark:border-cyan-700 dark:bg-cyan-950/35 dark:text-cyan-100">
+            <GraduationCap className="h-3.5 w-3.5" />
+            SA Timesheet Guide
+          </p>
+          <h1 className="mt-4 max-w-3xl text-balance text-3xl font-black leading-tight tracking-[-0.02em] text-slate-900 sm:text-5xl dark:text-slate-50">
+            Student Assistant tracking that feels
+            {" "}
+            <span className="bg-linear-to-r from-cyan-500 via-sky-500 to-emerald-500 bg-clip-text text-transparent dark:from-cyan-300 dark:via-sky-300 dark:to-emerald-300">
+              clear, fast, and accurate
+            </span>
+          </h1>
+          <p className="mt-4 max-w-3xl text-base leading-7 text-slate-600 sm:text-lg dark:text-slate-300">
+            Track daily in/out times, breaks, and notes without spreadsheet overhead. PunchPilot keeps your monthly output tidy and submission-ready.
+          </p>
 
-        <div className="mt-6 grid gap-3 sm:grid-cols-2">
-          <div className="rounded-2xl border bg-background/80 p-4">
-            <h2 className="text-lg font-semibold">Daily Shift Tracking</h2>
-            <p className="mt-2 text-sm text-muted-foreground">
-              Record each day in minutes with punch in/out and break windows. Worked duration is auto-calculated.
-            </p>
+          <div className="mt-7 grid gap-4 md:grid-cols-3">
+            <article className="rounded-2xl border border-cyan-300/35 bg-gradient-to-r from-white/90 to-cyan-50/70 p-4 dark:border-cyan-800/35 dark:from-slate-900/80 dark:to-cyan-950/25">
+              <Clock3 className="h-5 w-5 text-cyan-700 dark:text-cyan-300" />
+              <h2 className="mt-2 text-sm font-bold text-slate-900 dark:text-slate-100">Daily Shift Clarity</h2>
+              <p className="mt-1 text-xs leading-5 text-slate-600 dark:text-slate-300">Punch in/out and break logs mapped cleanly by day.</p>
+            </article>
+            <article className="rounded-2xl border border-cyan-300/35 bg-gradient-to-r from-white/90 to-sky-50/70 p-4 dark:border-cyan-800/35 dark:from-slate-900/80 dark:to-sky-950/25">
+              <FileSpreadsheet className="h-5 w-5 text-cyan-700 dark:text-cyan-300" />
+              <h2 className="mt-2 text-sm font-bold text-slate-900 dark:text-slate-100">Monthly Export Ready</h2>
+              <p className="mt-1 text-xs leading-5 text-slate-600 dark:text-slate-300">Generate CSV summaries without manual recalculation.</p>
+            </article>
+            <article className="rounded-2xl border border-cyan-300/35 bg-gradient-to-r from-white/90 to-emerald-50/70 p-4 dark:border-cyan-800/35 dark:from-slate-900/80 dark:to-emerald-950/25">
+              <ShieldCheck className="h-5 w-5 text-cyan-700 dark:text-cyan-300" />
+              <h2 className="mt-2 text-sm font-bold text-slate-900 dark:text-slate-100">Private By Account</h2>
+              <p className="mt-1 text-xs leading-5 text-slate-600 dark:text-slate-300">Each user works only with their own data.</p>
+            </article>
           </div>
-          <div className="rounded-2xl border bg-background/80 p-4">
-            <h2 className="text-lg font-semibold">Monthly Submission Ready</h2>
-            <p className="mt-2 text-sm text-muted-foreground">
-              Generate monthly totals and download CSV exports to complete timesheets quickly.
+
+          <div className="mt-7 rounded-2xl border border-emerald-300/45 bg-gradient-to-r from-emerald-100/60 via-background/90 to-cyan-100/45 p-4 dark:border-emerald-800/45 dark:from-emerald-950/20 dark:to-cyan-950/20">
+            <p className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-[0.16em] text-emerald-800 dark:text-emerald-200">
+              <Sparkles className="h-3.5 w-3.5" />
+              Recommended Flow
             </p>
+            <ul className="mt-2 space-y-1.5">
+              {["Log entries daily", "Review totals weekly", "Export at month-end"].map((item) => (
+                <li key={item} className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300">
+                  <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-300" />
+                  {item}
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          <div className="mt-8 flex flex-wrap gap-3">
+            <Link href="/auth/signup" className={cn(buttonVariants({ variant: "default" }))}>
+              Create Free Account
+            </Link>
+            <Link href="/auth/signin" className={cn(buttonVariants({ variant: "outline" }))}>
+              Sign In
+            </Link>
+            <Link href="/" className={cn(buttonVariants({ variant: "outline" }))}>
+              Back to Home
+            </Link>
           </div>
         </div>
-
-        <div className="mt-8 flex flex-wrap gap-3">
-          <Link href="/auth/signup" className={cn(buttonVariants({ variant: "default" }))}>
-            Create Free Account
-          </Link>
-          <Link href="/auth/signin" className={cn(buttonVariants({ variant: "outline" }))}>
-            Sign In
-          </Link>
-        </div>
-
-        <p className="mt-8 text-sm text-muted-foreground">
-          Looking for related tools? See{" "}
-          <Link className="underline underline-offset-4" href="/punch-in-punch-out-web-app">
-            punch in punch out web app
-          </Link>{" "}
-          and{" "}
-          <Link className="underline underline-offset-4" href="/monthly-timesheet-csv-export">
-            monthly timesheet CSV export
-          </Link>
-          .
-        </p>
-
       </section>
     </main>
   );

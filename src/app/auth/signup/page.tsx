@@ -32,22 +32,26 @@ export default async function SignUpPage() {
             <Sparkles className="h-3.5 w-3.5" />
             New Account
           </p>
-          <h1 className="max-w-xl text-balance text-3xl font-black leading-tight tracking-[-0.015em] sm:text-5xl">
-            Create your PunchPilot workspace
+          <h1 className="max-w-xl text-balance text-3xl font-black leading-tight tracking-[-0.015em] text-slate-900 sm:text-5xl dark:text-slate-50">
+            Create your
+            {" "}
+            <span className="bg-linear-to-r from-cyan-500 via-sky-500 to-emerald-500 bg-clip-text text-transparent dark:from-cyan-300 dark:via-sky-300 dark:to-emerald-300">
+              PunchPilot workspace
+            </span>
           </h1>
-          <p className="max-w-lg text-sm leading-7 text-muted-foreground sm:text-base">
+          <p className="max-w-lg text-sm leading-7 text-slate-600 sm:text-base dark:text-slate-300">
             Set up your account once and start managing daily entries, monthly totals, and export-ready timesheets with a cleaner workflow.
           </p>
-          <div className="grid gap-3 sm:grid-cols-3">
-            <div className="rounded-2xl border border-border/70 bg-card/75 p-4 text-sm">
+          <div className="grid gap-3 md:grid-cols-3">
+            <div className="rounded-2xl border border-cyan-300/35 bg-gradient-to-r from-white/85 to-cyan-50/60 p-4 text-sm text-slate-700 dark:border-cyan-800/35 dark:from-slate-900/75 dark:to-cyan-950/20 dark:text-slate-200">
               <CalendarClock className="mb-2 h-4 w-4 text-cyan-700 dark:text-cyan-300" />
               Daily punch flow
             </div>
-            <div className="rounded-2xl border border-border/70 bg-card/75 p-4 text-sm">
+            <div className="rounded-2xl border border-cyan-300/35 bg-gradient-to-r from-white/85 to-sky-50/60 p-4 text-sm text-slate-700 dark:border-cyan-800/35 dark:from-slate-900/75 dark:to-sky-950/20 dark:text-slate-200">
               <FileSpreadsheet className="mb-2 h-4 w-4 text-cyan-700 dark:text-cyan-300" />
               CSV + Excel import
             </div>
-            <div className="rounded-2xl border border-border/70 bg-card/75 p-4 text-sm">
+            <div className="rounded-2xl border border-cyan-300/35 bg-gradient-to-r from-white/85 to-emerald-50/60 p-4 text-sm text-slate-700 dark:border-cyan-800/35 dark:from-slate-900/75 dark:to-emerald-950/20 dark:text-slate-200">
               <BadgeCheck className="mb-2 h-4 w-4 text-cyan-700 dark:text-cyan-300" />
               Protected account
             </div>

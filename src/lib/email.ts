@@ -18,6 +18,15 @@ function getAppBaseUrl() {
   ).replace(/\/$/, "");
 }
 
+function escapeHtml(value: string) {
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+}
+
 export async function sendOtpEmail({
   to,
   code,
@@ -203,6 +212,118 @@ export async function sendPasswordChangedEmail({
                   If you did not perform this action, secure your account immediately.
                 </p>
               </div>
+            </td>
+          </tr>
+        </table>
+      </div>
+    `,
+  });
+
+  return { devMode: false };
+}
+
+export async function sendSupportRequestEmail({
+  name,
+  email,
+  category,
+  subject,
+  message,
+}: {
+  name: string;
+  email: string;
+  category: string;
+  subject: string;
+  message: string;
+}) {
+  const safeName = escapeHtml(name.trim());
+  const safeEmail = escapeHtml(email.trim().toLowerCase());
+  const safeCategory = escapeHtml(category.trim());
+  const safeSubject = escapeHtml(subject.trim());
+  const safeMessage = escapeHtml(message.trim());
+
+  const supportInbox = process.env.SUPPORT_INBOX || process.env.SMTP_FROM;
+  if (!supportInbox) {
+    throw new Error("Support inbox is not configured. Set SUPPORT_INBOX or SMTP_FROM.");
+  }
+
+  const submittedAt = new Date().toLocaleString("en-US", {
+    dateStyle: "medium",
+    timeStyle: "short",
+  });
+
+  if (!hasSmtpConfig()) {
+    if (process.env.NODE_ENV === "development") {
+      console.info(
+        `[DEV SUPPORT] ${submittedAt} | ${safeName} <${safeEmail}> | ${safeCategory} | ${safeSubject}\n${safeMessage}`,
+      );
+      return { devMode: true };
+    }
+    throw new Error("Email service is not configured. Set SMTP env vars.");
+  }
+
+  const transporter = nodemailer.createTransport({
+    host: process.env.SMTP_HOST,
+    port: Number(process.env.SMTP_PORT),
+    secure: Number(process.env.SMTP_PORT) === 465,
+    auth: {
+      user: process.env.SMTP_USER,
+      pass: process.env.SMTP_PASS,
+    },
+  });
+
+  await transporter.sendMail({
+    from: process.env.SMTP_FROM,
+    to: supportInbox,
+    replyTo: safeEmail,
+    subject: `[PunchPilot Support] ${safeCategory} • ${safeSubject}`,
+    text: `Support query received\n\nName: ${safeName}\nEmail: ${safeEmail}\nCategory: ${safeCategory}\nSubmitted: ${submittedAt}\n\nMessage:\n${safeMessage}`,
+    html: `
+      <div style="margin:0;padding:28px;background:#f4f8ff;font-family:Inter,Segoe UI,Arial,sans-serif;color:#0f172a;">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:640px;margin:0 auto;">
+          <tr>
+            <td style="padding:0;">
+              <div style="border-radius:16px;overflow:hidden;border:1px solid #bfdbfe;background:linear-gradient(135deg,#0b1220 0%,#0f172a 30%,#155e75 68%,#0d9488 100%);padding:18px 20px;">
+                <div style="font-size:12px;letter-spacing:.2em;text-transform:uppercase;color:#a5f3fc;font-weight:800;">PunchPilot</div>
+                <div style="margin-top:10px;font-size:22px;line-height:1.2;color:#ecfeff;font-weight:800;">New Support Query</div>
+                <div style="margin-top:6px;font-size:14px;color:#cffafe;">Submitted from the PunchPilot support form.</div>
+              </div>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding-top:14px;">
+              <div style="border:1px solid #dbeafe;border-radius:16px;background:#ffffff;padding:20px;">
+                <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:separate;border-spacing:0 10px;">
+                  <tr>
+                    <td style="font-size:12px;text-transform:uppercase;letter-spacing:.14em;color:#64748b;font-weight:700;width:120px;">Name</td>
+                    <td style="font-size:15px;color:#0f172a;font-weight:600;">${safeName}</td>
+                  </tr>
+                  <tr>
+                    <td style="font-size:12px;text-transform:uppercase;letter-spacing:.14em;color:#64748b;font-weight:700;">Email</td>
+                    <td style="font-size:15px;color:#0f172a;font-weight:600;">${safeEmail}</td>
+                  </tr>
+                  <tr>
+                    <td style="font-size:12px;text-transform:uppercase;letter-spacing:.14em;color:#64748b;font-weight:700;">Category</td>
+                    <td style="font-size:15px;color:#0f172a;font-weight:600;">${safeCategory}</td>
+                  </tr>
+                  <tr>
+                    <td style="font-size:12px;text-transform:uppercase;letter-spacing:.14em;color:#64748b;font-weight:700;">Subject</td>
+                    <td style="font-size:15px;color:#0f172a;font-weight:600;">${safeSubject}</td>
+                  </tr>
+                  <tr>
+                    <td style="font-size:12px;text-transform:uppercase;letter-spacing:.14em;color:#64748b;font-weight:700;">Submitted</td>
+                    <td style="font-size:14px;color:#334155;">${submittedAt}</td>
+                  </tr>
+                </table>
+                <div style="margin-top:14px;border:1px solid #bae6fd;border-radius:12px;background:linear-gradient(180deg,#ecfeff 0%,#f8fafc 100%);padding:14px 16px;">
+                  <div style="font-size:12px;text-transform:uppercase;letter-spacing:.14em;color:#0f766e;font-weight:700;">Message</div>
+                  <p style="margin:8px 0 0 0;font-size:14px;line-height:1.6;color:#0f172a;white-space:pre-wrap;">${safeMessage}</p>
+                </div>
+              </div>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding-top:12px;text-align:center;font-size:12px;color:#64748b;">
+              Reply directly to this email to respond to the user.
             </td>
           </tr>
         </table>

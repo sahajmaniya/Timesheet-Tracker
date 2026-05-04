@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { Boxes, CircleHelp, Menu, Workflow, X } from "lucide-react";
+import { Boxes, CircleHelp, Info, LifeBuoy, Menu, Workflow, X } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
 import { buttonVariants } from "@/components/ui/button";
@@ -23,9 +23,14 @@ const navItems: NavItem[] = [
 
 const SECTION_OFFSET = 104;
 
-export function LandingNavbar() {
+type LandingNavbarProps = {
+  mode?: "landing" | "subpage";
+};
+
+export function LandingNavbar({ mode = "landing" }: LandingNavbarProps) {
   const [activeHref, setActiveHref] = useState<NavItem["href"]>("#features");
   const [mobileOpen, setMobileOpen] = useState(false);
+  const isSubpage = mode === "subpage";
 
   const sectionIds = useMemo(
     () => navItems.map((item) => item.href.replace("#", "")),
@@ -33,6 +38,8 @@ export function LandingNavbar() {
   );
 
   useEffect(() => {
+    if (isSubpage) return;
+
     const observer = new IntersectionObserver(
       (entries) => {
         const visible = entries
@@ -55,9 +62,11 @@ export function LandingNavbar() {
     });
 
     return () => observer.disconnect();
-  }, [sectionIds]);
+  }, [isSubpage, sectionIds]);
 
   const onNavClick = (href: NavItem["href"]) => {
+    if (isSubpage) return;
+
     const id = href.replace("#", "");
     const target = document.getElementById(id);
     if (!target) return;
@@ -85,38 +94,47 @@ export function LandingNavbar() {
 
         <div className="hidden items-center gap-1 rounded-xl border border-slate-200/80 bg-slate-100/70 p-1 md:flex dark:border-slate-700 dark:bg-slate-800/70">
           {navItems.map((item) => (
-            <a
+            <Link
               key={item.href}
-              href={item.href}
-              onClick={(event) => {
-                event.preventDefault();
-                onNavClick(item.href);
-              }}
+              href={isSubpage ? `/${item.href}` : item.href}
+              onClick={
+                isSubpage
+                  ? () => setMobileOpen(false)
+                  : (event) => {
+                      event.preventDefault();
+                      onNavClick(item.href);
+                    }
+              }
               className={cn(
                 "inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none",
-                activeHref === item.href
+                !isSubpage && activeHref === item.href
                   ? "bg-white text-slate-900 shadow-sm dark:bg-slate-900 dark:text-slate-100"
                   : "text-slate-600 hover:bg-white hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-900 dark:hover:text-slate-100",
               )}
-              aria-current={activeHref === item.href ? "page" : undefined}
+              aria-current={!isSubpage && activeHref === item.href ? "page" : undefined}
             >
               <item.icon className="h-3.5 w-3.5" />
               {item.label}
-            </a>
+            </Link>
           ))}
+          <Link
+            href="/about"
+            className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm text-slate-600 transition-all hover:bg-white hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-900 dark:hover:text-slate-100"
+          >
+            <Info className="h-3.5 w-3.5" />
+            About
+          </Link>
+          <Link
+            href="/support"
+            className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm text-slate-600 transition-all hover:bg-white hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-900 dark:hover:text-slate-100"
+          >
+            <LifeBuoy className="h-3.5 w-3.5" />
+            Support
+          </Link>
         </div>
 
         <div className="hidden items-center gap-2 md:flex">
           <ThemeToggle />
-          <Link
-            href="/about"
-            className={cn(
-              buttonVariants({ variant: "outline" }),
-              "h-9 border-slate-300/80 bg-white px-4 text-sm dark:border-slate-700 dark:bg-slate-900",
-            )}
-          >
-            About
-          </Link>
           <Link
             href="/auth/signin"
             className={cn(
@@ -152,21 +170,31 @@ export function LandingNavbar() {
         <div className="mx-auto mt-2 max-h-[70vh] w-full max-w-6xl overflow-y-auto rounded-xl border border-border bg-background p-3 shadow-xl md:hidden">
           <div className="space-y-2">
             {navItems.map((item) => (
-              <a
+              <Link
                 key={item.href}
-                href={item.href}
-                onClick={(event) => {
-                  event.preventDefault();
-                  onNavClick(item.href);
-                }}
+                href={isSubpage ? `/${item.href}` : item.href}
+                onClick={
+                  isSubpage
+                    ? () => setMobileOpen(false)
+                    : (event) => {
+                        event.preventDefault();
+                        onNavClick(item.href);
+                      }
+                }
                 className={cn(
                   "block rounded-md px-2 py-1 text-sm hover:bg-muted",
-                  activeHref === item.href ? "font-semibold text-foreground" : "text-muted-foreground",
+                  !isSubpage && activeHref === item.href ? "font-semibold text-foreground" : "text-muted-foreground",
                 )}
               >
                 {item.label}
-              </a>
+              </Link>
             ))}
+            <Link href="/about" className="block rounded-md px-2 py-1 text-sm text-muted-foreground hover:bg-muted hover:text-foreground" onClick={() => setMobileOpen(false)}>
+              About
+            </Link>
+            <Link href="/support" className="block rounded-md px-2 py-1 text-sm text-muted-foreground hover:bg-muted hover:text-foreground" onClick={() => setMobileOpen(false)}>
+              Support
+            </Link>
           </div>
           <div className="mt-3 grid gap-2">
             <div className="flex justify-end">

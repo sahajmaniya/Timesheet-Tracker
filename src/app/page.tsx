@@ -523,6 +523,8 @@ export default async function HomePage() {
                 <div className="space-y-2">
                   <p className="text-xs font-bold uppercase tracking-[0.16em] text-muted-foreground">Navigate</p>
                   <Link href="/about" className="block text-muted-foreground hover:text-foreground">About</Link>
+                  <Link href="/support" className="block text-muted-foreground hover:text-foreground">Support</Link>
+                  <Link href="/contact" className="block text-muted-foreground hover:text-foreground">Contact</Link>
                   <Link href="/student-assistant-timesheet-tracker" className="block text-muted-foreground hover:text-foreground">SA Timesheet Guide</Link>
                   <Link href="/punch-in-punch-out-web-app" className="block text-muted-foreground hover:text-foreground">Punch In/Out App</Link>
                   <Link href="/monthly-timesheet-csv-export" className="block text-muted-foreground hover:text-foreground">Monthly CSV Export</Link>
