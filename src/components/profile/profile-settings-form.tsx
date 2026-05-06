@@ -29,6 +29,7 @@ type ProfileData = {
   signature: string | null;
   workSchedule: WorkSchedule;
   payrollProfile: PayrollProfileInput;
+  monthlySummaryEmailEnabled: boolean;
 };
 
 export function ProfileSettingsForm({ initialProfile }: { initialProfile: ProfileData }) {
@@ -65,6 +66,7 @@ export function ProfileSettingsForm({ initialProfile }: { initialProfile: Profil
       image: "",
       workSchedule: profile.workSchedule,
       payrollProfile: profile.payrollProfile,
+      monthlySummaryEmailEnabled: profile.monthlySummaryEmailEnabled,
     },
   });
   const watchedSchedule = watch("workSchedule");
@@ -127,6 +129,7 @@ export function ProfileSettingsForm({ initialProfile }: { initialProfile: Profil
         name: values.name,
         workSchedule: values.workSchedule,
         payrollProfile: values.payrollProfile,
+        monthlySummaryEmailEnabled: values.monthlySummaryEmailEnabled,
       }),
     });
 
@@ -176,6 +179,18 @@ export function ProfileSettingsForm({ initialProfile }: { initialProfile: Profil
       setUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = "";
     }
+  };
+
+  const sendMonthlySummaryTestEmail = async () => {
+    const res = await fetch("/api/monthly-summary/test", { method: "POST" });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      toast.error(body.error || "Could not send test summary email");
+      return;
+    }
+    toast.success("Monthly summary email sent", {
+      description: body.month ? `Summary sent for ${body.month}` : undefined,
+    });
   };
 
   const removeAvatar = async () => {
@@ -471,8 +486,8 @@ export function ProfileSettingsForm({ initialProfile }: { initialProfile: Profil
       <Card className="overflow-hidden border-border/65 bg-gradient-to-br from-sky-200/45 via-background to-indigo-200/35 shadow-[0_22px_45px_-30px_rgba(59,130,246,0.25)] dark:from-sky-500/8 dark:to-indigo-500/6 dark:shadow-[0_22px_45px_-30px_rgba(59,130,246,0.45)]">
         <CardContent className="p-2.5 sm:p-4">
           <div className="overflow-hidden rounded-[1.15rem] border border-border/55 bg-gradient-to-br from-slate-100/70 via-background to-sky-100/45 dark:from-slate-900/35 dark:to-sky-950/25">
-            <div className="grid gap-0 xl:grid-cols-[380px_minmax(0,1fr)]">
-              <div className="border-b border-border/55 bg-gradient-to-b from-slate-100/85 via-background/70 to-slate-100/30 p-5 sm:p-6 dark:from-slate-800/30 dark:to-slate-900/20 xl:border-b-0 xl:border-r">
+            <div className="grid gap-0 lg:grid-cols-[340px_minmax(0,1fr)] xl:grid-cols-[380px_minmax(0,1fr)]">
+              <div className="border-b border-border/55 bg-gradient-to-b from-slate-100/85 via-background/70 to-slate-100/30 p-5 sm:p-6 dark:from-slate-800/30 dark:to-slate-900/20 lg:border-b-0 lg:border-r">
               <div className="flex items-center gap-4">
                 <UserAvatar
                   name={profile.name}
@@ -491,7 +506,7 @@ export function ProfileSettingsForm({ initialProfile }: { initialProfile: Profil
                 </div>
               </div>
 
-              <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
+              <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-1">
                 <div className="rounded-xl border border-cyan-400/25 bg-cyan-500/10 p-3">
                   <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-cyan-800/90 dark:text-cyan-200/90">
                     Profile Completion
@@ -556,6 +571,35 @@ export function ProfileSettingsForm({ initialProfile }: { initialProfile: Profil
                   <li>Set hourly rate to enable instant gross pay estimate in dashboard.</li>
                   <li>Keep schedule updated for faster daily entry creation.</li>
                 </ul>
+              </div>
+
+              <div className="mt-5 rounded-xl border border-cyan-400/25 bg-cyan-500/10 p-3">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-cyan-800/90 dark:text-cyan-200/90">
+                  Monthly Recap
+                </p>
+                <p className="mt-1 text-lg font-bold text-cyan-900 dark:text-cyan-100">
+                  Email Summary
+                </p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Receive an automatic end-of-month summary with your total worked hours and gross pay estimate.
+                </p>
+                <label className="mt-3 inline-flex items-center gap-2 text-sm font-medium">
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4 rounded border-border"
+                    {...register("monthlySummaryEmailEnabled")}
+                  />
+                  Send monthly recap to my email
+                </label>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="mt-3 h-9 w-full border-cyan-500/30 bg-background/80 text-cyan-900 hover:bg-cyan-500/10 dark:text-cyan-100"
+                  onClick={() => void sendMonthlySummaryTestEmail()}
+                >
+                  Preview Monthly Recap Email
+                </Button>
               </div>
               </div>
 

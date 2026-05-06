@@ -25,6 +25,7 @@ export default async function SettingsPage() {
             stateTaxPercent: 0,
             otherDeductionMonthly: 0,
           },
+          monthlySummaryEmailEnabled: true,
         }}
       />
     );
@@ -45,6 +46,7 @@ export default async function SettingsPage() {
       federalTaxPercent: true,
       stateTaxPercent: true,
       otherDeductionMonthly: true,
+      monthlySummaryEmailEnabled: true,
     },
   });
 
@@ -66,6 +68,7 @@ export default async function SettingsPage() {
           stateTaxPercent: user?.stateTaxPercent ?? 0,
           otherDeductionMonthly: user?.otherDeductionMonthly ?? 0,
         },
+        monthlySummaryEmailEnabled: user?.monthlySummaryEmailEnabled ?? true,
       }}
     />
   );

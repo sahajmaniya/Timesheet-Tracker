@@ -15,6 +15,11 @@ import type { MonthlyPayEstimate, PayrollProfile } from "@/lib/payroll";
 import { minutesToHM, minutesToTenthsDecimal } from "@/lib/time";
 import type { TimeEntry } from "@/types/time-entry";
 
+type DashboardClientProps = {
+  initialProfileName?: string | null;
+  initialPayrollProfile?: PayrollProfile | null;
+};
+
 function DashboardEntriesSkeleton() {
   return (
     <div className="space-y-3" aria-hidden="true">
@@ -52,12 +57,16 @@ function DashboardEntriesSkeleton() {
   );
 }
 
-export function DashboardClient() {
+export function DashboardClient({
+  initialProfileName = null,
+  initialPayrollProfile = null,
+}: DashboardClientProps) {
   const confirm = useConfirm();
   const [month, setMonth] = useState(format(new Date(), "yyyy-MM"));
   const [entries, setEntries] = useState<TimeEntry[]>([]);
-  const [payrollProfile, setPayrollProfile] = useState<PayrollProfile | null>(null);
-  const [profileName, setProfileName] = useState<string | null>(null);
+  const [payrollProfile, setPayrollProfile] = useState<PayrollProfile | null>(initialPayrollProfile);
+  const [payrollProfileLoaded, setPayrollProfileLoaded] = useState(Boolean(initialPayrollProfile || initialProfileName));
+  const [profileName, setProfileName] = useState<string | null>(initialProfileName);
   const [payEstimate, setPayEstimate] = useState<MonthlyPayEstimate | null>(null);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
@@ -99,6 +108,10 @@ export function DashboardClient() {
     } catch (error) {
       if (!(error instanceof DOMException && error.name === "AbortError")) {
         console.error("Could not load payroll profile:", error);
+      }
+    } finally {
+      if (!(signal?.aborted)) {
+        setPayrollProfileLoaded(true);
       }
     }
   }, []);
@@ -261,7 +274,15 @@ export function DashboardClient() {
         </div>
       </section>
 
-      {!hasPayrollProfile ? (
+      {!payrollProfileLoaded ? (
+        <Card className="border-amber-300/30 bg-gradient-to-br from-amber-100/45 via-background to-orange-100/40 dark:from-amber-500/8 dark:to-orange-500/8">
+          <CardHeader className="gap-3">
+            <div className="h-6 w-72 animate-pulse rounded-md bg-muted/70" />
+            <div className="h-4 w-full max-w-xl animate-pulse rounded-md bg-muted/60" />
+            <div className="h-10 w-44 animate-pulse rounded-full bg-muted/70" />
+          </CardHeader>
+        </Card>
+      ) : !hasPayrollProfile ? (
         <Card className="border-amber-400/35 bg-gradient-to-br from-amber-100/70 via-background to-orange-100/65 dark:from-amber-500/12 dark:to-orange-500/10">
           <CardHeader className="gap-3">
             <CardTitle className="text-xl">Set your hourly rate to unlock pay estimate</CardTitle>

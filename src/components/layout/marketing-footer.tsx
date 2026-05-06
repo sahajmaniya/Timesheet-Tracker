@@ -43,7 +43,7 @@ export function MarketingFooter({ className }: MarketingFooterProps) {
             </p>
           </div>
 
-          <div className="grid grid-cols-1 gap-6 text-sm sm:grid-cols-2 sm:gap-5 lg:grid-cols-3">
+          <div className="grid grid-cols-1 gap-6 text-sm sm:grid-cols-2 sm:gap-5 xl:grid-cols-3">
             <div className="space-y-2">
               <p className="text-[11px] font-extrabold uppercase tracking-[0.2em] text-cyan-700 dark:text-cyan-300">
                 Product
@@ -77,7 +77,7 @@ export function MarketingFooter({ className }: MarketingFooterProps) {
           </div>
         </div>
 
-        <div className="relative mt-7 flex flex-col gap-2 border-t border-border/70 pt-4 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
+        <div className="relative mt-7 flex flex-col items-center gap-2 border-t border-border/70 pt-4 text-center text-xs text-muted-foreground md:flex-row md:justify-between md:text-left">
           <p>© {new Date().getFullYear()} PunchPilot. All rights reserved.</p>
           <p>Built for reliable monthly timesheet submission.</p>
         </div>

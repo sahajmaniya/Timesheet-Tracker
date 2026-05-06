@@ -26,6 +26,7 @@ export async function GET() {
       federalTaxPercent: true,
       stateTaxPercent: true,
       otherDeductionMonthly: true,
+      monthlySummaryEmailEnabled: true,
     },
   });
 
@@ -50,6 +51,7 @@ export async function GET() {
         stateTaxPercent: user.stateTaxPercent ?? 0,
         otherDeductionMonthly: user.otherDeductionMonthly ?? 0,
       },
+      monthlySummaryEmailEnabled: user.monthlySummaryEmailEnabled ?? true,
     },
   });
 }
@@ -103,6 +105,9 @@ export async function PATCH(request: Request) {
       updateData.stateTaxPercent = safePayroll.stateTaxPercent;
       updateData.otherDeductionMonthly = safePayroll.otherDeductionMonthly;
     }
+    if (typeof parsed.data.monthlySummaryEmailEnabled === "boolean") {
+      updateData.monthlySummaryEmailEnabled = parsed.data.monthlySummaryEmailEnabled;
+    }
 
     const updated = await prisma.user.update({
       where: { id: session.user.id },
@@ -120,6 +125,7 @@ export async function PATCH(request: Request) {
         federalTaxPercent: true,
         stateTaxPercent: true,
         otherDeductionMonthly: true,
+        monthlySummaryEmailEnabled: true,
       },
     });
 
@@ -140,6 +146,7 @@ export async function PATCH(request: Request) {
           stateTaxPercent: updated.stateTaxPercent ?? 0,
           otherDeductionMonthly: updated.otherDeductionMonthly ?? 0,
         },
+        monthlySummaryEmailEnabled: updated.monthlySummaryEmailEnabled ?? true,
       },
     });
   } catch (error) {

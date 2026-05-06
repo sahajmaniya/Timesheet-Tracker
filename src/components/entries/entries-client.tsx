@@ -1443,9 +1443,9 @@ export function EntriesClient() {
                   </Button>
                 </div>
                 {savedPresets.length > 0 && (
-                  <div className="flex flex-wrap gap-2">
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
                     <select
-                      className="h-9 min-w-0 flex-1 rounded-md border border-indigo-500/30 bg-background/90 px-2 text-xs dark:border-indigo-300/25"
+                      className="h-9 w-full min-w-0 rounded-md border border-indigo-500/30 bg-background/90 px-2 text-xs dark:border-indigo-300/25"
                       defaultValue=""
                       onChange={(e) => {
                         if (e.target.value) applyPreset(e.target.value);
@@ -1462,7 +1462,7 @@ export function EntriesClient() {
                     <Button
                       type="button"
                       variant="ghost"
-                      className="h-9 text-xs"
+                      className="h-9 w-full text-xs sm:w-auto"
                       onClick={() => removePreset(savedPresets[0].id)}
                     >
                       Remove first

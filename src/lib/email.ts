@@ -333,3 +333,113 @@ export async function sendSupportRequestEmail({
 
   return { devMode: false };
 }
+
+export async function sendMonthlySummaryEmail({
+  to,
+  name,
+  month,
+  totalWorkedHoursDecimal,
+  hourlyRate,
+  grossPayEstimate,
+}: {
+  to: string;
+  name?: string | null;
+  month: string;
+  totalWorkedHoursDecimal: number;
+  hourlyRate: number;
+  grossPayEstimate: number;
+}) {
+  const safeName = escapeHtml((name || "there").trim());
+  const safeMonth = escapeHtml(month);
+  const dashboardUrl = `${getAppBaseUrl()}/dashboard`;
+  const settingsUrl = `${getAppBaseUrl()}/settings`;
+
+  if (!hasSmtpConfig()) {
+    if (process.env.NODE_ENV === "development") {
+      console.info(
+        `[DEV MONTHLY SUMMARY] ${to} | ${month} | hours=${totalWorkedHoursDecimal} | rate=${hourlyRate} | gross=${grossPayEstimate}`,
+      );
+      return { devMode: true };
+    }
+    throw new Error("Email service is not configured. Set SMTP env vars.");
+  }
+
+  const transporter = nodemailer.createTransport({
+    host: process.env.SMTP_HOST,
+    port: Number(process.env.SMTP_PORT),
+    secure: Number(process.env.SMTP_PORT) === 465,
+    auth: {
+      user: process.env.SMTP_USER,
+      pass: process.env.SMTP_PASS,
+    },
+  });
+
+  const summaryText = [
+    `PunchPilot monthly summary (${month})`,
+    "",
+    `Total worked hours: ${totalWorkedHoursDecimal.toFixed(2)}`,
+    `Hourly rate: $${hourlyRate.toFixed(2)}`,
+    `Estimated gross pay: $${grossPayEstimate.toFixed(2)}`,
+    "",
+    "Note: this is a gross estimate before tax/deduction withholding.",
+  ].join("\n");
+
+  await transporter.sendMail({
+    from: process.env.SMTP_FROM,
+    to,
+    subject: `PunchPilot Monthly Summary • ${month}`,
+    text: summaryText,
+    html: `
+      <div style="margin:0;padding:28px;background:#f4f8ff;font-family:Inter,Segoe UI,Arial,sans-serif;color:#0f172a;">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:640px;margin:0 auto;">
+          <tr>
+            <td style="padding:0;">
+              <div style="border-radius:16px;overflow:hidden;border:1px solid #bfdbfe;background:linear-gradient(135deg,#0b1220 0%,#0f172a 30%,#155e75 68%,#0d9488 100%);padding:18px 20px;">
+                <div style="font-size:12px;letter-spacing:.2em;text-transform:uppercase;color:#a5f3fc;font-weight:800;">PunchPilot</div>
+                <div style="margin-top:10px;font-size:22px;line-height:1.2;color:#ecfeff;font-weight:800;">Monthly Work + Pay Summary</div>
+                <div style="margin-top:6px;font-size:14px;color:#cffafe;">${safeMonth} • Role-based timesheet snapshot</div>
+              </div>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding-top:14px;">
+              <div style="border:1px solid #dbeafe;border-radius:16px;background:#ffffff;padding:20px;">
+                <p style="margin:0 0 14px 0;font-size:14px;color:#334155;">Hi ${safeName}, here is your monthly estimate from PunchPilot.</p>
+                <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:separate;border-spacing:0 10px;">
+                  <tr>
+                    <td style="font-size:12px;text-transform:uppercase;letter-spacing:.14em;color:#64748b;font-weight:700;width:190px;">Total Worked Hours</td>
+                    <td style="font-size:20px;color:#0f172a;font-weight:800;">${totalWorkedHoursDecimal.toFixed(2)} hrs</td>
+                  </tr>
+                  <tr>
+                    <td style="font-size:12px;text-transform:uppercase;letter-spacing:.14em;color:#64748b;font-weight:700;">Hourly Rate</td>
+                    <td style="font-size:16px;color:#0f172a;font-weight:700;">$${hourlyRate.toFixed(2)}</td>
+                  </tr>
+                  <tr>
+                    <td style="font-size:12px;text-transform:uppercase;letter-spacing:.14em;color:#64748b;font-weight:700;">Estimated Gross Pay</td>
+                    <td style="font-size:26px;color:#065f46;font-weight:900;">$${grossPayEstimate.toFixed(2)}</td>
+                  </tr>
+                </table>
+                <div style="margin-top:14px;border:1px solid #bae6fd;border-radius:12px;background:linear-gradient(180deg,#ecfeff 0%,#f8fafc 100%);padding:14px 16px;">
+                  <p style="margin:0;font-size:13px;line-height:1.6;color:#0f172a;">
+                    This is an estimate based on your recorded worked hours and hourly rate.
+                    Taxes and payroll deductions are not included in this gross figure.
+                  </p>
+                </div>
+                <div style="margin-top:16px;">
+                  <a href="${dashboardUrl}" style="display:inline-block;padding:10px 14px;border-radius:10px;background:#0ea5e9;color:#082f49;text-decoration:none;font-weight:700;margin-right:8px;">
+                    Open Dashboard
+                  </a>
+                  <a href="${settingsUrl}" style="display:inline-block;padding:10px 14px;border-radius:10px;background:#e2e8f0;color:#0f172a;text-decoration:none;font-weight:600;">
+                    Update Hourly Rate
+                  </a>
+                </div>
+              </div>
+            </td>
+          </tr>
+        </table>
+      </div>
+    `,
+  });
+
+  return { devMode: false };
+}

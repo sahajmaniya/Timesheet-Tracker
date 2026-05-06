@@ -25,10 +25,12 @@ model User {
   federalTaxPercent Float      @default(0)
   stateTaxPercent  Float       @default(0)
   otherDeductionMonthly Float  @default(0)
+  monthlySummaryEmailEnabled Boolean @default(true)
   entries          TimeEntry[]
   otpChallenges    LoginOtpChallenge[]
   passwordResets   PasswordResetToken[]
   authAuditLogs    AuthAuditLog[]
+  monthlySummaryEmails MonthlySummaryEmailLog[]
 }
 
 model TimeEntry {
@@ -103,4 +105,15 @@ model PasswordResetToken {
 
   @@index([userId, expiresAt])
   @@index([userId, usedAt])
+}
+
+model MonthlySummaryEmailLog {
+  id        String   @id @default(cuid())
+  userId    String
+  month     String
+  sentAt    DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, month])
+  @@index([month, sentAt])
 }

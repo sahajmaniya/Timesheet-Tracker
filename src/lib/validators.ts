@@ -132,6 +132,7 @@ export const profileUpdateSchema = z.object({
     .or(z.literal("")),
   workSchedule: workScheduleSchema.optional(),
   payrollProfile: payrollProfileSchema.optional(),
+  monthlySummaryEmailEnabled: z.boolean().optional(),
 });
 
 export type TimeEntryInput = z.infer<typeof timeEntrySchema>;
