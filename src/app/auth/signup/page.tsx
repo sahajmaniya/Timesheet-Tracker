@@ -65,7 +65,7 @@ export default async function SignUpPage() {
           </div>
         </section>
       </div>
-      <MarketingFooter className="mt-10" />
+      <MarketingFooter className="mt-14 lg:mt-16" />
     </main>
   );
 }

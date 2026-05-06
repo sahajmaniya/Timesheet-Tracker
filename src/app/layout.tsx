@@ -6,7 +6,7 @@ import { siteConfig } from "@/lib/site";
 export const metadata: Metadata = {
   metadataBase: new URL(siteConfig.url),
   title: {
-    default: "PunchPilot | Timesheet Tracker",
+    default: "PunchPilot | SA/ISA Timesheet + Gross Pay Estimate",
     template: "%s | PunchPilot",
   },
   description: siteConfig.description,
@@ -15,14 +15,14 @@ export const metadata: Metadata = {
   openGraph: {
     type: "website",
     url: siteConfig.url,
-    title: "PunchPilot | Timesheet Tracker",
+    title: "PunchPilot | SA/ISA Timesheet + Gross Pay Estimate",
     description: siteConfig.description,
     siteName: "PunchPilot",
     images: [{ url: "/og-image.svg", width: 1200, height: 630, alt: "PunchPilot timesheet tracker" }],
   },
   twitter: {
     card: "summary_large_image",
-    title: "PunchPilot | Timesheet Tracker",
+    title: "PunchPilot | SA/ISA Timesheet + Gross Pay Estimate",
     description: siteConfig.description,
     images: ["/og-image.svg"],
   },

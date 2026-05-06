@@ -1,7 +1,7 @@
 export const siteConfig = {
   name: "PunchPilot",
   description:
-    "Timesheet tracker for SA and ISA workflows with punch in/out tracking, monthly CSV export, and PDF-ready output.",
+    "SA/ISA timesheet tracker with punch in/out, monthly gross pay estimate, CSV export, and PDF-ready output.",
   url:
     process.env.NEXT_PUBLIC_SITE_URL ||
     process.env.NEXTAUTH_URL ||
@@ -9,6 +9,8 @@ export const siteConfig = {
   keywords: [
     "PunchPilot",
     "timesheet tracker",
+    "gross pay estimate",
+    "hourly pay tracker",
     "student assistant timesheet",
     "instructional student assistant timesheet",
     "work hours tracker",

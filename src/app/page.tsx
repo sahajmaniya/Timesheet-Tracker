@@ -9,6 +9,7 @@ import {
   ChevronDown,
   ClipboardCheck,
   Clock3,
+  DollarSign,
   Download,
   GraduationCap,
   Rocket,
@@ -26,12 +27,14 @@ import { cn } from "@/lib/utils";
 import { siteConfig } from "@/lib/site";
 
 export const metadata: Metadata = {
-  title: "SA & ISA Timesheet Tracker | Punch In/Out + CSV Export",
+  title: "SA & ISA Timesheet Tracker | Punch In/Out + Gross Pay Estimate",
   description:
-    "PunchPilot is a modern SA/ISA timesheet tracker for punch in/out, monthly totals, CSV export, and PDF-ready output.",
+    "PunchPilot is a modern SA/ISA timesheet tracker for punch in/out, monthly totals, gross pay estimate, CSV export, and PDF-ready output.",
   keywords: [
     "timesheet tracker",
     "punch in punch out app",
+    "gross pay estimate",
+    "hourly pay calculator",
     "student assistant timesheet",
     "monthly timesheet export",
     "role-based timesheet",
@@ -43,17 +46,17 @@ export const metadata: Metadata = {
   },
   openGraph: {
     type: "website",
-    title: "PunchPilot | Timesheet Tracker",
+    title: "PunchPilot | Timesheet + Gross Pay Estimate",
     description:
-      "Track work hours with punch in/out, role-based timesheets, and export-ready monthly output.",
+      "Track work hours with punch in/out, role-based timesheets, monthly gross pay estimate, and export-ready output.",
     url: siteConfig.url,
     images: [{ url: "/og-image.svg", width: 1200, height: 630, alt: "PunchPilot timesheet tracker" }],
   },
   twitter: {
     card: "summary_large_image",
-    title: "PunchPilot | Timesheet Tracker",
+    title: "PunchPilot | Timesheet + Gross Pay Estimate",
     description:
-      "Track work hours with punch in/out, role-based timesheets, and export-ready monthly output.",
+      "Track work hours with punch in/out, role-based timesheets, monthly gross pay estimate, and export-ready output.",
     images: ["/og-image.svg"],
   },
 };
@@ -73,6 +76,11 @@ const features = [
     icon: CalendarRange,
     title: "Monthly Clarity",
     description: "Auto totals and summaries for fast month-end review.",
+  },
+  {
+    icon: DollarSign,
+    title: "Gross Pay Estimate",
+    description: "See estimated monthly gross pay from worked hours and hourly rate.",
   },
   {
     icon: Download,
@@ -98,6 +106,7 @@ const workflowSteps = [
 
 const trustStats = [
   { label: "Entry Time", value: "< 30 sec" },
+  { label: "Pay Visibility", value: "Gross Estimate" },
   { label: "Export Time", value: "1-click CSV" },
   { label: "Layout Modes", value: "SA / ISA" },
   { label: "Device Support", value: "Mobile + Desktop" },
@@ -156,7 +165,7 @@ export default async function HomePage() {
     applicationCategory: "BusinessApplication",
     operatingSystem: "Web",
     description:
-      "A modern timesheet tracker for punch in/out, role-based layouts, monthly totals, and CSV export.",
+      "A modern timesheet tracker for punch in/out, role-based layouts, monthly totals, gross pay estimate, and CSV export.",
     url: siteConfig.url,
     offers: {
       "@type": "Offer",
@@ -277,7 +286,7 @@ export default async function HomePage() {
 
       <RevealOnScroll delayMs={40}>
         <section aria-label="Trust indicators" className="mx-auto w-full max-w-6xl px-4 pb-14 sm:px-6 lg:px-8">
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
             {trustStats.map((item) => (
               <div key={item.label} className="rounded-2xl border border-border/70 bg-card/80 p-4">
                 <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">{item.label}</p>
