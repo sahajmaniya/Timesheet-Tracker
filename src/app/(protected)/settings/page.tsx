@@ -17,6 +17,14 @@ export default async function SettingsPage() {
           image: session?.user?.image ?? null,
           signature: null,
           workSchedule: DEFAULT_WORK_SCHEDULE,
+          payrollProfile: {
+            hourlyRate: 0,
+            federalStatus: "S",
+            stateStatus: "S-00",
+            federalTaxPercent: 0,
+            stateTaxPercent: 0,
+            otherDeductionMonthly: 0,
+          },
         }}
       />
     );
@@ -30,6 +38,13 @@ export default async function SettingsPage() {
       image: true,
       signature: true,
       workScheduleJson: true,
+      calculationSource: true,
+      hourlyRate: true,
+      federalStatus: true,
+      stateStatus: true,
+      federalTaxPercent: true,
+      stateTaxPercent: true,
+      otherDeductionMonthly: true,
     },
   });
 
@@ -43,6 +58,14 @@ export default async function SettingsPage() {
         image: user?.image ?? session?.user?.image ?? null,
         signature: user?.signature ?? null,
         workSchedule: parsedSchedule.success ? parsedSchedule.data : DEFAULT_WORK_SCHEDULE,
+        payrollProfile: {
+          hourlyRate: user?.hourlyRate ?? 0,
+          federalStatus: user?.federalStatus ?? "S",
+          stateStatus: user?.stateStatus ?? "S-00",
+          federalTaxPercent: user?.federalTaxPercent ?? 0,
+          stateTaxPercent: user?.stateTaxPercent ?? 0,
+          otherDeductionMonthly: user?.otherDeductionMonthly ?? 0,
+        },
       }}
     />
   );

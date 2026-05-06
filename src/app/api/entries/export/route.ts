@@ -52,6 +52,10 @@ export async function GET(request: Request) {
     },
     orderBy: { date: "asc" },
   });
+  const user = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { hourlyRate: true },
+  });
 
   const header = [
     "Date",
@@ -106,7 +110,16 @@ export async function GET(request: Request) {
     "\"\"",
   ].join(",");
 
-  const csv = [header.join(","), ...rows, totalsRow].join("\n");
+  const hourlyRate = Math.max(user?.hourlyRate ?? 0, 0);
+  const totalGrossPay = (totalMinutes / 60) * hourlyRate;
+  const summaryRows = [
+    "",
+    `"Summary"`,
+    `"Hourly Rate (USD)","$${hourlyRate.toFixed(2)}"`,
+    `"Total Gross Pay (${parsedMonth.data})","$${totalGrossPay.toFixed(2)}"`,
+  ];
+
+  const csv = [header.join(","), ...rows, totalsRow, ...summaryRows].join("\n");
   const filename = buildDownloadFilename({
     kind: "timesheet_csv",
     month: parsedMonth.data,

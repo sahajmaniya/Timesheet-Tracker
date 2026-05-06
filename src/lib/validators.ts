@@ -94,6 +94,15 @@ export const workScheduleSchema = z.object({
   }
 });
 
+export const payrollProfileSchema = z.object({
+  hourlyRate: z.number().min(0, "Hourly rate must be 0 or more").max(1000, "Hourly rate is too high"),
+  federalStatus: z.string().trim().min(1).max(20),
+  stateStatus: z.string().trim().min(1).max(20),
+  federalTaxPercent: z.number().min(0).max(60),
+  stateTaxPercent: z.number().min(0).max(30),
+  otherDeductionMonthly: z.number().min(0).max(100000),
+});
+
 export const profileUpdateSchema = z.object({
   name: z.string().trim().min(2).max(80),
   image: z
@@ -122,6 +131,7 @@ export const profileUpdateSchema = z.object({
     .optional()
     .or(z.literal("")),
   workSchedule: workScheduleSchema.optional(),
+  payrollProfile: payrollProfileSchema.optional(),
 });
 
 export type TimeEntryInput = z.infer<typeof timeEntrySchema>;
@@ -130,3 +140,4 @@ export type ForgotPasswordInput = z.infer<typeof forgotPasswordSchema>;
 export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;
 export type ProfileUpdateInput = z.infer<typeof profileUpdateSchema>;
 export type TimesheetCalibrationInput = z.infer<typeof timesheetCalibrationSchema>;
+export type PayrollProfileInput = z.infer<typeof payrollProfileSchema>;

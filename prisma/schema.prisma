@@ -18,6 +18,13 @@ model User {
   image            String?
   signature        String?
   workScheduleJson Json?
+  calculationSource String     @default("local_estimate")
+  hourlyRate       Float?
+  federalStatus    String?     @default("S")
+  stateStatus      String?     @default("S-00")
+  federalTaxPercent Float      @default(0)
+  stateTaxPercent  Float       @default(0)
+  otherDeductionMonthly Float  @default(0)
   entries          TimeEntry[]
   otpChallenges    LoginOtpChallenge[]
   passwordResets   PasswordResetToken[]

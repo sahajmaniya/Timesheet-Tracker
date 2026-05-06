@@ -1,7 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Loader2, Mail, Sparkles, Undo2, Upload, User2 } from "lucide-react";
+import { Loader2, Mail, Sparkles, Undo2, Upload, User2, Wallet } from "lucide-react";
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { useSession } from "next-auth/react";
 import { useForm } from "react-hook-form";
@@ -19,7 +19,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { profileUpdateSchema, type ProfileUpdateInput } from "@/lib/validators";
+import { profileUpdateSchema, type PayrollProfileInput, type ProfileUpdateInput } from "@/lib/validators";
 import { DAY_LABELS, weekdayKeys, type WeekdayKey, type WorkSchedule } from "@/lib/work-schedule";
 
 type ProfileData = {
@@ -28,6 +28,7 @@ type ProfileData = {
   image: string | null;
   signature: string | null;
   workSchedule: WorkSchedule;
+  payrollProfile: PayrollProfileInput;
 };
 
 export function ProfileSettingsForm({ initialProfile }: { initialProfile: ProfileData }) {
@@ -63,9 +64,22 @@ export function ProfileSettingsForm({ initialProfile }: { initialProfile: Profil
       name: profile.name ?? "",
       image: "",
       workSchedule: profile.workSchedule,
+      payrollProfile: profile.payrollProfile,
     },
   });
   const watchedSchedule = watch("workSchedule");
+  const watchedHourlyRate = watch("payrollProfile.hourlyRate");
+  const enabledDaysCount = weekdayKeys.reduce(
+    (count, day) => count + (watchedSchedule?.[day]?.enabled ? 1 : 0),
+    0,
+  );
+  const profileCompletionCount = [
+    Boolean((watch("name") ?? "").trim().length >= 2),
+    Boolean(profile.image),
+    Boolean(profile.signature),
+    Number.isFinite(watchedHourlyRate) && (watchedHourlyRate ?? 0) > 0,
+    enabledDaysCount > 0,
+  ].filter(Boolean).length;
   const DAY_SHORT_LABELS: Record<WeekdayKey, string> = {
     sun: "Sun",
     mon: "Mon",
@@ -109,7 +123,11 @@ export function ProfileSettingsForm({ initialProfile }: { initialProfile: Profil
     const res = await fetch("/api/profile", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: values.name, workSchedule: values.workSchedule }),
+      body: JSON.stringify({
+        name: values.name,
+        workSchedule: values.workSchedule,
+        payrollProfile: values.payrollProfile,
+      }),
     });
 
     const body = await res.json().catch(() => ({}));
@@ -453,7 +471,7 @@ export function ProfileSettingsForm({ initialProfile }: { initialProfile: Profil
       <Card className="overflow-hidden border-border/65 bg-gradient-to-br from-sky-200/45 via-background to-indigo-200/35 shadow-[0_22px_45px_-30px_rgba(59,130,246,0.25)] dark:from-sky-500/8 dark:to-indigo-500/6 dark:shadow-[0_22px_45px_-30px_rgba(59,130,246,0.45)]">
         <CardContent className="p-2.5 sm:p-4">
           <div className="overflow-hidden rounded-[1.15rem] border border-border/55 bg-gradient-to-br from-slate-100/70 via-background to-sky-100/45 dark:from-slate-900/35 dark:to-sky-950/25">
-            <div className="grid gap-0 xl:grid-cols-[340px_minmax(0,1fr)]">
+            <div className="grid gap-0 xl:grid-cols-[380px_minmax(0,1fr)]">
               <div className="border-b border-border/55 bg-gradient-to-b from-slate-100/85 via-background/70 to-slate-100/30 p-5 sm:p-6 dark:from-slate-800/30 dark:to-slate-900/20 xl:border-b-0 xl:border-r">
               <div className="flex items-center gap-4">
                 <UserAvatar
@@ -469,6 +487,32 @@ export function ProfileSettingsForm({ initialProfile }: { initialProfile: Profil
                     title={displayEmail}
                   >
                     {displayEmail}
+                  </p>
+                </div>
+              </div>
+
+              <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
+                <div className="rounded-xl border border-cyan-400/25 bg-cyan-500/10 p-3">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-cyan-800/90 dark:text-cyan-200/90">
+                    Profile Completion
+                  </p>
+                  <p className="mt-1 text-lg font-bold text-cyan-900 dark:text-cyan-100">
+                    {profileCompletionCount}/5 complete
+                  </p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Complete profile, signature, rate, and schedule for best workflow.
+                  </p>
+                </div>
+
+                <div className="rounded-xl border border-emerald-400/25 bg-emerald-500/10 p-3">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-emerald-800/90 dark:text-emerald-200/90">
+                    Schedule Days
+                  </p>
+                  <p className="mt-1 text-lg font-bold text-emerald-900 dark:text-emerald-100">
+                    {enabledDaysCount} day{enabledDaysCount === 1 ? "" : "s"} active
+                  </p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Active days are used in quick entry helpers and planning cards.
                   </p>
                 </div>
               </div>
@@ -503,6 +547,15 @@ export function ProfileSettingsForm({ initialProfile }: { initialProfile: Profil
                     </Button>
                   )}
                 </div>
+              </div>
+
+              <div className="mt-5 rounded-xl border border-violet-400/25 bg-violet-500/10 p-3 text-sm">
+                <p className="font-semibold text-violet-900 dark:text-violet-100">Quick Tips</p>
+                <ul className="mt-2 space-y-1 text-xs text-muted-foreground">
+                  <li>Use profile signature once and reuse it in monthly PDF output.</li>
+                  <li>Set hourly rate to enable instant gross pay estimate in dashboard.</li>
+                  <li>Keep schedule updated for faster daily entry creation.</li>
+                </ul>
               </div>
               </div>
 
@@ -667,6 +720,45 @@ export function ProfileSettingsForm({ initialProfile }: { initialProfile: Profil
                         Please check your schedule times (end must be after start, break end after break start).
                       </p>
                     )}
+                  </div>
+
+                  <div className="relative overflow-hidden rounded-2xl border border-emerald-300/35 bg-gradient-to-br from-emerald-100/70 via-background to-cyan-100/55 p-4 shadow-[0_20px_45px_-32px_rgba(16,185,129,0.45)] dark:border-emerald-500/25 dark:from-emerald-500/12 dark:via-slate-900/80 dark:to-cyan-500/10 sm:p-5">
+                    <div className="pointer-events-none absolute -right-8 top-0 h-24 w-24 rounded-full bg-emerald-300/25 blur-2xl dark:bg-emerald-400/15" />
+                    <div className="pointer-events-none absolute bottom-0 left-0 h-20 w-20 rounded-full bg-cyan-300/20 blur-2xl dark:bg-cyan-400/10" />
+                    <div className="relative">
+                      <div className="mb-4 flex items-start justify-between gap-3">
+                        <div>
+                          <div className="inline-flex items-center gap-2 rounded-full border border-emerald-500/35 bg-emerald-500/12 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.14em] text-emerald-800 dark:text-emerald-200">
+                            <Wallet className="h-3.5 w-3.5" />
+                            Gross Pay Setup
+                          </div>
+                          <p className="mt-2 text-sm font-semibold">Set Hourly Rate</p>
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            Enter your hourly rate to estimate monthly gross pay from worked hours.
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="max-w-md rounded-xl border border-emerald-400/25 bg-background/75 p-3 sm:p-4">
+                        <Label htmlFor="hourlyRate" className="text-xs font-semibold uppercase tracking-[0.14em] text-emerald-800/90 dark:text-emerald-200/90">
+                          Hourly Rate (USD)
+                        </Label>
+                        <Input
+                          id="hourlyRate"
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          className="mt-2 h-11 border-emerald-500/25 bg-background/85 text-base font-semibold focus-visible:ring-emerald-500/40"
+                          {...register("payrollProfile.hourlyRate", { valueAsNumber: true })}
+                        />
+                      </div>
+
+                      <div className="mt-3 rounded-xl border border-amber-400/30 bg-amber-500/10 px-3 py-2.5">
+                        <p className="text-xs font-medium text-amber-800 dark:text-amber-200">
+                          Taxes and deductions are not included yet. Final take-home pay will be lower after payroll withholding.
+                        </p>
+                      </div>
+                    </div>
                   </div>
 
                   <div className="flex justify-end pt-1">
