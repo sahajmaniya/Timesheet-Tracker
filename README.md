@@ -17,12 +17,14 @@ Modern, responsive timesheet tracker built with Next.js App Router, TypeScript, 
 - Automatic break + worked duration calculations
 - Validation with Zod + React Hook Form
 - Monthly totals + average/day analytics
+- Gross pay estimate from worked hours (hourly-rate based)
 - CSV export by month
 - Fill monthly timesheet PDF templates from saved entries
 - Role-based timesheet generation: SA / ISA
 - PDF layout modes: `auto`, `standard`, `carry` with advanced alignment options
 - PDF preset save/apply workflow and optional preview-before-download
 - Per-user regular shift schedule in Settings
+- Optional monthly recap email (hours + gross estimate) with test-send from Settings
 - Mobile-responsive UI, dark/light theme support, modern landing page
 - SEO baseline: metadata, JSON-LD, robots, sitemap, canonical URLs
 - Seed script for demo data
@@ -93,6 +95,8 @@ SMTP_PORT="587"
 SMTP_USER="your-sender@gmail.com"
 SMTP_PASS="your-gmail-app-password"
 SMTP_FROM="PunchPilot <your-sender@gmail.com>"
+SUPPORT_INBOX="support@yourdomain.com"
+CRON_SECRET="replace-with-a-long-random-secret"
 ```
 
 5. Generate Prisma client and run migrations:
@@ -136,6 +140,8 @@ Open `http://localhost:3000`.
    - `SMTP_USER`
    - `SMTP_PASS`
    - `SMTP_FROM`
+   - `SUPPORT_INBOX`
+   - `CRON_SECRET`
 4. Deploy.
 5. Run production migration once:
 
@@ -148,6 +154,11 @@ npx prisma migrate deploy
      - `https://punchpilot.online`
    - Authorized redirect URI:
      - `https://punchpilot.online/api/auth/callback/google`
+7. Monthly summary automation:
+   - `vercel.json` already includes monthly cron:
+     - `POST /api/cron/monthly-summary` on day 1 (UTC)
+   - Cron route expects:
+     - `Authorization: Bearer ${CRON_SECRET}`
 
 ## API Routes
 
@@ -165,6 +176,9 @@ npx prisma migrate deploy
 - `POST /api/import/excel`
 - `GET /api/profile`
 - `PATCH /api/profile`
+- `GET /api/payroll/estimate?month=YYYY-MM`
+- `POST /api/monthly-summary/test`
+- `POST /api/cron/monthly-summary`
 
 ## Notes
 
@@ -172,6 +186,21 @@ npx prisma migrate deploy
 - Client-submitted `userId` is never trusted.
 - Chronology validation blocks invalid ranges (e.g., punch out before punch in).
 - Conservative API rate limits are enabled for OTP, password reset, CSV export, PDF generation, and Excel import.
+
+## Monthly Summary Emails
+
+- Users can enable/disable monthly recap emails in **Settings**.
+- Recap includes:
+  - month
+  - total worked hours
+  - hourly rate
+  - estimated gross pay
+- Recaps are deduplicated per user/month using `MonthlySummaryEmailLog` so duplicate sends are prevented.
+- Test send endpoint:
+  - `POST /api/monthly-summary/test`
+- Automated endpoint (cron):
+  - `POST /api/cron/monthly-summary`
+  - Requires header `Authorization: Bearer ${CRON_SECRET}`
 
 ## Backups (Recommended)
 
