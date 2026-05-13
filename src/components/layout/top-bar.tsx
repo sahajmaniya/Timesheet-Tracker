@@ -128,7 +128,7 @@ export function TopBar() {
                       className={cn(
                         "flex flex-col items-center gap-0.5 rounded-lg px-1 py-1.5 text-[11px] font-medium transition-all",
                         active
-                          ? "bg-gradient-to-r from-primary to-sky-500 text-primary-foreground"
+                          ? "bg-linear-to-r from-primary to-sky-500 text-primary-foreground"
                           : "text-muted-foreground hover:bg-accent/70 hover:text-foreground",
                       )}
                     >

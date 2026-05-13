@@ -62,7 +62,7 @@ export default function ContactPage() {
         </p>
 
         <div className="mt-6 grid gap-3 md:grid-cols-2">
-          <div className="rounded-2xl border border-cyan-300/35 bg-gradient-to-r from-white/90 to-cyan-50/70 p-4 dark:border-cyan-800/40 dark:from-slate-900/80 dark:to-cyan-950/25">
+          <div className="rounded-2xl border border-cyan-300/35 bg-linear-to-r from-white/90 to-cyan-50/70 p-4 dark:border-cyan-800/40 dark:from-slate-900/80 dark:to-cyan-950/25">
             <Mail className="h-5 w-5 text-cyan-700 dark:text-cyan-300" />
             <h2 className="mt-2 text-lg font-semibold text-slate-900 dark:text-slate-100">Email Support</h2>
             <a
@@ -72,7 +72,7 @@ export default function ContactPage() {
               {supportEmail}
             </a>
           </div>
-          <div className="rounded-2xl border border-cyan-300/35 bg-gradient-to-r from-white/90 to-sky-50/70 p-4 dark:border-cyan-800/40 dark:from-slate-900/80 dark:to-sky-950/25">
+          <div className="rounded-2xl border border-cyan-300/35 bg-linear-to-r from-white/90 to-sky-50/70 p-4 dark:border-cyan-800/40 dark:from-slate-900/80 dark:to-sky-950/25">
             <MessageCircleHeart className="h-5 w-5 text-cyan-700 dark:text-cyan-300" />
             <h2 className="mt-2 text-lg font-semibold text-slate-900 dark:text-slate-100">Use In-App Support</h2>
             <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">Share your issue details from Settings or Support page.</p>
