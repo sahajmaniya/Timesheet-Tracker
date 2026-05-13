@@ -101,6 +101,7 @@ SMTP_PASS="your-gmail-app-password"
 SMTP_FROM="PunchPilot <your-sender@gmail.com>"
 SUPPORT_INBOX="support@yourdomain.com"
 CRON_SECRET="replace-with-a-long-random-secret"
+SUPPORT_EMAIL_TIMEZONE="UTC"
 ```
 
 5. Generate Prisma client and run migrations:
@@ -146,6 +147,7 @@ Open `http://localhost:3000`.
    - `SMTP_FROM`
    - `SUPPORT_INBOX`
    - `CRON_SECRET`
+   - `SUPPORT_EMAIL_TIMEZONE` (optional, defaults to `UTC`; used in support email submitted timestamp)
 4. Deploy.
 5. Run production migration once:
 

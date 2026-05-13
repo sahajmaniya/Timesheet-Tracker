@@ -43,6 +43,22 @@ function emailWrapper(content: string) {
   `;
 }
 
+function formatSupportSubmittedTimestamp(submittedAt: Date) {
+  const configuredZone = process.env.SUPPORT_EMAIL_TIMEZONE?.trim() || "UTC";
+  const zoned = new Intl.DateTimeFormat("en-US", {
+    dateStyle: "medium",
+    timeStyle: "medium",
+    timeZone: configuredZone,
+    timeZoneName: "short",
+  }).format(submittedAt);
+
+  return {
+    display: `${zoned} (${configuredZone})`,
+    iso: submittedAt.toISOString(),
+    timeZone: configuredZone,
+  };
+}
+
 export async function sendOtpEmail({
   to,
   code,
@@ -262,15 +278,12 @@ export async function sendSupportRequestEmail({
     throw new Error("Support inbox is not configured. Set SUPPORT_INBOX or SMTP_FROM.");
   }
 
-  const submittedAt = new Date().toLocaleString("en-US", {
-    dateStyle: "medium",
-    timeStyle: "short",
-  });
+  const submitted = formatSupportSubmittedTimestamp(new Date());
 
   if (!hasSmtpConfig()) {
     if (process.env.NODE_ENV === "development") {
       console.info(
-        `[DEV SUPPORT] ${submittedAt} | ${safeName} <${safeEmail}> | ${safeCategory} | ${safeSubject}\n${safeMessage}`,
+        `[DEV SUPPORT] ${submitted.display} | ${safeName} <${safeEmail}> | ${safeCategory} | ${safeSubject}\n${safeMessage}`,
       );
       return { devMode: true };
     }
@@ -292,7 +305,7 @@ export async function sendSupportRequestEmail({
     to: supportInbox,
     replyTo: safeEmail,
     subject: `[PunchPilot Support] ${safeCategory} • ${safeSubject}`,
-    text: `Support query received\n\nName: ${safeName}\nEmail: ${safeEmail}\nCategory: ${safeCategory}\nSubmitted: ${submittedAt}\n\nMessage:\n${safeMessage}`,
+    text: `Support query received\n\nName: ${safeName}\nEmail: ${safeEmail}\nCategory: ${safeCategory}\nSubmitted: ${submitted.display}\nSubmitted (ISO UTC): ${submitted.iso}\n\nMessage:\n${safeMessage}`,
     html: emailWrapper(`
       <div style="margin:0;padding:28px;background:#f4f8ff;font-family:Inter,Segoe UI,Arial,sans-serif;color:#0f172a;">
         <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:640px;margin:0 auto;">
@@ -327,7 +340,7 @@ export async function sendSupportRequestEmail({
                   </tr>
                   <tr>
                     <td style="font-size:12px;text-transform:uppercase;letter-spacing:.14em;color:#64748b;font-weight:700;">Submitted</td>
-                    <td style="font-size:14px;color:#334155;">${submittedAt}</td>
+                    <td style="font-size:14px;color:#334155;">${submitted.display}<br /><span style="font-size:12px;color:#64748b;">UTC ISO: ${submitted.iso}</span></td>
                   </tr>
                 </table>
                 <div style="margin-top:14px;border:1px solid #bae6fd;border-radius:12px;background:linear-gradient(180deg,#ecfeff 0%,#f8fafc 100%);padding:14px 16px;">
