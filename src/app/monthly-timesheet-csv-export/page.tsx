@@ -24,14 +24,14 @@ export const metadata: Metadata = {
     description:
       "Create accurate monthly timesheet summaries and export CSV files with PunchPilot.",
     url: `${siteConfig.url}/monthly-timesheet-csv-export`,
-    images: [{ url: "/og-image.svg", width: 1200, height: 630, alt: "Monthly timesheet CSV export" }],
+    images: [{ url: "/og-image.png", width: 1200, height: 630, alt: "Monthly timesheet CSV export" }],
   },
   twitter: {
     card: "summary_large_image",
     title: "Monthly Timesheet CSV Export | PunchPilot",
     description:
       "Create accurate monthly timesheet summaries and export CSV files with PunchPilot.",
-    images: ["/og-image.svg"],
+    images: ["/og-image.png"],
   },
 };
 

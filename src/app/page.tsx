@@ -50,14 +50,14 @@ export const metadata: Metadata = {
     description:
       "Track work hours with punch in/out, role-based timesheets, monthly gross pay estimate, and export-ready output.",
     url: siteConfig.url,
-    images: [{ url: "/og-image.svg", width: 1200, height: 630, alt: "PunchPilot timesheet tracker" }],
+    images: [{ url: "/og-image.png", width: 1200, height: 630, alt: "PunchPilot timesheet tracker" }],
   },
   twitter: {
     card: "summary_large_image",
     title: "PunchPilot | Timesheet + Gross Pay Estimate",
     description:
       "Track work hours with punch in/out, role-based timesheets, monthly gross pay estimate, and export-ready output.",
-    images: ["/og-image.svg"],
+    images: ["/og-image.png"],
   },
 };
 
@@ -189,6 +189,16 @@ export default async function HomePage() {
     logo: `${siteConfig.url}/logo-mark-1024.svg`,
   };
 
+  const imageObjectJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "ImageObject",
+    contentUrl: `${siteConfig.url}/og-image.png`,
+    url: `${siteConfig.url}/og-image.png`,
+    width: 1200,
+    height: 630,
+    caption: "PunchPilot timesheet tracker brand image",
+  };
+
   const faqJsonLd = {
     "@context": "https://schema.org",
     "@type": "FAQPage",
@@ -207,6 +217,7 @@ export default async function HomePage() {
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(productJsonLd) }} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteJsonLd) }} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationJsonLd) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(imageObjectJsonLd) }} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }} />
 
       <a

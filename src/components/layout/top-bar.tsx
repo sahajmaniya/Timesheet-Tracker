@@ -47,31 +47,30 @@ export function TopBar() {
         )}
       >
         <div className="mx-auto w-full max-w-6xl px-2 py-2 sm:px-4 sm:py-2.5 md:px-6 md:py-3">
-          <div className="rounded-2xl border border-border/60 bg-gradient-to-r from-sky-200/40 via-background/95 to-indigo-200/30 px-2 py-2 shadow-[0_16px_35px_-24px_rgba(59,130,246,0.45)] sm:px-3 dark:from-sky-500/10 dark:to-indigo-500/10">
+          <div className="rounded-2xl border border-white/55 bg-white/80 px-2 py-2 shadow-[0_12px_28px_-22px_rgba(2,6,23,0.75)] backdrop-blur-xl sm:px-3 dark:border-slate-700/70 dark:bg-slate-900/75">
           <div className="flex items-center justify-between gap-1 sm:gap-2">
-            <Link href="/dashboard" className="group flex min-w-0 items-center gap-2 text-sm font-semibold tracking-wide sm:gap-2.5">
-              <span className="rounded-xl border border-primary/30 bg-primary/15 p-1.5 text-primary transition-transform duration-200 group-hover:scale-105">
+            <Link href="/dashboard" className="group flex min-w-0 items-center gap-2 rounded-xl px-2 py-1 transition-colors hover:bg-slate-100/70 dark:hover:bg-slate-800/70">
+              <span className="transition-transform duration-200 group-hover:scale-[1.02]">
                 <Image
                   src="/logo-wordmark-light.svg"
-                  alt="PunchPilot logo"
+                  alt="PunchPilot wordmark logo"
                   width={164}
                   height={28}
                   priority
-                  className="block h-5 w-auto dark:hidden"
+                  className="block h-6 w-auto dark:hidden"
                 />
                 <Image
                   src="/logo-wordmark-dark.svg"
-                  alt="PunchPilot logo"
+                  alt="PunchPilot wordmark logo"
                   width={164}
                   height={28}
                   priority
-                  className="hidden h-5 w-auto dark:block"
+                  className="hidden h-6 w-auto dark:block"
                 />
               </span>
-              <p className="hidden text-[11px] text-muted-foreground lg:block">Timesheet workspace</p>
             </Link>
 
-            <nav className="hidden items-center gap-1 rounded-xl border border-border/65 bg-background/75 p-1 lg:flex">
+            <nav className="hidden items-center gap-1 rounded-xl border border-slate-200/80 bg-slate-100/70 p-1 lg:flex dark:border-slate-700 dark:bg-slate-800/70">
               {navItems.map((item) => {
                 const Icon = item.icon;
                 const active = pathname.startsWith(item.href);
@@ -82,8 +81,8 @@ export function TopBar() {
                     className={cn(
                       "inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition-all",
                       active
-                        ? "bg-gradient-to-r from-primary to-sky-500 text-primary-foreground shadow-[0_8px_20px_-12px_rgba(37,99,235,0.75)]"
-                        : "text-muted-foreground hover:bg-accent/70 hover:text-foreground",
+                        ? "bg-white text-slate-900 shadow-sm dark:bg-slate-900 dark:text-slate-100"
+                        : "text-slate-600 hover:bg-white hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-900 dark:hover:text-slate-100",
                     )}
                   >
                     <Icon className="h-4 w-4" />

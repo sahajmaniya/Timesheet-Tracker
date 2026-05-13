@@ -24,14 +24,14 @@ export const metadata: Metadata = {
     description:
       "Student Assistant timesheet tracker guide for daily punch in/out, break logging, monthly totals, and CSV export.",
     url: `${siteConfig.url}/student-assistant-timesheet-tracker`,
-    images: [{ url: "/og-image.svg", width: 1200, height: 630, alt: "Student assistant timesheet tracker guide" }],
+    images: [{ url: "/og-image.png", width: 1200, height: 630, alt: "Student assistant timesheet tracker guide" }],
   },
   twitter: {
     card: "summary_large_image",
     title: "SA Timesheet Tracker Guide | PunchPilot",
     description:
       "Student Assistant timesheet tracker guide for daily punch in/out, break logging, monthly totals, and CSV export.",
-    images: ["/og-image.svg"],
+    images: ["/og-image.png"],
   },
 };
 

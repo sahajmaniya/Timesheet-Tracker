@@ -24,14 +24,14 @@ export const metadata: Metadata = {
     description:
       "Contact PunchPilot for product questions, onboarding help, and workflow support for SA/ISA timesheet teams.",
     url: `${siteConfig.url}/contact`,
-    images: [{ url: "/og-image.svg", width: 1200, height: 630, alt: "Contact PunchPilot" }],
+    images: [{ url: "/og-image.png", width: 1200, height: 630, alt: "Contact PunchPilot" }],
   },
   twitter: {
     card: "summary_large_image",
     title: "Contact PunchPilot",
     description:
       "Contact PunchPilot for product questions, onboarding help, and workflow support for SA/ISA timesheet teams.",
-    images: ["/og-image.svg"],
+    images: ["/og-image.png"],
   },
 };
 

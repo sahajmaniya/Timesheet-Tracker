@@ -5,6 +5,7 @@ import { siteConfig } from "@/lib/site";
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteConfig.url),
+  manifest: "/site.webmanifest",
   title: {
     default: "PunchPilot | SA/ISA Timesheet + Gross Pay Estimate",
     template: "%s | PunchPilot",
@@ -18,13 +19,13 @@ export const metadata: Metadata = {
     title: "PunchPilot | SA/ISA Timesheet + Gross Pay Estimate",
     description: siteConfig.description,
     siteName: "PunchPilot",
-    images: [{ url: "/og-image.svg", width: 1200, height: 630, alt: "PunchPilot timesheet tracker" }],
+    images: [{ url: "/og-image.png", width: 1200, height: 630, alt: "PunchPilot timesheet tracker" }],
   },
   twitter: {
     card: "summary_large_image",
     title: "PunchPilot | SA/ISA Timesheet + Gross Pay Estimate",
     description: siteConfig.description,
-    images: ["/og-image.svg"],
+    images: ["/og-image.png"],
   },
   icons: {
     icon: [

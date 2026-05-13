@@ -34,20 +34,20 @@ export function MarketingFooter({ className }: MarketingFooterProps) {
 
         <div className="relative grid gap-7 lg:grid-cols-[1.02fr_0.98fr] lg:gap-9">
           <div>
-            <div className="inline-flex items-center rounded-xl border border-border/60 bg-background/55 px-3 py-2 dark:bg-slate-900/40">
+            <div className="inline-flex items-center">
               <Image
                 src="/logo-wordmark-light.svg"
-                alt="PunchPilot logo"
-                width={184}
-                height={30}
-                className="block h-7 w-auto dark:hidden"
+                alt="PunchPilot wordmark logo"
+                width={208}
+                height={40}
+                className="block h-8 w-auto dark:hidden"
               />
               <Image
                 src="/logo-wordmark-dark.svg"
-                alt="PunchPilot logo"
-                width={184}
-                height={30}
-                className="hidden h-7 w-auto dark:block"
+                alt="PunchPilot wordmark logo"
+                width={208}
+                height={40}
+                className="hidden h-8 w-auto dark:block"
               />
             </div>
             <p className="mt-3 max-w-md text-base leading-8 text-slate-600 dark:text-slate-300">

@@ -26,14 +26,14 @@ export const metadata: Metadata = {
     description:
       "Get support for PunchPilot with guided issue reporting, faster troubleshooting, and direct email delivery to support.",
     url: `${siteConfig.url}/support`,
-    images: [{ url: "/og-image.svg", width: 1200, height: 630, alt: "PunchPilot support" }],
+    images: [{ url: "/og-image.png", width: 1200, height: 630, alt: "PunchPilot support" }],
   },
   twitter: {
     card: "summary_large_image",
     title: "PunchPilot Support",
     description:
       "Get support for PunchPilot with guided issue reporting, faster troubleshooting, and direct email delivery to support.",
-    images: ["/og-image.svg"],
+    images: ["/og-image.png"],
   },
 };
 

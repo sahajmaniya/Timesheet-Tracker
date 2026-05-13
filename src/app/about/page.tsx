@@ -31,14 +31,14 @@ export const metadata: Metadata = {
     description:
       "Learn about PunchPilot, a timesheet tracker focused on SA and ISA workflows with punch in/out, monthly export, and PDF-ready output.",
     url: `${siteConfig.url}/about`,
-    images: [{ url: "/og-image.svg", width: 1200, height: 630, alt: "About PunchPilot" }],
+    images: [{ url: "/og-image.png", width: 1200, height: 630, alt: "About PunchPilot" }],
   },
   twitter: {
     card: "summary_large_image",
     title: "About PunchPilot",
     description:
       "Learn about PunchPilot, a timesheet tracker focused on SA and ISA workflows with punch in/out, monthly export, and PDF-ready output.",
-    images: ["/og-image.svg"],
+    images: ["/og-image.png"],
   },
 };
 

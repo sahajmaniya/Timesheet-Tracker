@@ -90,7 +90,7 @@ export function LandingNavbar({ mode = "landing" }: LandingNavbarProps) {
         >
           <Image
             src="/logo-wordmark-light.svg"
-            alt="PunchPilot"
+            alt="PunchPilot wordmark logo"
             width={164}
             height={28}
             priority
@@ -98,7 +98,7 @@ export function LandingNavbar({ mode = "landing" }: LandingNavbarProps) {
           />
           <Image
             src="/logo-wordmark-dark.svg"
-            alt="PunchPilot"
+            alt="PunchPilot wordmark logo"
             width={164}
             height={28}
             priority
