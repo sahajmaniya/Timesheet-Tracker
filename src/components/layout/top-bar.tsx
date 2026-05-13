@@ -50,20 +50,25 @@ export function TopBar() {
           <div className="rounded-2xl border border-border/60 bg-gradient-to-r from-sky-200/40 via-background/95 to-indigo-200/30 px-2 py-2 shadow-[0_16px_35px_-24px_rgba(59,130,246,0.45)] sm:px-3 dark:from-sky-500/10 dark:to-indigo-500/10">
           <div className="flex items-center justify-between gap-1 sm:gap-2">
             <Link href="/dashboard" className="group flex min-w-0 items-center gap-2 text-sm font-semibold tracking-wide sm:gap-2.5">
-              <span className="rounded-xl border border-primary/30 bg-primary/15 p-1 text-primary transition-transform duration-200 group-hover:scale-105">
+              <span className="rounded-xl border border-primary/30 bg-primary/15 p-1.5 text-primary transition-transform duration-200 group-hover:scale-105">
                 <Image
-                  src="/logo-mark-1024.svg"
+                  src="/logo-wordmark-light.svg"
                   alt="PunchPilot logo"
-                  width={28}
+                  width={164}
                   height={28}
-                  className="h-7 w-7 rounded-lg"
                   priority
+                  className="block h-5 w-auto dark:hidden"
+                />
+                <Image
+                  src="/logo-wordmark-dark.svg"
+                  alt="PunchPilot logo"
+                  width={164}
+                  height={28}
+                  priority
+                  className="hidden h-5 w-auto dark:block"
                 />
               </span>
-              <div className="min-w-0 leading-tight">
-                <p className="truncate text-sm font-bold text-foreground">PunchPilot</p>
-                <p className="hidden text-[11px] text-muted-foreground lg:block">Timesheet workspace</p>
-              </div>
+              <p className="hidden text-[11px] text-muted-foreground lg:block">Timesheet workspace</p>
             </Link>
 
             <nav className="hidden items-center gap-1 rounded-xl border border-border/65 bg-background/75 p-1 lg:flex">
