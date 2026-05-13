@@ -238,7 +238,14 @@ openssl rand -base64 32
 Authentication and recovery flows write to `AuthAuditLog` (`event`, `success`, `reason`, `email`, `userId`, `ip`, `userAgent`, `createdAt`) for security troubleshooting.
 
 Current behavior:
-- Events include signup, OTP request outcomes, password reset request outcomes, and password reset completion/failures.
+- Event catalog currently includes:
+| Area | Events |
+| --- | --- |
+| Sign-in | `signin_attempt`, `signin_invalid_input`, `signin_failed`, `signin_success`, `google_signin_success` |
+| Signup | `signup_invalid_input`, `signup_rate_limited`, `signup_conflict`, `signup_success`, `signup_error` |
+| OTP request | `otp_request_invalid_input`, `otp_request_rate_limited`, `otp_request_auth_failed`, `otp_request_sent`, `otp_request_error` |
+| Forgot password | `password_reset_request_invalid_input`, `password_reset_request_rate_limited`, `password_reset_request_unknown_email`, `password_reset_request_sent`, `password_reset_request_error` |
+| Reset password | `password_reset_invalid_input`, `password_reset_rate_limited`, `password_reset_token_invalid`, `password_reset_success`, `password_reset_error` |
 - Logs are stored in PostgreSQL and are not currently exposed in an end-user UI.
 - Retention is currently database-managed (no automated purge job in this repo yet).
 
