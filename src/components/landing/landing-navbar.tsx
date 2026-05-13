@@ -88,7 +88,7 @@ export function LandingNavbar({ mode = "landing" }: LandingNavbarProps) {
           }}
           className="inline-flex items-center gap-2 rounded-xl px-2 py-1 transition-colors hover:bg-slate-100/70 motion-reduce:transition-none dark:hover:bg-slate-800/70"
         >
-          <Image src="/punchpilot-logo.svg" alt="PunchPilot" width={30} height={30} priority />
+          <Image src="/logo-mark-1024.svg" alt="PunchPilot" width={30} height={30} priority />
           <span className="text-sm font-black tracking-tight">PunchPilot</span>
         </a>
 

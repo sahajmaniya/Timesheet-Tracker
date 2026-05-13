@@ -29,10 +29,16 @@ export const metadata: Metadata = {
   icons: {
     icon: [
       { url: "/favicon.ico", type: "image/x-icon", sizes: "any" },
-      { url: "/icon.svg", type: "image/svg+xml" },
+      { url: "/favicon-32x32.png", type: "image/png", sizes: "32x32" },
+      { url: "/favicon-16x16.png", type: "image/png", sizes: "16x16" },
+      { url: "/logo-mark-1024.svg", type: "image/svg+xml" },
     ],
     shortcut: [{ url: "/favicon.ico", type: "image/x-icon" }],
-    apple: [{ url: "/favicon.ico", sizes: "180x180" }],
+    apple: [{ url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
+    other: [
+      { rel: "icon", url: "/android-chrome-192x192.png", sizes: "192x192", type: "image/png" },
+      { rel: "icon", url: "/android-chrome-512x512.png", sizes: "512x512", type: "image/png" },
+    ],
   },
   robots: {
     index: true,

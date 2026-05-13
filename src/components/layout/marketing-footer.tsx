@@ -35,8 +35,20 @@ export function MarketingFooter({ className }: MarketingFooterProps) {
         <div className="relative grid gap-7 lg:grid-cols-[1.02fr_0.98fr] lg:gap-9">
           <div>
             <p className="inline-flex items-center gap-2 text-sm font-black tracking-tight">
-              <Image src="/punchpilot-logo.svg" alt="PunchPilot logo" width={18} height={18} />
-              PunchPilot
+              <Image
+                src="/logo-wordmark-light.svg"
+                alt="PunchPilot logo"
+                width={132}
+                height={22}
+                className="block h-5 w-auto dark:hidden"
+              />
+              <Image
+                src="/logo-wordmark-dark.svg"
+                alt="PunchPilot logo"
+                width={132}
+                height={22}
+                className="hidden h-5 w-auto dark:block"
+              />
             </p>
             <p className="mt-2 max-w-md text-sm leading-6 text-muted-foreground">
               Role-based timesheet tracking with cleaner exports, better month-end confidence, and a modern workflow for SA/ISA teams.

@@ -52,7 +52,7 @@ export function TopBar() {
             <Link href="/dashboard" className="group flex min-w-0 items-center gap-2 text-sm font-semibold tracking-wide sm:gap-2.5">
               <span className="rounded-xl border border-primary/30 bg-primary/15 p-1 text-primary transition-transform duration-200 group-hover:scale-105">
                 <Image
-                  src="/punchpilot-logo.svg"
+                  src="/logo-mark-1024.svg"
                   alt="PunchPilot logo"
                   width={28}
                   height={28}

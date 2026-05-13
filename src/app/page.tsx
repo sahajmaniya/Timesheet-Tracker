@@ -186,7 +186,7 @@ export default async function HomePage() {
     "@type": "Organization",
     name: siteConfig.name,
     url: siteConfig.url,
-    logo: `${siteConfig.url}/icon.svg`,
+    logo: `${siteConfig.url}/logo-mark-1024.svg`,
   };
 
   const faqJsonLd = {
