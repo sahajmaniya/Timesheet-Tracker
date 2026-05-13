@@ -56,6 +56,10 @@ This app uses **one entry per user per day** with Prisma constraint:
 
 This prevents accidental duplicates and matches monthly timesheet workflows.
 
+Known limitation:
+- Split shifts or multiple project entries on the same calendar date are not supported in the current schema.
+- Import behavior follows this model (`skip` or `overwrite` for same-date rows).
+
 ## Timezone Strategy
 
 - `date` stored as local `YYYY-MM-DD` string
@@ -187,6 +191,21 @@ npx prisma migrate deploy
 - Chronology validation blocks invalid ranges (e.g., punch out before punch in).
 - Conservative API rate limits are enabled for OTP, password reset, CSV export, PDF generation, and Excel import.
 
+## Rate Limits
+
+Current API limits are in-memory per server instance and keyed by user/IP context.
+
+| Endpoint/Flow | Limit | Window |
+| --- | --- | --- |
+| Signup (`/api/auth/signup`) | 6 requests | 10 minutes |
+| OTP request (`/api/auth/request-otp`) | 8 requests | 10 minutes |
+| Forgot password (`/api/auth/forgot-password`) | 6 requests | 10 minutes |
+| Reset password (`/api/auth/reset-password`) | 8 requests | 10 minutes |
+| CSV export (`/api/entries/export`) | 25 requests | 10 minutes |
+| PDF generation (`/api/entries/fill-pdf`) | 12 requests | 10 minutes |
+| Excel import (`/api/import/excel`) | 8 requests | 10 minutes |
+| Support form (`/api/support`) | 4 requests | 1 minute |
+
 ## Monthly Summary Emails
 
 - Users can enable/disable monthly recap emails in **Settings**.
@@ -201,6 +220,33 @@ npx prisma migrate deploy
 - Automated endpoint (cron):
   - `POST /api/cron/monthly-summary`
   - Requires header `Authorization: Bearer ${CRON_SECRET}`
+
+### CRON_SECRET requirements
+
+- Use a high-entropy value (recommended: at least 32 random bytes, base64/hex encoded).
+- Never commit it to git or expose it in client-side code.
+- Rotate it immediately if leaked and update your deployment environment before the next cron run.
+
+Example generation:
+
+```bash
+openssl rand -base64 32
+```
+
+## Auth Audit Logs
+
+Authentication and recovery flows write to `AuthAuditLog` (`event`, `success`, `reason`, `email`, `userId`, `ip`, `userAgent`, `createdAt`) for security troubleshooting.
+
+Current behavior:
+- Events include signup, OTP request outcomes, password reset request outcomes, and password reset completion/failures.
+- Logs are stored in PostgreSQL and are not currently exposed in an end-user UI.
+- Retention is currently database-managed (no automated purge job in this repo yet).
+
+## PDF Template Requirement
+
+- PDF generation expects a **blank monthly timesheet PDF template** uploaded by the user at generation time.
+- The template can be organization-specific; PunchPilot maps tracked entries into that uploaded template.
+- For benchmarking/dev examples, an optional template path can be provided via `BENCH_PDF_TEMPLATE_PATH`.
 
 ## Backups (Recommended)
 
