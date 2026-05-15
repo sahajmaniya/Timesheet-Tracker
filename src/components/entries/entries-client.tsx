@@ -343,6 +343,19 @@ export function EntriesClient() {
     });
   }, [entriesByDate, month]);
 
+  const weekdayLabels = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+  const monthHeatmapCalendar = useMemo(() => {
+    if (monthHeatmap.length === 0) return [];
+    const leadingEmptyCells = monthHeatmap[0]?.weekday ?? 0;
+    const padded: Array<(typeof monthHeatmap)[number] | null> = [
+      ...Array.from({ length: leadingEmptyCells }, () => null),
+      ...monthHeatmap,
+    ];
+    while (padded.length % 7 !== 0) padded.push(null);
+    return padded;
+  }, [monthHeatmap]);
+
   const validationIssues = useMemo<EntryValidationIssue[]>(() => {
     const issues: EntryValidationIssue[] = [];
     const toMinutes = (time: string) => {
@@ -1090,35 +1103,53 @@ export function EntriesClient() {
           <CardDescription>Darker cells mean longer worked hours.</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-7 gap-1.5">
-            {monthHeatmap.map((day) => (
-              <button
-                key={day.date}
-                type="button"
-                onClick={() => {
-                  const entry = entriesByDate.get(day.date);
-                  if (entry) {
-                    setSelectedEntry(entry);
-                    setOpen(true);
-                  } else {
-                    setSelectedEntry(null);
-                    setOpen(true);
-                  }
-                }}
-                title={day.date}
-                className={`h-8 rounded-md text-[11px] font-medium transition ${
-                  day.intensity === 0
-                    ? "border border-border/70 bg-background text-muted-foreground"
-                    : day.intensity === 1
-                      ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-500/20 dark:text-emerald-100"
-                      : day.intensity === 2
-                        ? "bg-emerald-300 text-emerald-900 dark:bg-emerald-500/40 dark:text-emerald-50"
-                        : "bg-emerald-500 text-white dark:bg-emerald-400 dark:text-emerald-950"
-                }`}
+          <div className="mb-2 grid grid-cols-7 gap-1.5">
+            {weekdayLabels.map((label) => (
+              <div
+                key={label}
+                className="h-6 rounded-md text-center text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground"
               >
-                {day.dayLabel}
-              </button>
+                {label}
+              </div>
             ))}
+          </div>
+          <div className="grid grid-cols-7 gap-1.5">
+            {monthHeatmapCalendar.map((day, index) =>
+              day ? (
+                <button
+                  key={day.date}
+                  type="button"
+                  onClick={() => {
+                    const entry = entriesByDate.get(day.date);
+                    if (entry) {
+                      setSelectedEntry(entry);
+                      setOpen(true);
+                    } else {
+                      setSelectedEntry(null);
+                      setOpen(true);
+                    }
+                  }}
+                  title={day.date}
+                  className={`h-8 rounded-md text-[11px] font-medium transition ${
+                    day.intensity === 0
+                      ? "border border-border/70 bg-background text-muted-foreground"
+                      : day.intensity === 1
+                        ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-500/20 dark:text-emerald-100"
+                        : day.intensity === 2
+                          ? "bg-emerald-300 text-emerald-900 dark:bg-emerald-500/40 dark:text-emerald-50"
+                          : "bg-emerald-500 text-white dark:bg-emerald-400 dark:text-emerald-950"
+                  }`}
+                >
+                  {day.dayLabel}
+                </button>
+              ) : (
+                <div
+                  key={`empty-${index}`}
+                  aria-hidden="true"
+                  className="h-8 rounded-md border border-transparent bg-transparent"
+                />
+              ),
+            )}
           </div>
           <p className="mt-3 text-xs text-muted-foreground">
             Tip: tap any day to open edit/create entry for that date.
