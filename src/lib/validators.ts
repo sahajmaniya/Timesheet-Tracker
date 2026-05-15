@@ -19,10 +19,13 @@ export const timeEntrySchema = z.object({
 
 const passwordSchema = z
   .string()
-  .min(8)
+  .min(12, "Password must be at least 12 characters")
+  .max(128, "Password is too long")
   .regex(/[A-Z]/, "Must include an uppercase letter")
   .regex(/[a-z]/, "Must include a lowercase letter")
-  .regex(/\d/, "Must include a number");
+  .regex(/\d/, "Must include a number")
+  .regex(/[^A-Za-z0-9]/, "Must include a special character")
+  .refine((value) => !/\s/.test(value), "Password must not contain spaces");
 
 export const signupSchema = z.object({
   name: z.string().trim().min(2).max(80),

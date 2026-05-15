@@ -13,7 +13,7 @@ describe("validators", () => {
       signupSchema.safeParse({
         name: "Alex Doe",
         email: "alex@example.com",
-        password: "StrongPass1",
+        password: "StrongPass1!",
       }).success,
     ).toBe(true);
 
@@ -22,6 +22,22 @@ describe("validators", () => {
         name: "Alex Doe",
         email: "alex@example.com",
         password: "weakpass",
+      }).success,
+    ).toBe(false);
+
+    expect(
+      signupSchema.safeParse({
+        name: "Alex Doe",
+        email: "alex@example.com",
+        password: "NoSpecial123",
+      }).success,
+    ).toBe(false);
+
+    expect(
+      signupSchema.safeParse({
+        name: "Alex Doe",
+        email: "alex@example.com",
+        password: "Short1!",
       }).success,
     ).toBe(false);
   });
