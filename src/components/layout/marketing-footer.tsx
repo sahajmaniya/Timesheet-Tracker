@@ -34,7 +34,7 @@ export function MarketingFooter({ className }: MarketingFooterProps) {
 
         <div className="relative grid gap-7 lg:grid-cols-[1.02fr_0.98fr] lg:gap-9">
           <div>
-            <div className="inline-flex items-center">
+            <Link href="/" className="inline-flex items-center">
               <Image
                 src="/logo-wordmark-light.svg"
                 alt="PunchPilot wordmark logo"
@@ -49,7 +49,7 @@ export function MarketingFooter({ className }: MarketingFooterProps) {
                 height={40}
                 className="hidden h-8 w-auto dark:block"
               />
-            </div>
+            </Link>
             <p className="mt-3 max-w-md text-base leading-8 text-slate-600 dark:text-slate-300">
               Role-based timesheet tracking with cleaner exports, better month-end confidence, and a modern workflow for SA/ISA teams.
             </p>

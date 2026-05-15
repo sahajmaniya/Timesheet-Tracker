@@ -79,11 +79,9 @@ export function LandingNavbar({ mode = "landing" }: LandingNavbarProps) {
   return (
     <header className="sticky top-3 z-50 px-4 sm:px-6 lg:px-8">
       <nav className="mx-auto flex w-full max-w-6xl items-center justify-between rounded-2xl border border-white/55 bg-white/80 px-3 py-2 shadow-[0_12px_28px_-22px_rgba(2,6,23,0.75)] backdrop-blur-xl dark:border-slate-700/70 dark:bg-slate-900/75">
-        <a
-          href="#top"
-          onClick={(event) => {
-            event.preventDefault();
-            window.scrollTo({ top: 0, behavior: "smooth" });
+        <Link
+          href="/"
+          onClick={() => {
             setMobileOpen(false);
           }}
           className="inline-flex items-center gap-2 rounded-xl px-2 py-1 transition-colors hover:bg-slate-100/70 motion-reduce:transition-none dark:hover:bg-slate-800/70"
@@ -104,7 +102,7 @@ export function LandingNavbar({ mode = "landing" }: LandingNavbarProps) {
             priority
             className="hidden h-6 w-auto dark:block"
           />
-        </a>
+        </Link>
 
         <div className="hidden items-center gap-1 rounded-xl border border-slate-200/80 bg-slate-100/70 p-1 md:flex dark:border-slate-700 dark:bg-slate-800/70">
           {navItems.map((item) => (

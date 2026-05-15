@@ -49,7 +49,7 @@ export function TopBar() {
         <div className="mx-auto w-full max-w-6xl px-2 py-2 sm:px-4 sm:py-2.5 md:px-6 md:py-3">
           <div className="rounded-2xl border border-white/55 bg-white/80 px-2 py-2 shadow-[0_12px_28px_-22px_rgba(2,6,23,0.75)] backdrop-blur-xl sm:px-3 dark:border-slate-700/70 dark:bg-slate-900/75">
           <div className="flex items-center justify-between gap-1 sm:gap-2">
-            <Link href="/dashboard" className="group flex min-w-0 items-center gap-2 rounded-xl px-2 py-1 transition-colors hover:bg-slate-100/70 dark:hover:bg-slate-800/70">
+            <Link href="/" className="group flex min-w-0 items-center gap-2 rounded-xl px-2 py-1 transition-colors hover:bg-slate-100/70 dark:hover:bg-slate-800/70">
               <span className="transition-transform duration-200 group-hover:scale-[1.02]">
                 <Image
                   src="/logo-wordmark-light.svg"
