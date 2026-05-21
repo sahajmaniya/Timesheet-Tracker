@@ -232,17 +232,17 @@ export function TimeEntryForm({
               type="button"
               size="sm"
               variant="outline"
-              onClick={() => applyPresetWithBreak("09:00", "17:00", "12:30", "13:00", "Mon/Wed 9am-5pm preset")}
+              onClick={() => applyPresetWithBreak("09:00", "17:00", "12:30", "13:00", "full-day preset")}
             >
-              Mon/Wed 9am-5pm
+              Full Day (9am-5pm)
             </Button>
             <Button
               type="button"
               size="sm"
               variant="outline"
-              onClick={() => applyPresetWithBreak("12:00", "17:00", "14:30", "15:00", "Fri 12pm-5pm preset")}
+              onClick={() => applyPresetWithBreak("12:00", "17:00", "14:30", "15:00", "afternoon preset")}
             >
-              Fri 12pm-5pm
+              Afternoon (12pm-5pm)
             </Button>
             <Button type="button" size="sm" variant="outline" onClick={() => setPreset("08:00", "12:00")}>
               8am-12pm
