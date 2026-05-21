@@ -42,6 +42,14 @@ type TemplateDateCell = {
 };
 
 
+function to12hWithMeridiem(timeHHmm: string) {
+  const [hhRaw, mmRaw] = timeHHmm.split(":").map(Number);
+  const hh = ((hhRaw + 11) % 12) + 1;
+  const meridiem = hhRaw >= 12 ? "PM" : "AM";
+  if (mmRaw === 0) return `${hh} ${meridiem}`;
+  return `${hh}:${String(mmRaw).padStart(2, "0")} ${meridiem}`;
+}
+
 function to12hNoMeridiem(timeHHmm: string) {
   const [hhRaw, mmRaw] = timeHHmm.split(":").map(Number);
   const hh = ((hhRaw + 11) % 12) + 1;
@@ -152,6 +160,7 @@ export async function fillTimesheetPdfTemplate({
   const showInOutTimes = useBreakSplitRows;
   const showWeeklyTotals = useBreakSplitRows;
   const useFixedDaySlots = Boolean(template.layout.fixedDaySlotMapping?.enabled);
+  const formatPdfTime = isIsaRole ? to12hNoMeridiem : to12hWithMeridiem;
   const cells = buildMonthGridCells({
     month,
     layoutMode,
@@ -290,34 +299,91 @@ export async function fillTimesheetPdfTemplate({
       centerX,
       y,
       textFont = font,
+      maxWidth,
+      sizeMultiplier = 1,
     }: {
       text: string;
       centerX: number;
       y: number;
       textFont?: typeof font;
+      maxWidth?: number;
+      sizeMultiplier?: number;
     }) => {
-      const textWidth = textFont.widthOfTextAtSize(text, textSize);
+      let sizeToUse = textSize * sizeMultiplier;
+      if (maxWidth && maxWidth > 0) {
+        const currentWidth = textFont.widthOfTextAtSize(text, sizeToUse);
+        if (currentWidth > maxWidth) {
+          const fitted = sizeToUse * (maxWidth / currentWidth);
+          // Keep text readable while preventing column overlap.
+          sizeToUse = Math.max(6.8 * yScale, fitted);
+        }
+      }
+      const textWidth = textFont.widthOfTextAtSize(text, sizeToUse);
       const centeredX = centerX - textWidth / 2;
       drawText({
         text,
         x: centeredX,
         y,
-        size: textSize,
+        size: sizeToUse,
         drawFont: textFont,
         drawColor: color,
       });
     };
 
+    const inColumnMaxWidth = Math.max(0, outCenterX - inCenterX - 10 * xScale);
+    const outColumnMaxWidth = Math.max(
+      0,
+      Math.min(hoursCenterX - outCenterX, outCenterX - inCenterX) - 10 * xScale,
+    );
+    const inCenterAdjusted = inCenterX - 2.2 * xScale;
+    const outCenterAdjusted = outCenterX + 2.2 * xScale;
+
     if (showInOutTimes) {
-      drawCenteredAt({ text: to12hNoMeridiem(topIn), centerX: inCenterX, y: topY });
-      drawCenteredAt({ text: to12hNoMeridiem(topOut), centerX: outCenterX, y: topY });
+      drawCenteredAt({
+        text: formatPdfTime(topIn),
+        centerX: inCenterAdjusted,
+        y: topY,
+        maxWidth: inColumnMaxWidth,
+        sizeMultiplier: 0.8,
+      });
+      drawCenteredAt({
+        text: formatPdfTime(topOut),
+        centerX: outCenterAdjusted,
+        y: topY,
+        maxWidth: outColumnMaxWidth,
+        sizeMultiplier: 0.8,
+      });
     }
-    drawCenteredAt({ text: topTenths.toFixed(1), centerX: hoursCenterX, y: topY, textFont: bold });
+    drawCenteredAt({
+      text: topTenths.toFixed(1),
+      centerX: hoursCenterX,
+      y: topY,
+      textFont: bold,
+      sizeMultiplier: 0.9,
+    });
 
     if (showInOutTimes && useBreakSplitRows && bottomIn && bottomOut) {
-      drawCenteredAt({ text: to12hNoMeridiem(bottomIn), centerX: inCenterX, y: bottomY });
-      drawCenteredAt({ text: to12hNoMeridiem(bottomOut), centerX: outCenterX, y: bottomY });
-      drawCenteredAt({ text: bottomTenths.toFixed(1), centerX: hoursCenterX, y: bottomY, textFont: bold });
+      drawCenteredAt({
+        text: formatPdfTime(bottomIn),
+        centerX: inCenterAdjusted,
+        y: bottomY,
+        maxWidth: inColumnMaxWidth,
+        sizeMultiplier: 0.8,
+      });
+      drawCenteredAt({
+        text: formatPdfTime(bottomOut),
+        centerX: outCenterAdjusted,
+        y: bottomY,
+        maxWidth: outColumnMaxWidth,
+        sizeMultiplier: 0.8,
+      });
+      drawCenteredAt({
+        text: bottomTenths.toFixed(1),
+        centerX: hoursCenterX,
+        y: bottomY,
+        textFont: bold,
+        sizeMultiplier: 0.9,
+      });
     }
   }
 
