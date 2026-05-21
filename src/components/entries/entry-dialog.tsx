@@ -13,7 +13,17 @@ import { TimeEntryForm } from "@/components/forms/time-entry-form";
 import type { TimeEntry } from "@/types/time-entry";
 import type { TimeEntryInput } from "@/lib/validators";
 
-function mapToInput(entry?: TimeEntry | null): TimeEntryInput | undefined {
+function mapToInput(entry?: TimeEntry | null, initialDate?: string | null): TimeEntryInput | undefined {
+  if (!entry && !initialDate) return undefined;
+  if (!entry && initialDate) {
+    return {
+      date: initialDate,
+      punchIn: "09:00",
+      punchOut: "13:00",
+      notes: "",
+      breaks: [],
+    };
+  }
   if (!entry) return undefined;
 
   return {
@@ -28,16 +38,18 @@ function mapToInput(entry?: TimeEntry | null): TimeEntryInput | undefined {
 export function EntryDialog({
   open,
   entry,
+  initialDate,
   onOpenChange,
   onSaved,
 }: {
   open: boolean;
   entry?: TimeEntry | null;
+  initialDate?: string | null;
   onOpenChange: (open: boolean) => void;
   onSaved: () => Promise<void>;
 }) {
   const [submitting, setSubmitting] = useState(false);
-  const inputData = useMemo(() => mapToInput(entry), [entry]);
+  const inputData = useMemo(() => mapToInput(entry, initialDate), [entry, initialDate]);
 
   const submit = async (values: TimeEntryInput) => {
     setSubmitting(true);
@@ -84,6 +96,7 @@ export function EntryDialog({
           </DialogDescription>
         </DialogHeader>
         <TimeEntryForm
+          key={`${entry?.id ?? "new"}-${initialDate ?? "today"}`}
           initialValues={inputData}
           submitLabel={entry ? "Save changes" : "Create entry"}
           submitting={submitting}

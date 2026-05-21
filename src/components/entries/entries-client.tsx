@@ -128,6 +128,7 @@ export function EntriesClient() {
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
   const [selectedEntry, setSelectedEntry] = useState<TimeEntry | null>(null);
+  const [selectedDateForNewEntry, setSelectedDateForNewEntry] = useState<string | null>(null);
   const [importFile, setImportFile] = useState<File | null>(null);
   const [importMode, setImportMode] = useState<"overwrite" | "skip">("overwrite");
   const [importing, setImporting] = useState(false);
@@ -894,6 +895,7 @@ export function EntriesClient() {
       if (key === "n") {
         event.preventDefault();
         setSelectedEntry(null);
+        setSelectedDateForNewEntry(null);
         setOpen(true);
       } else if (key === "e") {
         event.preventDefault();
@@ -1121,19 +1123,21 @@ export function EntriesClient() {
                   type="button"
                   onClick={() => {
                     const entry = entriesByDate.get(day.date);
-                    if (entry) {
-                      setSelectedEntry(entry);
-                      setOpen(true);
-                    } else {
-                      setSelectedEntry(null);
-                      setOpen(true);
-                    }
-                  }}
-                  title={day.date}
-                  className={`h-8 rounded-md text-[11px] font-medium transition ${
-                    day.intensity === 0
-                      ? "border border-border/70 bg-background text-muted-foreground"
-                      : day.intensity === 1
+                  if (entry) {
+                    setSelectedEntry(entry);
+                    setSelectedDateForNewEntry(null);
+                    setOpen(true);
+                  } else {
+                    setSelectedEntry(null);
+                    setSelectedDateForNewEntry(day.date);
+                    setOpen(true);
+                  }
+                }}
+                title={day.date}
+                className={`h-8 cursor-pointer rounded-md text-[11px] font-medium transition hover:scale-[1.02] hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 ${
+                  day.intensity === 0
+                    ? "border border-border/70 bg-background text-muted-foreground"
+                    : day.intensity === 1
                         ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-500/20 dark:text-emerald-100"
                         : day.intensity === 2
                           ? "bg-emerald-300 text-emerald-900 dark:bg-emerald-500/40 dark:text-emerald-50"
@@ -1348,6 +1352,7 @@ export function EntriesClient() {
                 className="w-full sm:w-auto"
                 onClick={() => {
                   setSelectedEntry(null);
+                  setSelectedDateForNewEntry(null);
                   setOpen(true);
                 }}
               >
@@ -1730,7 +1735,13 @@ export function EntriesClient() {
         </CardContent>
       </Card>
 
-      <EntryDialog open={open} entry={selectedEntry} onOpenChange={setOpen} onSaved={fetchEntries} />
+      <EntryDialog
+        open={open}
+        entry={selectedEntry}
+        initialDate={selectedDateForNewEntry}
+        onOpenChange={setOpen}
+        onSaved={fetchEntries}
+      />
 
       <Dialog open={checklistOpen} onOpenChange={setChecklistOpen}>
         <DialogContent className="max-w-lg">
@@ -1776,6 +1787,7 @@ export function EntriesClient() {
             className="h-10 text-xs"
             onClick={() => {
               setSelectedEntry(null);
+              setSelectedDateForNewEntry(null);
               setOpen(true);
             }}
           >
