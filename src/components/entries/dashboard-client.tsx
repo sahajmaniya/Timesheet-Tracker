@@ -71,6 +71,7 @@ export function DashboardClient({
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
   const [selectedEntry, setSelectedEntry] = useState<TimeEntry | null>(null);
+  const [selectedDateForNewEntry, setSelectedDateForNewEntry] = useState<string | null>(null);
   const [editHourlyOpen, setEditHourlyOpen] = useState(false);
   const [hourlyRateDraft, setHourlyRateDraft] = useState("");
   const [savingHourlyRate, setSavingHourlyRate] = useState(false);
@@ -262,6 +263,7 @@ export function DashboardClient({
               className="h-11 w-full px-3 text-sm sm:h-12 sm:w-auto sm:px-4"
               onClick={() => {
                 setSelectedEntry(todayEntry);
+                setSelectedDateForNewEntry(todayEntry ? null : today);
                 setOpen(true);
               }}
             >
@@ -418,6 +420,7 @@ export function DashboardClient({
               entries={entries}
               onEdit={(entry) => {
                 setSelectedEntry(entry);
+                setSelectedDateForNewEntry(null);
                 setOpen(true);
               }}
               onDelete={onDelete}
@@ -429,6 +432,7 @@ export function DashboardClient({
       <EntryDialog
         open={open}
         entry={selectedEntry}
+        initialDate={selectedDateForNewEntry}
         onOpenChange={setOpen}
         onSaved={async () => {
           await fetchEntries();
