@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
   Dialog,
@@ -10,6 +10,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { TimeEntryForm } from "@/components/forms/time-entry-form";
+import { getUsFederalHolidayName } from "@/lib/holidays";
 import type { TimeEntry } from "@/types/time-entry";
 import type { TimeEntryInput } from "@/lib/validators";
 
@@ -50,6 +51,40 @@ export function EntryDialog({
 }) {
   const [submitting, setSubmitting] = useState(false);
   const inputData = useMemo(() => mapToInput(entry, initialDate), [entry, initialDate]);
+  const selectedDate = entry?.date ?? initialDate ?? null;
+  const fallbackHolidayName = useMemo(() => {
+    if (!selectedDate) return null;
+    return getUsFederalHolidayName(selectedDate);
+  }, [selectedDate]);
+  const [holidayName, setHolidayName] = useState<string | null>(fallbackHolidayName);
+
+  useEffect(() => {
+    setHolidayName(fallbackHolidayName);
+  }, [fallbackHolidayName]);
+
+  useEffect(() => {
+    let ignore = false;
+    if (!selectedDate) return;
+    const year = Number(selectedDate.slice(0, 4));
+    if (!Number.isFinite(year)) return;
+
+    const fetchHoliday = async () => {
+      try {
+        const res = await fetch(`/api/holidays?year=${year}`);
+        const body = await res.json().catch(() => ({}));
+        if (!res.ok || ignore) return;
+        const nextName = (body?.holidays as Record<string, string> | undefined)?.[selectedDate] ?? null;
+        setHolidayName(nextName);
+      } catch {
+        // keep local fallback
+      }
+    };
+
+    void fetchHoliday();
+    return () => {
+      ignore = true;
+    };
+  }, [selectedDate]);
 
   const submit = async (values: TimeEntryInput) => {
     setSubmitting(true);
@@ -94,10 +129,16 @@ export function EntryDialog({
           <DialogDescription>
             Use quick actions for faster logging, then fine-tune as needed.
           </DialogDescription>
+          {holidayName && selectedDate && (
+            <p className="mt-1 rounded-md border border-amber-300/60 bg-amber-50 px-2.5 py-1.5 text-xs font-medium text-amber-900 dark:border-amber-300/25 dark:bg-amber-500/10 dark:text-amber-100">
+              Public holiday on {selectedDate}: {holidayName}
+            </p>
+          )}
         </DialogHeader>
         <TimeEntryForm
           key={`${entry?.id ?? "new"}-${initialDate ?? "today"}`}
           initialValues={inputData}
+          holidayName={holidayName}
           submitLabel={entry ? "Save changes" : "Create entry"}
           submitting={submitting}
           onSubmit={submit}

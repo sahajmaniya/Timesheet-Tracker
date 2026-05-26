@@ -6,19 +6,26 @@ import { siteConfig } from "@/lib/site";
 export const metadata: Metadata = {
   metadataBase: new URL(siteConfig.url),
   manifest: "/site.webmanifest",
+  alternates: {
+    canonical: "/",
+  },
   title: {
     default: "PunchPilot | SA/ISA Timesheet + Gross Pay Estimate",
     template: "%s | PunchPilot",
   },
   description: siteConfig.description,
   applicationName: "PunchPilot",
+  category: "business",
   keywords: [...siteConfig.keywords],
+  creator: "PunchPilot",
+  publisher: "PunchPilot",
   openGraph: {
     type: "website",
     url: siteConfig.url,
     title: "PunchPilot | SA/ISA Timesheet + Gross Pay Estimate",
     description: siteConfig.description,
     siteName: "PunchPilot",
+    locale: "en_US",
     images: [{ url: "/og-image.png", width: 1200, height: 630, alt: "PunchPilot timesheet tracker" }],
   },
   twitter: {
@@ -41,9 +48,20 @@ export const metadata: Metadata = {
       { rel: "icon", url: "/android-chrome-512x512.png", sizes: "512x512", type: "image/png" },
     ],
   },
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#f8fbff" },
+    { media: "(prefers-color-scheme: dark)", color: "#07142e" },
+  ],
   robots: {
     index: true,
     follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+      "max-video-preview": -1,
+    },
   },
   verification: {
     google: "lEwxjLyG2bIDUAe528othiE9gHh8KrTSfAAw1yWwcVE",

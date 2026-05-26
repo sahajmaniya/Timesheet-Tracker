@@ -25,6 +25,7 @@ Modern, responsive timesheet tracker built with Next.js App Router, TypeScript, 
 - PDF preset save/apply workflow and optional preview-before-download
 - Per-user regular shift schedule in Settings
 - Calendar-aligned month heatmap with weekday headers and per-day click-to-open dialog
+- Public holiday highlighting with real calendar sync (Nager.Date API) and local fallback rules
 - Optional monthly recap email (hours + gross estimate) with test-send from Settings
 - Mobile-responsive UI, dark/light theme support, modern landing page
 - SEO baseline: metadata, JSON-LD, robots, sitemap, canonical URLs
@@ -104,6 +105,7 @@ SMTP_FROM="PunchPilot <your-sender@gmail.com>"
 SUPPORT_INBOX="support@yourdomain.com"
 CRON_SECRET="replace-with-a-long-random-secret"
 SUPPORT_EMAIL_TIMEZONE="UTC"
+HOLIDAY_COUNTRY_CODE="US"
 ```
 
 5. Generate Prisma client and run migrations:
@@ -150,6 +152,7 @@ Open `http://localhost:3000`.
    - `SUPPORT_INBOX`
    - `CRON_SECRET`
    - `SUPPORT_EMAIL_TIMEZONE` (optional, defaults to `UTC`; used in support email submitted timestamp)
+   - `HOLIDAY_COUNTRY_CODE` (optional, defaults to `US`; 2-letter country code for holiday calendar)
 4. Deploy.
 5. Run production migration once:
 
@@ -187,6 +190,7 @@ npx prisma migrate deploy
 - `GET /api/payroll/estimate?month=YYYY-MM`
 - `POST /api/monthly-summary/test`
 - `POST /api/cron/monthly-summary`
+- `GET /api/holidays?year=YYYY[&country=US]`
 
 ## Notes
 

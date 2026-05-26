@@ -25,12 +25,14 @@ const defaultEntry: TimeEntryInput = {
 
 export function TimeEntryForm({
   initialValues,
+  holidayName,
   submitLabel,
   submitting,
   onSubmit,
   onCancel,
 }: {
   initialValues?: TimeEntryInput;
+  holidayName?: string | null;
   submitLabel: string;
   submitting: boolean;
   onSubmit: (values: TimeEntryInput) => Promise<void>;
@@ -155,6 +157,23 @@ export function TimeEntryForm({
     setValue(`breaks.${index}.end`, nowHHmm(), { shouldValidate: true });
   };
 
+  const markHolidayNoWork = () => {
+    setValue("notes", holidayName ? `Public holiday (${holidayName}) - no shift worked.` : "Public holiday - no shift worked.", {
+      shouldValidate: true,
+    });
+    setValue("breaks", [], { shouldValidate: true });
+    toast.message("No-work holiday note added. You can close dialog if no entry is needed.");
+  };
+
+  const logWorkedHoliday = () => {
+    setPreset("09:00", "13:00");
+    setValue("breaks", [], { shouldValidate: true });
+    setValue("notes", holidayName ? `Worked on public holiday: ${holidayName}` : "Worked on public holiday", {
+      shouldValidate: true,
+    });
+    toast.success("Holiday work template applied");
+  };
+
   return (
     <form className="space-y-5" onSubmit={handleSubmit(onSubmit)}>
       <Card className="border border-border/60 bg-muted/15">
@@ -225,6 +244,32 @@ export function TimeEntryForm({
               </span>
               <span>End Latest Break</span>
             </Button>
+            {holidayName && (
+              <>
+                <Button
+                  className="h-auto min-h-20 flex-col items-start justify-center rounded-2xl border-amber-300/70 bg-amber-100/70 px-4 py-3 text-left text-[0.95rem] font-semibold text-amber-900 hover:bg-amber-100 dark:border-amber-300/30 dark:bg-amber-500/15 dark:text-amber-100 dark:hover:bg-amber-500/20"
+                  type="button"
+                  variant="outline"
+                  onClick={markHolidayNoWork}
+                >
+                  <span className="mb-1 inline-flex items-center gap-2 text-xs uppercase tracking-wider text-amber-800/90 dark:text-amber-100/85">
+                    Holiday
+                  </span>
+                  <span>Mark No Work</span>
+                </Button>
+                <Button
+                  className="h-auto min-h-20 flex-col items-start justify-center rounded-2xl border-amber-300/70 bg-amber-100/70 px-4 py-3 text-left text-[0.95rem] font-semibold text-amber-900 hover:bg-amber-100 dark:border-amber-300/30 dark:bg-amber-500/15 dark:text-amber-100 dark:hover:bg-amber-500/20"
+                  type="button"
+                  variant="outline"
+                  onClick={logWorkedHoliday}
+                >
+                  <span className="mb-1 inline-flex items-center gap-2 text-xs uppercase tracking-wider text-amber-800/90 dark:text-amber-100/85">
+                    Holiday
+                  </span>
+                  <span>Log Worked Holiday</span>
+                </Button>
+              </>
+            )}
           </div>
 
           <div className="flex flex-wrap gap-2">

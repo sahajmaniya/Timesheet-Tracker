@@ -27,6 +27,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { buildDownloadFilename, getFilenameFromContentDisposition } from "@/lib/downloads";
+import { getUsFederalHolidayMap } from "@/lib/holidays";
 import { minutesToHM, minutesToTenthsDecimal } from "@/lib/time";
 import { DEFAULT_TIMESHEET_ROLE, timesheetRoleOptions, timesheetTemplates, type TimesheetRole } from "@/lib/timesheet-templates";
 import type { TimeEntry } from "@/types/time-entry";
@@ -158,6 +159,7 @@ export function EntriesClient() {
   const [checklistOpen, setChecklistOpen] = useState(false);
   const [pendingLayoutMode, setPendingLayoutMode] = useState<"auto" | "standard" | "carry">("auto");
   const [recentActions, setRecentActions] = useState<{ id: number; label: string; at: string }[]>([]);
+  const [holidayMap, setHolidayMap] = useState<Record<string, string>>({});
   const selectedTemplate = timesheetTemplates[timesheetRole];
   const roleBehaviorHints = useMemo(() => {
     if (timesheetRole === "instructional_student_assistant") {
@@ -322,6 +324,33 @@ export function EntriesClient() {
     return map;
   }, [entries]);
 
+  useEffect(() => {
+    let ignore = false;
+    const year = Number(month.slice(0, 4));
+    if (!Number.isFinite(year)) {
+      setHolidayMap({});
+      return;
+    }
+
+    setHolidayMap(getUsFederalHolidayMap(year));
+
+    const fetchHolidays = async () => {
+      try {
+        const res = await fetch(`/api/holidays?year=${year}`);
+        const body = await res.json().catch(() => ({}));
+        if (!res.ok || ignore) return;
+        setHolidayMap((body?.holidays as Record<string, string>) ?? {});
+      } catch {
+        // keep fallback local holidays
+      }
+    };
+
+    void fetchHolidays();
+    return () => {
+      ignore = true;
+    };
+  }, [month]);
+
   const monthHeatmap = useMemo(() => {
     const monthDate = new Date(`${month}-01T00:00:00`);
     const allDays = eachDayOfInterval({
@@ -340,9 +369,16 @@ export function EntriesClient() {
             : workedMinutes < 7 * 60
               ? 2
               : 3;
-      return { date, dayLabel: format(day, "d"), weekday: getDay(day), intensity, hasEntry: Boolean(entry) };
+      return {
+        date,
+        dayLabel: format(day, "d"),
+        weekday: getDay(day),
+        intensity,
+        hasEntry: Boolean(entry),
+        holidayName: holidayMap[date] ?? null,
+      };
     });
-  }, [entriesByDate, month]);
+  }, [entriesByDate, holidayMap, month]);
 
   const weekdayLabels = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
@@ -1094,6 +1130,7 @@ export function EntriesClient() {
             </p>
           </CardHeader>
         </Card>
+
       </div>
 
       <Card className="border-border/65 bg-gradient-to-br from-teal-100/60 via-background to-sky-100/60 dark:from-teal-500/8 dark:to-sky-500/8">
@@ -1102,7 +1139,7 @@ export function EntriesClient() {
             <CalendarCheck2 className="h-4 w-4 text-teal-600 dark:text-teal-300" />
             Month Activity Heatmap
           </CardTitle>
-          <CardDescription>Darker cells mean longer worked hours.</CardDescription>
+          <CardDescription>Darker cells mean longer worked hours. Holiday dates are highlighted in amber.</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="mb-2 grid grid-cols-7 gap-1.5">
@@ -1133,10 +1170,16 @@ export function EntriesClient() {
                     setOpen(true);
                   }
                 }}
-                title={day.date}
+                title={day.holidayName ? `${day.date} - ${day.holidayName}` : day.date}
                 className={`h-8 cursor-pointer rounded-md text-[11px] font-medium transition hover:scale-[1.02] hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 ${
+                  day.holidayName
+                    ? "ring-1 ring-amber-400/75"
+                    : ""
+                } ${
                   day.intensity === 0
-                    ? "border border-border/70 bg-background text-muted-foreground"
+                    ? day.holidayName
+                      ? "border border-amber-300/70 bg-amber-100/70 text-amber-900 dark:border-amber-300/30 dark:bg-amber-500/15 dark:text-amber-100"
+                      : "border border-border/70 bg-background text-muted-foreground"
                     : day.intensity === 1
                         ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-500/20 dark:text-emerald-100"
                         : day.intensity === 2
@@ -1145,6 +1188,7 @@ export function EntriesClient() {
                   }`}
                 >
                   {day.dayLabel}
+                  {day.holidayName && <span className="sr-only"> - {day.holidayName}</span>}
                 </button>
               ) : (
                 <div
@@ -1158,6 +1202,20 @@ export function EntriesClient() {
           <p className="mt-3 text-xs text-muted-foreground">
             Tip: tap any day to open edit/create entry for that date.
           </p>
+          <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
+            <span className="inline-flex items-center gap-1">
+              <span className="h-2.5 w-2.5 rounded-sm border border-amber-400/80 bg-amber-200/80 dark:bg-amber-500/25" />
+              Holiday
+            </span>
+            <span className="inline-flex items-center gap-1">
+              <span className="h-2.5 w-2.5 rounded-sm bg-emerald-400/90" />
+              Worked day
+            </span>
+            <span className="inline-flex items-center gap-1">
+              <span className="h-2.5 w-2.5 rounded-sm border border-amber-400/90 bg-emerald-400/90" />
+              Worked holiday
+            </span>
+          </div>
         </CardContent>
       </Card>
 
