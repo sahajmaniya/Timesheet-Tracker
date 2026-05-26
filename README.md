@@ -24,9 +24,11 @@ Modern, responsive timesheet tracker built with Next.js App Router, TypeScript, 
 - PDF layout modes: `auto`, `standard`, `carry` with advanced alignment options
 - PDF preset save/apply workflow and optional preview-before-download
 - Per-user regular shift schedule in Settings
+- Calendar-aligned month heatmap with weekday headers and per-day click-to-open dialog
 - Optional monthly recap email (hours + gross estimate) with test-send from Settings
 - Mobile-responsive UI, dark/light theme support, modern landing page
 - SEO baseline: metadata, JSON-LD, robots, sitemap, canonical URLs
+- Themed branding system (light/dark wordmarks, favicon set, web manifest, OG image)
 - Seed script for demo data
 
 ## Tech Stack
@@ -192,6 +194,7 @@ npx prisma migrate deploy
 - Client-submitted `userId` is never trusted.
 - Chronology validation blocks invalid ranges (e.g., punch out before punch in).
 - Conservative API rate limits are enabled for OTP, password reset, CSV export, PDF generation, and Excel import.
+- Clicking PunchPilot logo in navbar/topbar/footer routes to home (`/`).
 
 ## Rate Limits
 
@@ -256,6 +259,21 @@ Current behavior:
 - PDF generation expects a **blank monthly timesheet PDF template** uploaded by the user at generation time.
 - The template can be organization-specific; PunchPilot maps tracked entries into that uploaded template.
 - For benchmarking/dev examples, an optional template path can be provided via `BENCH_PDF_TEMPLATE_PATH`.
+- Filled PDF time format:
+  - `student_assistant`: 12-hour time with `AM/PM`
+  - `instructional_student_assistant`: compact 12-hour time (no `AM/PM`) to preserve template spacing
+- PDF renderer applies column-aware text fitting for tight templates.
+
+## Password Policy
+
+Signup/reset password currently requires:
+- Minimum 12 characters
+- Maximum 128 characters
+- At least one uppercase letter
+- At least one lowercase letter
+- At least one number
+- At least one special character
+- No spaces
 
 ## Backups (Recommended)
 
