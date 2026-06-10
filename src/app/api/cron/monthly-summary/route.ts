@@ -10,7 +10,7 @@ function isAuthorized(request: Request) {
   return authHeader === `Bearer ${secret}`;
 }
 
-export async function POST(request: Request) {
+async function runMonthlySummaryCron(request: Request) {
   try {
     if (!isAuthorized(request)) {
       return NextResponse.json({ error: "Unauthorized cron request" }, { status: 401 });
@@ -89,4 +89,12 @@ export async function POST(request: Request) {
     console.error("Monthly summary cron failed:", error);
     return NextResponse.json({ error: "Monthly summary cron failed" }, { status: 500 });
   }
+}
+
+export async function GET(request: Request) {
+  return runMonthlySummaryCron(request);
+}
+
+export async function POST(request: Request) {
+  return runMonthlySummaryCron(request);
 }
