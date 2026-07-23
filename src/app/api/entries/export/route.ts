@@ -5,7 +5,7 @@ import { finalizeApiTimer, startApiTimer } from "@/lib/perf";
 import { prisma } from "@/lib/prisma";
 import { clientIpFromHeaders, enforceRateLimit } from "@/lib/security";
 import { calcBreakMinutes, calcWorkedMinutes, formatTime12h, minutesToTenthsDecimal } from "@/lib/time";
-import { monthQuerySchema } from "@/lib/validators";
+import { dateRangeQuerySchema, monthQuerySchema } from "@/lib/validators";
 
 export async function GET(request: Request) {
   const startedAt = startApiTimer();
@@ -31,16 +31,26 @@ export async function GET(request: Request) {
   }
 
   const { searchParams } = new URL(request.url);
+  const startParam = searchParams.get("start");
+  const endParam = searchParams.get("end");
+  if (Boolean(startParam) !== Boolean(endParam)) {
+    return finalizeApiTimer(new Response("Both payroll period dates are required", { status: 400 }), "entries.export", startedAt);
+  }
+  const parsedRange = startParam && endParam ? dateRangeQuerySchema.safeParse({ start: startParam, end: endParam }) : null;
   const monthParam = searchParams.get("month") ?? format(new Date(), "yyyy-MM");
-  const parsedMonth = monthQuerySchema.safeParse(monthParam);
+  const parsedMonth = parsedRange ? null : monthQuerySchema.safeParse(monthParam);
 
-  if (!parsedMonth.success) {
+  if (parsedRange && !parsedRange.success) {
+    return finalizeApiTimer(new Response("Invalid payroll period", { status: 400 }), "entries.export", startedAt);
+  }
+  if (parsedMonth && !parsedMonth.success) {
     return finalizeApiTimer(new Response("Invalid month", { status: 400 }), "entries.export", startedAt);
   }
 
-  const monthDate = new Date(`${parsedMonth.data}-01T00:00:00`);
-  const start = format(startOfMonth(monthDate), "yyyy-MM-dd");
-  const end = format(endOfMonth(monthDate), "yyyy-MM-dd");
+  const monthDate = parsedMonth ? new Date(`${parsedMonth.data}-01T00:00:00`) : null;
+  const start = parsedRange?.data.start ?? format(startOfMonth(monthDate!), "yyyy-MM-dd");
+  const end = parsedRange?.data.end ?? format(endOfMonth(monthDate!), "yyyy-MM-dd");
+  const periodLabel = parsedRange?.data ? `${start}_to_${end}` : parsedMonth!.data;
 
   const entries = await prisma.timeEntry.findMany({
     where: {
@@ -116,13 +126,13 @@ export async function GET(request: Request) {
     "",
     `"Summary"`,
     `"Hourly Rate (USD)","$${hourlyRate.toFixed(2)}"`,
-    `"Total Gross Pay (${parsedMonth.data})","$${totalGrossPay.toFixed(2)}"`,
+    `"Total Gross Pay (${periodLabel})","$${totalGrossPay.toFixed(2)}"`,
   ];
 
   const csv = [header.join(","), ...rows, totalsRow, ...summaryRows].join("\n");
   const filename = buildDownloadFilename({
     kind: "timesheet_csv",
-    month: parsedMonth.data,
+    month: periodLabel,
     extension: "csv",
   });
 

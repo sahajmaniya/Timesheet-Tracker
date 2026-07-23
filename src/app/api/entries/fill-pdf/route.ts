@@ -7,7 +7,7 @@ import { prisma } from "@/lib/prisma";
 import { clientIpFromHeaders, enforceRateLimit } from "@/lib/security";
 import { fillTimesheetPdfTemplate } from "@/lib/timesheet-pdf";
 import { parseTimesheetRole } from "@/lib/timesheet-templates";
-import { monthQuerySchema, timesheetCalibrationSchema } from "@/lib/validators";
+import { dateRangeQuerySchema, monthQuerySchema, timesheetCalibrationSchema } from "@/lib/validators";
 
 export async function POST(request: Request) {
   const startedAt = startApiTimer();
@@ -39,6 +39,8 @@ export async function POST(request: Request) {
     const formData = await request.formData();
     const file = formData.get("file");
     const monthRaw = String(formData.get("month") ?? format(new Date(), "yyyy-MM"));
+    const periodStartRaw = String(formData.get("periodStart") ?? "").trim();
+    const periodEndRaw = String(formData.get("periodEnd") ?? "").trim();
     const generatedDateRaw = String(formData.get("generatedDate") ?? "").trim();
     const layoutModeRaw = String(formData.get("layoutMode") ?? "auto");
     const calibrationRaw = formData.get("calibration");
@@ -60,9 +62,16 @@ export async function POST(request: Request) {
           )
         : timesheetCalibrationSchema.safeParse({});
     const parsedMonth = monthQuerySchema.safeParse(monthRaw);
+    if (Boolean(periodStartRaw) !== Boolean(periodEndRaw)) {
+      return finalizeApiTimer(NextResponse.json({ error: "Both payroll period dates are required." }, { status: 400 }), "entries.fill-pdf", startedAt);
+    }
+    const parsedRange = periodStartRaw && periodEndRaw ? dateRangeQuerySchema.safeParse({ start: periodStartRaw, end: periodEndRaw }) : null;
 
     if (!parsedMonth.success) {
       return finalizeApiTimer(NextResponse.json({ error: "Invalid month format." }, { status: 400 }), "entries.fill-pdf", startedAt);
+    }
+    if (parsedRange && !parsedRange.success) {
+      return finalizeApiTimer(NextResponse.json({ error: "Invalid payroll period." }, { status: 400 }), "entries.fill-pdf", startedAt);
     }
 
     if (!(file instanceof File)) {
@@ -79,8 +88,8 @@ export async function POST(request: Request) {
     }
 
     const monthDate = new Date(`${parsedMonth.data}-01T00:00:00`);
-    const start = format(startOfMonth(monthDate), "yyyy-MM-dd");
-    const end = format(endOfMonth(monthDate), "yyyy-MM-dd");
+    const start = parsedRange?.data.start ?? format(startOfMonth(monthDate), "yyyy-MM-dd");
+    const end = parsedRange?.data.end ?? format(endOfMonth(monthDate), "yyyy-MM-dd");
 
     const entries = await prisma.timeEntry.findMany({
       where: {
@@ -109,6 +118,8 @@ export async function POST(request: Request) {
     const filled = await fillTimesheetPdfTemplate({
       templateBytes: bytes,
       month: parsedMonth.data,
+      periodStart: parsedRange?.data.start,
+      periodEnd: parsedRange?.data.end,
       entries,
       employeeName,
       signatureDataUrl: user?.signature ?? null,

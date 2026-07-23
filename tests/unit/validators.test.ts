@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   monthQuerySchema,
+  payrollPeriodSchema,
   signupSchema,
   timesheetCalibrationSchema,
   workScheduleSchema,
@@ -46,6 +47,30 @@ describe("validators", () => {
     expect(monthQuerySchema.safeParse("2026-05").success).toBe(true);
     expect(monthQuerySchema.safeParse("2026-13").success).toBe(false);
     expect(monthQuerySchema.safeParse("05-2026").success).toBe(false);
+  });
+
+  it("validates payroll periods with real, chronological dates", () => {
+    expect(
+      payrollPeriodSchema.safeParse({
+        label: "Jul 31 – Aug 31, 2026",
+        startDate: "2026-07-31",
+        endDate: "2026-08-31",
+      }).success,
+    ).toBe(true);
+    expect(
+      payrollPeriodSchema.safeParse({
+        label: "Invalid date",
+        startDate: "2026-02-30",
+        endDate: "2026-03-01",
+      }).success,
+    ).toBe(false);
+    expect(
+      payrollPeriodSchema.safeParse({
+        label: "Backwards period",
+        startDate: "2026-08-31",
+        endDate: "2026-07-31",
+      }).success,
+    ).toBe(false);
   });
 
   it("applies defaults to timesheet calibration", () => {

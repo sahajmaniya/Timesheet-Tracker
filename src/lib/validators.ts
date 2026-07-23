@@ -46,6 +46,32 @@ export const monthQuerySchema = z
   .string()
   .regex(/^\d{4}-(0[1-9]|1[0-2])$/, "Month must be YYYY-MM");
 
+const localDateSchema = z
+  .string()
+  .regex(/^\d{4}-\d{2}-\d{2}$/, "Date must be YYYY-MM-DD")
+  .refine((value) => {
+    const parsed = new Date(`${value}T00:00:00`);
+    return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
+  }, "Date must be a real calendar date");
+
+export const payrollPeriodSchema = z
+  .object({
+    label: z.string().trim().min(2).max(80),
+    startDate: localDateSchema,
+    endDate: localDateSchema,
+  })
+  .refine((value) => value.startDate <= value.endDate, {
+    path: ["endDate"],
+    message: "End date must be on or after start date",
+  });
+
+export const dateRangeQuerySchema = z
+  .object({ start: localDateSchema, end: localDateSchema })
+  .refine((value) => value.start <= value.end, {
+    path: ["end"],
+    message: "End date must be on or after start date",
+  });
+
 const calibrationRange = z.number().min(-120).max(120);
 export const timesheetCalibrationSchema = z.object({
   shiftX: calibrationRange.default(0),
@@ -145,3 +171,4 @@ export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;
 export type ProfileUpdateInput = z.infer<typeof profileUpdateSchema>;
 export type TimesheetCalibrationInput = z.infer<typeof timesheetCalibrationSchema>;
 export type PayrollProfileInput = z.infer<typeof payrollProfileSchema>;
+export type PayrollPeriodInput = z.infer<typeof payrollPeriodSchema>;

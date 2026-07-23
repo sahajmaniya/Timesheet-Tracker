@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { getServerAuthSession } from "@/lib/auth";
 import { calculateMonthlyPayEstimateWithSource } from "@/lib/payroll";
 import { prisma } from "@/lib/prisma";
-import { monthQuerySchema } from "@/lib/validators";
+import { dateRangeQuerySchema, monthQuerySchema } from "@/lib/validators";
 
 export async function GET(request: Request) {
   const session = await getServerAuthSession();
@@ -12,16 +12,26 @@ export async function GET(request: Request) {
   }
 
   const { searchParams } = new URL(request.url);
+  const startParam = searchParams.get("start");
+  const endParam = searchParams.get("end");
+  if (Boolean(startParam) !== Boolean(endParam)) {
+    return NextResponse.json({ error: "Both payroll period dates are required" }, { status: 400 });
+  }
+  const parsedRange = startParam && endParam ? dateRangeQuerySchema.safeParse({ start: startParam, end: endParam }) : null;
   const monthParam = searchParams.get("month") ?? format(new Date(), "yyyy-MM");
-  const parsedMonth = monthQuerySchema.safeParse(monthParam);
+  const parsedMonth = parsedRange ? null : monthQuerySchema.safeParse(monthParam);
 
-  if (!parsedMonth.success) {
+  if (parsedRange && !parsedRange.success) {
+    return NextResponse.json({ error: parsedRange.error.issues[0]?.message }, { status: 400 });
+  }
+  if (parsedMonth && !parsedMonth.success) {
     return NextResponse.json({ error: parsedMonth.error.issues[0]?.message }, { status: 400 });
   }
 
-  const monthDate = new Date(`${parsedMonth.data}-01T00:00:00`);
-  const start = format(startOfMonth(monthDate), "yyyy-MM-dd");
-  const end = format(endOfMonth(monthDate), "yyyy-MM-dd");
+  const monthDate = parsedMonth ? new Date(`${parsedMonth.data}-01T00:00:00`) : null;
+  const start = parsedRange?.data.start ?? format(startOfMonth(monthDate!), "yyyy-MM-dd");
+  const end = parsedRange?.data.end ?? format(endOfMonth(monthDate!), "yyyy-MM-dd");
+  const periodKey = parsedRange?.data ? `${start}_to_${end}` : parsedMonth!.data;
 
   const [entries, user] = await Promise.all([
     prisma.timeEntry.findMany({
@@ -60,7 +70,7 @@ export async function GET(request: Request) {
   }, 0);
 
   const estimate = await calculateMonthlyPayEstimateWithSource({
-    month: parsedMonth.data,
+    month: periodKey,
     workedMinutes: totalWorkedMinutes,
     profile: {
       hourlyRate: user.hourlyRate ?? 0,
@@ -73,7 +83,9 @@ export async function GET(request: Request) {
   });
 
   return NextResponse.json({
-    month: parsedMonth.data,
+    month: periodKey,
+    start,
+    end,
     workedMinutes: totalWorkedMinutes,
     estimate,
   });

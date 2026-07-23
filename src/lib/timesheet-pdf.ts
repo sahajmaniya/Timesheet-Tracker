@@ -1,4 +1,5 @@
 import { PDFDocument, StandardFonts, degrees, rgb } from "pdf-lib";
+import { addDays, differenceInCalendarDays, format, parseISO } from "date-fns";
 import type { Break } from "@prisma/client";
 import { calcWorkedMinutes, minutesToTenthsDecimal } from "@/lib/time";
 import { getTimesheetTemplate, type TimesheetRole } from "@/lib/timesheet-templates";
@@ -129,9 +130,43 @@ function buildMonthGridCells({
   return cells;
 }
 
+function buildPeriodGridCells({
+  start,
+  end,
+  gridXByWeekday,
+  firstWeekY,
+  weekYStep,
+}: {
+  start: string;
+  end: string;
+  gridXByWeekday: [number, number, number, number, number, number, number];
+  firstWeekY: number;
+  weekYStep: number;
+}): TemplateDateCell[] {
+  const startDate = parseISO(start);
+  const totalDays = differenceInCalendarDays(parseISO(end), startDate);
+  const firstWeekday = startDate.getDay();
+
+  return Array.from({ length: totalDays + 1 }, (_, index) => {
+    const date = addDays(startDate, index);
+    const linearIndex = firstWeekday + index;
+    const weekday = linearIndex % 7;
+    const week = Math.floor(linearIndex / 7);
+    return {
+      date: format(date, "yyyy-MM-dd"),
+      x: gridXByWeekday[weekday] ?? gridXByWeekday[0],
+      y: firstWeekY - week * weekYStep,
+      week,
+      weekday,
+    };
+  });
+}
+
 export async function fillTimesheetPdfTemplate({
   templateBytes,
   month,
+  periodStart,
+  periodEnd,
   entries,
   employeeName,
   signatureDataUrl,
@@ -142,6 +177,8 @@ export async function fillTimesheetPdfTemplate({
 }: {
   templateBytes: Uint8Array;
   month: string;
+  periodStart?: string;
+  periodEnd?: string;
   entries: EntryForPdf[];
   employeeName: string;
   signatureDataUrl?: string | null;
@@ -161,13 +198,21 @@ export async function fillTimesheetPdfTemplate({
   const showWeeklyTotals = useBreakSplitRows;
   const useFixedDaySlots = Boolean(template.layout.fixedDaySlotMapping?.enabled);
   const formatPdfTime = isIsaRole ? to12hNoMeridiem : to12hWithMeridiem;
-  const cells = buildMonthGridCells({
-    month,
-    layoutMode,
-    gridXByWeekday: template.layout.gridXByWeekday,
-    firstWeekY: template.layout.firstWeekY,
-    weekYStep: template.layout.weekYStep,
-  });
+  const cells = periodStart && periodEnd
+    ? buildPeriodGridCells({
+        start: periodStart,
+        end: periodEnd,
+        gridXByWeekday: template.layout.gridXByWeekday,
+        firstWeekY: template.layout.firstWeekY,
+        weekYStep: template.layout.weekYStep,
+      })
+    : buildMonthGridCells({
+        month,
+        layoutMode,
+        gridXByWeekday: template.layout.gridXByWeekday,
+        firstWeekY: template.layout.firstWeekY,
+        weekYStep: template.layout.weekYStep,
+      });
 
   const pdfDoc = await PDFDocument.load(templateBytes, { ignoreEncryption: true });
   const page = pdfDoc.getPage(0);

@@ -6,6 +6,7 @@ import {
   AlertTriangle,
   BellRing,
   CalendarCheck2,
+  CalendarRange,
   CheckCircle2,
   ClipboardList,
   Download,
@@ -52,6 +53,13 @@ type LastGeneratedPdf = {
   month: string;
   role: TimesheetRole;
   generatedAtIso: string;
+};
+
+type PayrollPeriod = {
+  id: string;
+  label: string;
+  startDate: string;
+  endDate: string;
 };
 
 function hhmmToMinutes(value: string) {
@@ -160,7 +168,21 @@ export function EntriesClient() {
   const [pendingLayoutMode, setPendingLayoutMode] = useState<"auto" | "standard" | "carry">("auto");
   const [recentActions, setRecentActions] = useState<{ id: number; label: string; at: string }[]>([]);
   const [holidayMap, setHolidayMap] = useState<Record<string, string>>({});
+  const [payrollPeriods, setPayrollPeriods] = useState<PayrollPeriod[]>([]);
+  const [selectedPayrollPeriodId, setSelectedPayrollPeriodId] = useState("");
+  const [payrollPeriodLabel, setPayrollPeriodLabel] = useState("");
+  const [payrollPeriodStart, setPayrollPeriodStart] = useState(`${format(new Date(), "yyyy-MM")}-01`);
+  const [payrollPeriodEnd, setPayrollPeriodEnd] = useState(format(endOfMonth(new Date()), "yyyy-MM-dd"));
+  const [savingPayrollPeriod, setSavingPayrollPeriod] = useState(false);
+  const [payrollPeriodDialogOpen, setPayrollPeriodDialogOpen] = useState(false);
   const selectedTemplate = timesheetTemplates[timesheetRole];
+  const selectedPayrollPeriod = useMemo(
+    () => payrollPeriods.find((period) => period.id === selectedPayrollPeriodId) ?? null,
+    [payrollPeriods, selectedPayrollPeriodId],
+  );
+  const calendarMonthDate = new Date(`${month}-01T00:00:00`);
+  const calendarMonthScope = `${format(calendarMonthDate, "MMMM d")}–${format(endOfMonth(calendarMonthDate), "d, yyyy")}`;
+  const payrollScopeLabel = selectedPayrollPeriod?.label ?? calendarMonthScope;
   const roleBehaviorHints = useMemo(() => {
     if (timesheetRole === "instructional_student_assistant") {
       return ["Total hours only", "No In/Out rows", "No weekly totals", "Fixed day slots"];
@@ -193,11 +215,29 @@ export function EntriesClient() {
     }
   }, [month]);
 
+  const fetchPayrollPeriods = useCallback(async () => {
+    try {
+      const res = await fetch("/api/payroll-periods");
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast.error(body.error || "Could not load payroll periods");
+        return;
+      }
+      setPayrollPeriods(body.periods ?? []);
+    } catch {
+      toast.error("Could not load payroll periods");
+    }
+  }, []);
+
   useEffect(() => {
     const controller = new AbortController();
     fetchEntries(controller.signal);
     return () => controller.abort();
   }, [fetchEntries]);
+
+  useEffect(() => {
+    void fetchPayrollPeriods();
+  }, [fetchPayrollPeriods]);
 
   useEffect(() => {
     try {
@@ -525,12 +565,62 @@ export function EntriesClient() {
   const onExportCsv = useCallback(async () => {
     const ok = await confirmValidationForAction("with CSV export");
     if (!ok) return;
-    window.open(`/api/entries/export?month=${month}`, "_blank");
+    const exportQuery = selectedPayrollPeriod
+      ? `start=${selectedPayrollPeriod.startDate}&end=${selectedPayrollPeriod.endDate}`
+      : `month=${month}`;
+    window.open(`/api/entries/export?${exportQuery}`, "_blank");
     toast.success("CSV export started", {
-      description: `Your ${month} file opened in a new tab.`,
+      description: `Your ${selectedPayrollPeriod?.label ?? month} file opened in a new tab.`,
     });
-    addRecentAction(`Exported CSV (${month})`);
-  }, [addRecentAction, confirmValidationForAction, month]);
+    addRecentAction(`Exported CSV (${selectedPayrollPeriod?.label ?? month})`);
+  }, [addRecentAction, confirmValidationForAction, month, selectedPayrollPeriod]);
+
+  const savePayrollPeriod = async () => {
+    if (!payrollPeriodLabel.trim() || !payrollPeriodStart || !payrollPeriodEnd) {
+      toast.error("Enter a label, start date, and end date.");
+      return;
+    }
+    setSavingPayrollPeriod(true);
+    try {
+      const res = await fetch("/api/payroll-periods", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ label: payrollPeriodLabel, startDate: payrollPeriodStart, endDate: payrollPeriodEnd }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast.error(body.error || "Could not save payroll period");
+        return;
+      }
+      await fetchPayrollPeriods();
+      setSelectedPayrollPeriodId(body.period.id);
+      setPayrollPeriodDialogOpen(false);
+      setPayrollPeriodLabel("");
+      toast.success("Payroll period saved", { description: body.period.label });
+    } finally {
+      setSavingPayrollPeriod(false);
+    }
+  };
+
+  const deletePayrollPeriod = async (periodToDelete = selectedPayrollPeriod) => {
+    if (!periodToDelete) return;
+    const ok = await confirm({
+      title: "Remove Payroll Period?",
+      description: `Remove ${periodToDelete.label}? Your time entries will not be deleted.`,
+      confirmText: "Remove",
+      destructive: true,
+    });
+    if (!ok) return;
+    const res = await fetch(`/api/payroll-periods/${periodToDelete.id}`, { method: "DELETE" });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      toast.error(body.error || "Could not remove payroll period");
+      return;
+    }
+    if (periodToDelete.id === selectedPayrollPeriodId) setSelectedPayrollPeriodId("");
+    await fetchPayrollPeriods();
+    toast.success("Payroll period removed");
+  };
 
   const onImportWorkbook = async () => {
     if (!importFile) {
@@ -838,6 +928,10 @@ export function EntriesClient() {
     const formData = new FormData();
     formData.append("file", timesheetTemplateFile);
     formData.append("month", month);
+    if (selectedPayrollPeriod) {
+      formData.append("periodStart", selectedPayrollPeriod.startDate);
+      formData.append("periodEnd", selectedPayrollPeriod.endDate);
+    }
     formData.append("layoutMode", selectedLayoutMode);
     formData.append("timesheetRole", timesheetRole);
     formData.append("generatedDate", format(new Date(), "M/d/yyyy"));
@@ -911,11 +1005,11 @@ export function EntriesClient() {
       } catch {
         // ignore storage issues
       }
-      addRecentAction(`Generated ${timesheetTemplates[timesheetRole].label} PDF (${month}, ${selectedLayoutMode})`);
+      addRecentAction(`Generated ${timesheetTemplates[timesheetRole].label} PDF (${selectedPayrollPeriod?.label ?? month}, ${selectedLayoutMode})`);
     } finally {
       setFillingPdf(false);
     }
-  }, [addRecentAction, confirm, confirmValidationForAction, month, presetName, previewPdfBeforeDownload, timesheetLayoutMode, timesheetRole, timesheetTemplateFile]);
+  }, [addRecentAction, confirm, confirmValidationForAction, month, presetName, previewPdfBeforeDownload, selectedPayrollPeriod, timesheetLayoutMode, timesheetRole, timesheetTemplateFile]);
 
   useEffect(() => {
     const onKeydown = (event: KeyboardEvent) => {
@@ -1132,6 +1226,47 @@ export function EntriesClient() {
         </Card>
 
       </div>
+
+      <Card className="overflow-hidden border-indigo-500/25 bg-gradient-to-r from-indigo-100/75 via-background to-sky-100/65 dark:from-indigo-500/12 dark:via-background dark:to-sky-500/10">
+        <CardContent className="flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
+          <div className="flex min-w-0 items-start gap-3">
+            <div className="rounded-xl bg-indigo-600 p-2 text-white shadow-sm dark:bg-indigo-400 dark:text-indigo-950">
+              <CalendarRange className="h-5 w-5" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-indigo-950 dark:text-indigo-50">Current export period</p>
+              <p className="mt-0.5 truncate text-lg font-bold text-slate-900 dark:text-slate-50">{payrollScopeLabel}</p>
+              {selectedPayrollPeriod ? (
+                <p className="mt-1 text-xs text-indigo-800/80 dark:text-indigo-100/75">
+                  Includes every entry from {selectedPayrollPeriod.startDate} through {selectedPayrollPeriod.endDate} in your CSV and PDF.
+                </p>
+              ) : (
+                <p className="mt-1 text-xs text-indigo-800/80 dark:text-indigo-100/75">
+                  This is a calendar-month export. For a voucher such as Jul 31–Aug 31, choose “Manage payroll periods” first.
+                </p>
+              )}
+            </div>
+          </div>
+          <div className="grid w-full gap-2 sm:w-auto sm:min-w-[270px]">
+            <select
+              value={selectedPayrollPeriodId}
+              onChange={(e) => setSelectedPayrollPeriodId(e.target.value)}
+              className="h-10 w-full rounded-md border border-indigo-500/30 bg-background/90 px-3 text-sm font-medium dark:border-indigo-300/25"
+            >
+              <option value="">Calendar month: {calendarMonthScope}</option>
+              {payrollPeriods.map((period) => (
+                <option key={period.id} value={period.id}>
+                  {period.label}
+                </option>
+              ))}
+            </select>
+            <Button type="button" variant="outline" className="border-indigo-500/35" onClick={() => setPayrollPeriodDialogOpen(true)}>
+              <CalendarRange className="mr-2 h-4 w-4" />
+              Manage payroll periods
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
 
       <Card className="border-border/65 bg-gradient-to-br from-teal-100/60 via-background to-sky-100/60 dark:from-teal-500/8 dark:to-sky-500/8">
         <CardHeader className="pb-2">
@@ -1463,9 +1598,9 @@ export function EntriesClient() {
           >
             <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(280px,320px)]">
               <div className="space-y-2">
-                <p className="text-sm font-semibold text-indigo-800 dark:text-indigo-100">Auto-Fill Monthly Timesheet PDF</p>
+                <p className="text-sm font-semibold text-indigo-800 dark:text-indigo-100">Auto-Fill Timesheet PDF</p>
                 <p className="text-xs text-slate-600 dark:text-slate-300/80">
-                  Upload your blank monthly timesheet PDF template. We fill In/Out/Hours and break ranges from your selected month entries.
+                  Upload your blank timesheet PDF template. We fill In/Out/Hours from the selected payroll period, or from the selected calendar month when no period is selected.
                 </p>
                 <input
                   type="file"
@@ -1800,6 +1935,87 @@ export function EntriesClient() {
         onOpenChange={setOpen}
         onSaved={fetchEntries}
       />
+
+      <Dialog open={payrollPeriodDialogOpen} onOpenChange={setPayrollPeriodDialogOpen}>
+        <DialogContent className="max-w-2xl overflow-hidden border-indigo-500/25 p-0">
+          <DialogHeader className="mb-0 border-b border-border/70 bg-gradient-to-r from-indigo-500/10 via-background to-sky-500/10 px-4 py-4 pr-12 sm:px-6 sm:py-5">
+            <DialogTitle className="flex items-center gap-2">
+              <span className="rounded-lg bg-indigo-600 p-1.5 text-white dark:bg-indigo-400 dark:text-indigo-950">
+                <CalendarRange className="h-4 w-4" />
+              </span>
+              Payroll periods
+            </DialogTitle>
+            <DialogDescription>
+              Choose the dates that belong together on one payroll voucher. Your work entries always keep their actual date.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-5 p-4 sm:p-6">
+            <div className="rounded-xl border border-indigo-500/25 bg-indigo-50/55 p-4 dark:bg-indigo-500/10 sm:p-5">
+              <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p className="text-base font-semibold text-indigo-950 dark:text-indigo-50">Create a period</p>
+                  <p className="mt-1 text-xs leading-5 text-indigo-800/80 dark:text-indigo-100/75">
+                    Use the official payroll calendar. For example, July 31 can be the first day of a Jul 31–Aug 31 voucher.
+                  </p>
+                </div>
+              </div>
+              <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                <div className="sm:col-span-2">
+                  <label className="text-xs font-semibold text-slate-700 dark:text-slate-200" htmlFor="payroll-period-label">Period name</label>
+                  <Input id="payroll-period-label" className="mt-1.5" value={payrollPeriodLabel} onChange={(e) => setPayrollPeriodLabel(e.target.value)} placeholder="Jul 31 – Aug 31, 2026" />
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-slate-700 dark:text-slate-200" htmlFor="payroll-period-start">Starts</label>
+                  <Input id="payroll-period-start" className="mt-1.5" type="date" value={payrollPeriodStart} onChange={(e) => setPayrollPeriodStart(e.target.value)} />
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-slate-700 dark:text-slate-200" htmlFor="payroll-period-end">Ends</label>
+                  <Input id="payroll-period-end" className="mt-1.5" type="date" value={payrollPeriodEnd} onChange={(e) => setPayrollPeriodEnd(e.target.value)} />
+                </div>
+              </div>
+              <Button type="button" className="mt-4 w-full sm:w-auto" onClick={() => void savePayrollPeriod()} disabled={savingPayrollPeriod}>
+                {savingPayrollPeriod ? "Saving period..." : "Save and use this period"}
+              </Button>
+            </div>
+
+            <section>
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-sm font-semibold">Saved periods</p>
+                <span className="text-xs text-muted-foreground">{payrollPeriods.length} saved</span>
+              </div>
+              <div className="mt-2 max-h-56 space-y-2 overflow-y-auto pr-1">
+                {payrollPeriods.length === 0 ? (
+                  <p className="rounded-xl border border-dashed p-4 text-sm text-muted-foreground">No saved periods yet. Create one above when a payroll voucher crosses calendar months.</p>
+                ) : (
+                  payrollPeriods.map((period) => {
+                    const isActive = period.id === selectedPayrollPeriodId;
+                    return (
+                      <div key={period.id} className={`flex flex-col gap-3 rounded-xl border p-3 sm:flex-row sm:items-center sm:justify-between ${isActive ? "border-indigo-500/50 bg-indigo-500/10" : "border-border/70 bg-card/60"}`}>
+                        <div className="min-w-0">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <p className="truncate text-sm font-semibold">{period.label}</p>
+                            {isActive && <span className="rounded-full bg-indigo-600 px-2 py-0.5 text-[10px] font-semibold text-white">Active</span>}
+                          </div>
+                          <p className="mt-1 text-xs text-muted-foreground">{period.startDate} through {period.endDate}</p>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2 sm:flex sm:shrink-0">
+                          <Button type="button" size="sm" variant={isActive ? "outline" : "default"} onClick={() => { setSelectedPayrollPeriodId(period.id); setPayrollPeriodDialogOpen(false); }}>
+                            {isActive ? "In use" : "Use period"}
+                          </Button>
+                          <Button type="button" size="sm" variant="outline" className="border-red-500/30 text-red-600 hover:bg-red-500/10 hover:text-red-700" onClick={() => void deletePayrollPeriod(period)}>
+                            Remove
+                          </Button>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </section>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={checklistOpen} onOpenChange={setChecklistOpen}>
         <DialogContent className="max-w-lg">
