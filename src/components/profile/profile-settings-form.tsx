@@ -92,7 +92,7 @@ export function ProfileSettingsForm({ initialProfile }: { initialProfile: Profil
     sat: "Sat",
   };
 
-  const applyScheduleTemplate = (template: "typical_office" | "empty") => {
+  const applyScheduleTemplate = (template: "standard_weekdays" | "empty") => {
     if (template === "empty") {
       for (const day of weekdayKeys) {
         setValue(`workSchedule.${day}.enabled`, false);
@@ -102,23 +102,16 @@ export function ProfileSettingsForm({ initialProfile }: { initialProfile: Profil
     }
 
     for (const day of weekdayKeys) {
-      const isMonWed = day === "mon" || day === "wed";
-      const isFri = day === "fri";
-      const enabled = isMonWed || isFri;
+      const enabled = day === "mon" || day === "tue" || day === "wed" || day === "thu" || day === "fri";
       setValue(`workSchedule.${day}.enabled`, enabled);
-      if (isMonWed) {
+      if (enabled) {
         setValue(`workSchedule.${day}.start`, "09:00");
         setValue(`workSchedule.${day}.end`, "17:00");
         setValue(`workSchedule.${day}.breakStart`, "12:30");
         setValue(`workSchedule.${day}.breakEnd`, "13:00");
-      } else if (isFri) {
-        setValue(`workSchedule.${day}.start`, "12:00");
-        setValue(`workSchedule.${day}.end`, "17:00");
-        setValue(`workSchedule.${day}.breakStart`, "14:30");
-        setValue(`workSchedule.${day}.breakEnd`, "15:00");
       }
     }
-    toast.success("Applied Mon/Wed/Fri template");
+    toast.success("Applied standard weekday schedule");
   };
 
   const onSubmit = async (values: ProfileUpdateInput) => {
@@ -678,7 +671,7 @@ export function ProfileSettingsForm({ initialProfile }: { initialProfile: Profil
                       <div>
                         <p className="text-sm font-semibold">Regular Shift Schedule</p>
                         <p className="text-xs text-muted-foreground">
-                          Used by &quot;Apply Regular Shift&quot; in entry form. Configure times per weekday.
+                          Used by &quot;Apply Regular Shift&quot; and schedule reminders. Set the days and times that match your own workweek.
                         </p>
                       </div>
                       <div className="flex flex-wrap gap-2">
@@ -686,9 +679,9 @@ export function ProfileSettingsForm({ initialProfile }: { initialProfile: Profil
                           type="button"
                           variant="outline"
                           size="sm"
-                          onClick={() => applyScheduleTemplate("typical_office")}
+                          onClick={() => applyScheduleTemplate("standard_weekdays")}
                         >
-                          Apply M/W/F Template
+                          Apply Weekday Template
                         </Button>
                         <Button
                           type="button"

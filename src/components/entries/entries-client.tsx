@@ -31,6 +31,7 @@ import { buildDownloadFilename, getFilenameFromContentDisposition } from "@/lib/
 import { getUsFederalHolidayMap } from "@/lib/holidays";
 import { minutesToHM, minutesToTenthsDecimal } from "@/lib/time";
 import { DEFAULT_TIMESHEET_ROLE, timesheetRoleOptions, timesheetTemplates, type TimesheetRole } from "@/lib/timesheet-templates";
+import { DEFAULT_WORK_SCHEDULE, weekdayKeys, type WorkSchedule } from "@/lib/work-schedule";
 import type { TimeEntry } from "@/types/time-entry";
 import type { TimeEntryInput } from "@/lib/validators";
 
@@ -168,6 +169,7 @@ export function EntriesClient() {
   const [pendingLayoutMode, setPendingLayoutMode] = useState<"auto" | "standard" | "carry">("auto");
   const [recentActions, setRecentActions] = useState<{ id: number; label: string; at: string }[]>([]);
   const [holidayMap, setHolidayMap] = useState<Record<string, string>>({});
+  const [workSchedule, setWorkSchedule] = useState<WorkSchedule>(DEFAULT_WORK_SCHEDULE);
   const [payrollPeriods, setPayrollPeriods] = useState<PayrollPeriod[]>([]);
   const [selectedPayrollPeriodId, setSelectedPayrollPeriodId] = useState("");
   const [payrollPeriodLabel, setPayrollPeriodLabel] = useState("");
@@ -229,6 +231,18 @@ export function EntriesClient() {
     }
   }, []);
 
+  const fetchWorkSchedule = useCallback(async () => {
+    try {
+      const res = await fetch("/api/profile");
+      const body = await res.json().catch(() => ({}));
+      if (res.ok && body?.profile?.workSchedule) {
+        setWorkSchedule(body.profile.workSchedule as WorkSchedule);
+      }
+    } catch {
+      // The schedule is optional; use the empty default until Settings is configured.
+    }
+  }, []);
+
   useEffect(() => {
     const controller = new AbortController();
     fetchEntries(controller.signal);
@@ -238,6 +252,10 @@ export function EntriesClient() {
   useEffect(() => {
     void fetchPayrollPeriods();
   }, [fetchPayrollPeriods]);
+
+  useEffect(() => {
+    void fetchWorkSchedule();
+  }, [fetchWorkSchedule]);
 
   useEffect(() => {
     try {
@@ -336,8 +354,8 @@ export function EntriesClient() {
       end: endOfMonth(monthDate),
     })
       .filter((day) => {
-        const weekday = getDay(day);
-        const isWorkday = weekday === 1 || weekday === 3 || weekday === 5;
+        const weekday = weekdayKeys[getDay(day)];
+        const isWorkday = Boolean(weekday && workSchedule[weekday]?.enabled);
         if (!isWorkday) return false;
         if (!isCurrentMonth) return true;
         return !isAfter(day, today);
@@ -356,7 +374,7 @@ export function EntriesClient() {
       missing,
       progress,
     };
-  }, [entries, month]);
+  }, [entries, month, workSchedule]);
 
   const entriesByDate = useMemo(() => {
     const map = new Map<string, TimeEntry>();
@@ -1220,7 +1238,7 @@ export function EntriesClient() {
               />
             </div>
             <p className="pt-1 text-xs font-medium text-amber-700/80 dark:text-amber-100/75">
-              {scheduleStats.progress}% of expected Mon/Wed/Fri shifts logged
+              {scheduleStats.progress}% of expected scheduled shifts logged
             </p>
           </CardHeader>
         </Card>
@@ -1429,7 +1447,7 @@ export function EntriesClient() {
               Missing Shift Check
             </CardTitle>
             <CardDescription>
-              Based on your usual Mon/Wed/Fri schedule for the selected month.
+              Based on the workdays you configured in Settings for the selected month.
             </CardDescription>
           </CardHeader>
           <CardContent className="pt-0 text-sm">
