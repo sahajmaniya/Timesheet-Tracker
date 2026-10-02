@@ -1,11 +1,12 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Loader2, Mail, Sparkles, Undo2, Upload, User2, Wallet } from "lucide-react";
+import { Loader2, Mail, Sparkles, Undo2, Upload, User2 } from "lucide-react";
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { useSession } from "next-auth/react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
+import { PositionsManager } from "@/components/profile/positions-manager";
 import { UserAvatar } from "@/components/profile/user-avatar";
 import {
   Dialog,
@@ -19,20 +20,25 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { profileUpdateSchema, type PayrollProfileInput, type ProfileUpdateInput } from "@/lib/validators";
-import { DAY_LABELS, weekdayKeys, type WeekdayKey, type WorkSchedule } from "@/lib/work-schedule";
+import { profileUpdateSchema, type ProfileUpdateInput } from "@/lib/validators";
+import { weekdayKeys } from "@/lib/work-schedule";
+import type { Position } from "@/types/position";
 
 type ProfileData = {
   name: string | null;
   email: string | null;
   image: string | null;
   signature: string | null;
-  workSchedule: WorkSchedule;
-  payrollProfile: PayrollProfileInput;
   monthlySummaryEmailEnabled: boolean;
 };
 
-export function ProfileSettingsForm({ initialProfile }: { initialProfile: ProfileData }) {
+export function ProfileSettingsForm({
+  initialProfile,
+  initialPositions,
+}: {
+  initialProfile: ProfileData;
+  initialPositions: Position[];
+}) {
   const { update } = useSession();
   const [profile, setProfile] = useState<ProfileData>(initialProfile);
   const [uploading, setUploading] = useState(false);
@@ -43,7 +49,7 @@ export function ProfileSettingsForm({ initialProfile }: { initialProfile: Profil
   const [avatarOffsetX, setAvatarOffsetX] = useState(0);
   const [avatarOffsetY, setAvatarOffsetY] = useState(0);
   const [drawingSignature, setDrawingSignature] = useState(false);
-  const [activeScheduleDay, setActiveScheduleDay] = useState<WeekdayKey>("mon");
+  const [positions, setPositions] = useState<Position[]>(initialPositions);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const uploadImageRef = useRef<HTMLImageElement | null>(null);
   const signatureCanvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -56,7 +62,6 @@ export function ProfileSettingsForm({ initialProfile }: { initialProfile: Profil
   const {
     register,
     handleSubmit,
-    setValue,
     watch,
     formState: { errors, isSubmitting },
   } = useForm<ProfileUpdateInput>({
@@ -64,55 +69,19 @@ export function ProfileSettingsForm({ initialProfile }: { initialProfile: Profil
     defaultValues: {
       name: profile.name ?? "",
       image: "",
-      workSchedule: profile.workSchedule,
-      payrollProfile: profile.payrollProfile,
       monthlySummaryEmailEnabled: profile.monthlySummaryEmailEnabled,
     },
   });
-  const watchedSchedule = watch("workSchedule");
-  const watchedHourlyRate = watch("payrollProfile.hourlyRate");
-  const enabledDaysCount = weekdayKeys.reduce(
-    (count, day) => count + (watchedSchedule?.[day]?.enabled ? 1 : 0),
-    0,
+  const scheduledDays = new Set(
+    positions.flatMap((position) => weekdayKeys.filter((day) => position.workSchedule[day].enabled)),
   );
   const profileCompletionCount = [
     Boolean((watch("name") ?? "").trim().length >= 2),
     Boolean(profile.image),
     Boolean(profile.signature),
-    Number.isFinite(watchedHourlyRate) && (watchedHourlyRate ?? 0) > 0,
-    enabledDaysCount > 0,
+    positions.some((position) => position.hourlyRate > 0),
+    scheduledDays.size > 0,
   ].filter(Boolean).length;
-  const DAY_SHORT_LABELS: Record<WeekdayKey, string> = {
-    sun: "Sun",
-    mon: "Mon",
-    tue: "Tue",
-    wed: "Wed",
-    thu: "Thu",
-    fri: "Fri",
-    sat: "Sat",
-  };
-
-  const applyScheduleTemplate = (template: "standard_weekdays" | "empty") => {
-    if (template === "empty") {
-      for (const day of weekdayKeys) {
-        setValue(`workSchedule.${day}.enabled`, false);
-      }
-      toast.success("Cleared schedule template");
-      return;
-    }
-
-    for (const day of weekdayKeys) {
-      const enabled = day === "mon" || day === "tue" || day === "wed" || day === "thu" || day === "fri";
-      setValue(`workSchedule.${day}.enabled`, enabled);
-      if (enabled) {
-        setValue(`workSchedule.${day}.start`, "09:00");
-        setValue(`workSchedule.${day}.end`, "17:00");
-        setValue(`workSchedule.${day}.breakStart`, "12:30");
-        setValue(`workSchedule.${day}.breakEnd`, "13:00");
-      }
-    }
-    toast.success("Applied standard weekday schedule");
-  };
 
   const onSubmit = async (values: ProfileUpdateInput) => {
     const res = await fetch("/api/profile", {
@@ -120,8 +89,6 @@ export function ProfileSettingsForm({ initialProfile }: { initialProfile: Profil
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         name: values.name,
-        workSchedule: values.workSchedule,
-        payrollProfile: values.payrollProfile,
         monthlySummaryEmailEnabled: values.monthlySummaryEmailEnabled,
       }),
     });
@@ -135,7 +102,6 @@ export function ProfileSettingsForm({ initialProfile }: { initialProfile: Profil
     setProfile((prev) => ({
       ...prev,
       ...body.profile,
-      workSchedule: body.profile?.workSchedule ?? prev.workSchedule,
     }));
     await update({
       name: body.profile?.name ?? values.name,
@@ -162,7 +128,6 @@ export function ProfileSettingsForm({ initialProfile }: { initialProfile: Profil
       setProfile((prev) => ({
         ...prev,
         ...body.profile,
-        workSchedule: body.profile?.workSchedule ?? prev.workSchedule,
       }));
       await update({
         name: body.profile?.name ?? profile.name ?? null,
@@ -200,7 +165,6 @@ export function ProfileSettingsForm({ initialProfile }: { initialProfile: Profil
     setProfile((prev) => ({
       ...prev,
       ...body.profile,
-      workSchedule: body.profile?.workSchedule ?? prev.workSchedule,
     }));
     await update({
       name: body.profile?.name ?? profile.name ?? null,
@@ -408,7 +372,6 @@ export function ProfileSettingsForm({ initialProfile }: { initialProfile: Profil
       setProfile((prev) => ({
         ...prev,
         ...body.profile,
-        workSchedule: body.profile?.workSchedule ?? prev.workSchedule,
       }));
       toast.success("Signature saved");
     } finally {
@@ -432,7 +395,6 @@ export function ProfileSettingsForm({ initialProfile }: { initialProfile: Profil
       setProfile((prev) => ({
         ...prev,
         ...body.profile,
-        workSchedule: body.profile?.workSchedule ?? prev.workSchedule,
       }));
       clearSignatureCanvas();
       toast.success("Signature removed");
@@ -473,8 +435,10 @@ export function ProfileSettingsForm({ initialProfile }: { initialProfile: Profil
       <section className="rounded-2xl border bg-gradient-to-br from-violet-100/70 via-background to-cyan-100/70 p-4 sm:p-6 dark:from-violet-950/30 dark:to-cyan-950/30">
         <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Settings</p>
         <h1 className="mt-1 text-2xl font-bold">Profile & Preferences</h1>
-        <p className="mt-2 text-sm text-muted-foreground">Update how your account appears in the app.</p>
+        <p className="mt-2 text-sm text-muted-foreground">Manage your jobs, profile, signature, and monthly recap.</p>
       </section>
+
+      <PositionsManager positions={positions} onPositionsChange={setPositions} />
 
       <Card className="overflow-hidden border-border/65 bg-gradient-to-br from-sky-200/45 via-background to-indigo-200/35 shadow-[0_22px_45px_-30px_rgba(59,130,246,0.25)] dark:from-sky-500/8 dark:to-indigo-500/6 dark:shadow-[0_22px_45px_-30px_rgba(59,130,246,0.45)]">
         <CardContent className="p-2.5 sm:p-4">
@@ -508,19 +472,19 @@ export function ProfileSettingsForm({ initialProfile }: { initialProfile: Profil
                     {profileCompletionCount}/5 complete
                   </p>
                   <p className="mt-1 text-xs text-muted-foreground">
-                    Complete profile, signature, rate, and schedule for best workflow.
+                    Complete profile, signature, position rates, and schedules for best workflow.
                   </p>
                 </div>
 
                 <div className="rounded-xl border border-emerald-400/25 bg-emerald-500/10 p-3">
                   <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-emerald-800/90 dark:text-emerald-200/90">
-                    Schedule Days
+                    Positions
                   </p>
                   <p className="mt-1 text-lg font-bold text-emerald-900 dark:text-emerald-100">
-                    {enabledDaysCount} day{enabledDaysCount === 1 ? "" : "s"} active
+                    {positions.length} position{positions.length === 1 ? "" : "s"} · {scheduledDays.size} day{scheduledDays.size === 1 ? "" : "s"} scheduled
                   </p>
                   <p className="mt-1 text-xs text-muted-foreground">
-                    Active days are used in quick entry helpers and planning cards.
+                    Scheduled days drive quick entry helpers and the missing-shift check.
                   </p>
                 </div>
               </div>
@@ -561,8 +525,8 @@ export function ProfileSettingsForm({ initialProfile }: { initialProfile: Profil
                 <p className="font-semibold text-violet-900 dark:text-violet-100">Quick Tips</p>
                 <ul className="mt-2 space-y-1 text-xs text-muted-foreground">
                   <li>Use profile signature once and reuse it in monthly PDF output.</li>
-                  <li>Set hourly rate to enable instant gross pay estimate in dashboard.</li>
-                  <li>Keep schedule updated for faster daily entry creation.</li>
+                  <li>Add each job you hold under Positions, with its own hourly rate.</li>
+                  <li>Keep each position&apos;s schedule updated for faster daily entry creation.</li>
                 </ul>
               </div>
 
@@ -599,7 +563,7 @@ export function ProfileSettingsForm({ initialProfile }: { initialProfile: Profil
               <div className="bg-gradient-to-b from-background/95 via-background to-slate-100/40 p-5 sm:p-7 dark:to-slate-900/10">
                 <CardHeader className="p-0">
                   <CardTitle>Account Details</CardTitle>
-                  <CardDescription>Edit your name and profile photo.</CardDescription>
+                  <CardDescription>Edit your name and the signature used on your timesheet PDFs.</CardDescription>
                 </CardHeader>
 
                 <form className="mt-5 space-y-4" onSubmit={handleSubmit(onSubmit)}>
@@ -662,138 +626,6 @@ export function ProfileSettingsForm({ initialProfile }: { initialProfile: Profil
                             {drawingSignature ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save signature"}
                           </Button>
                         </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="rounded-xl border border-border/70 bg-card/70 p-4">
-                    <div className="mb-3 flex flex-wrap items-end justify-between gap-2">
-                      <div>
-                        <p className="text-sm font-semibold">Regular Shift Schedule</p>
-                        <p className="text-xs text-muted-foreground">
-                          Used by &quot;Apply Regular Shift&quot; and schedule reminders. Set the days and times that match your own workweek.
-                        </p>
-                      </div>
-                      <div className="flex flex-wrap gap-2">
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={() => applyScheduleTemplate("standard_weekdays")}
-                        >
-                          Apply Weekday Template
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => applyScheduleTemplate("empty")}
-                        >
-                          Clear
-                        </Button>
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-7">
-                      {weekdayKeys.map((day) => {
-                        const dayConfig = watchedSchedule?.[day];
-                        const active = activeScheduleDay === day;
-                        const statusText = dayConfig?.enabled
-                          ? `${dayConfig.start}-${dayConfig.end}`
-                          : "Off";
-                        return (
-                          <button
-                            key={day}
-                            type="button"
-                            onClick={() => setActiveScheduleDay(day)}
-                            className={`rounded-lg border px-2.5 py-2 text-left transition ${
-                              active
-                                ? "border-primary/45 bg-primary/10 text-foreground"
-                                : "border-border/70 bg-background/60 text-muted-foreground hover:bg-accent/60"
-                            }`}
-                          >
-                            <p className="text-xs font-semibold">{DAY_SHORT_LABELS[day]}</p>
-                            <p className="truncate text-[10px]">{statusText}</p>
-                          </button>
-                        );
-                      })}
-                    </div>
-
-                    <div className="mt-3 rounded-lg border border-border/60 bg-background/60 p-3">
-                      <div className="mb-3 flex items-center justify-between gap-2">
-                        <p className="text-sm font-medium">{DAY_LABELS[activeScheduleDay]}</p>
-                        <label className="inline-flex items-center gap-2 rounded-md border border-border/70 bg-background px-2 py-1 text-xs">
-                          <input type="checkbox" {...register(`workSchedule.${activeScheduleDay}.enabled`)} />
-                          Enabled
-                        </label>
-                      </div>
-
-                      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-                        <div className="min-w-0 space-y-1">
-                          <Label className="text-[11px] text-muted-foreground">Start</Label>
-                          <Input type="time" className="min-w-0" {...register(`workSchedule.${activeScheduleDay}.start`)} />
-                        </div>
-                        <div className="min-w-0 space-y-1">
-                          <Label className="text-[11px] text-muted-foreground">End</Label>
-                          <Input type="time" className="min-w-0" {...register(`workSchedule.${activeScheduleDay}.end`)} />
-                        </div>
-                        <div className="min-w-0 space-y-1">
-                          <Label className="text-[11px] text-muted-foreground">Break Start</Label>
-                          <Input type="time" className="min-w-0" {...register(`workSchedule.${activeScheduleDay}.breakStart`)} />
-                        </div>
-                        <div className="min-w-0 space-y-1">
-                          <Label className="text-[11px] text-muted-foreground">Break End</Label>
-                          <Input type="time" className="min-w-0" {...register(`workSchedule.${activeScheduleDay}.breakEnd`)} />
-                        </div>
-                      </div>
-                    </div>
-
-                    <p className="mt-2 text-xs text-muted-foreground">
-                      Used by &quot;Apply Regular Shift&quot; in entry form. Configure times per weekday.
-                    </p>
-
-                    {errors.workSchedule && (
-                      <p className="mt-2 text-xs text-destructive">
-                        Please check your schedule times (end must be after start, break end after break start).
-                      </p>
-                    )}
-                  </div>
-
-                  <div className="relative overflow-hidden rounded-2xl border border-emerald-300/35 bg-gradient-to-br from-emerald-100/70 via-background to-cyan-100/55 p-4 shadow-[0_20px_45px_-32px_rgba(16,185,129,0.45)] dark:border-emerald-500/25 dark:from-emerald-500/12 dark:via-slate-900/80 dark:to-cyan-500/10 sm:p-5">
-                    <div className="pointer-events-none absolute -right-8 top-0 h-24 w-24 rounded-full bg-emerald-300/25 blur-2xl dark:bg-emerald-400/15" />
-                    <div className="pointer-events-none absolute bottom-0 left-0 h-20 w-20 rounded-full bg-cyan-300/20 blur-2xl dark:bg-cyan-400/10" />
-                    <div className="relative">
-                      <div className="mb-4 flex items-start justify-between gap-3">
-                        <div>
-                          <div className="inline-flex items-center gap-2 rounded-full border border-emerald-500/35 bg-emerald-500/12 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.14em] text-emerald-800 dark:text-emerald-200">
-                            <Wallet className="h-3.5 w-3.5" />
-                            Gross Pay Setup
-                          </div>
-                          <p className="mt-2 text-sm font-semibold">Set Hourly Rate</p>
-                          <p className="mt-1 text-xs text-muted-foreground">
-                            Enter your hourly rate to estimate monthly gross pay from worked hours.
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="max-w-md rounded-xl border border-emerald-400/25 bg-background/75 p-3 sm:p-4">
-                        <Label htmlFor="hourlyRate" className="text-xs font-semibold uppercase tracking-[0.14em] text-emerald-800/90 dark:text-emerald-200/90">
-                          Hourly Rate (USD)
-                        </Label>
-                        <Input
-                          id="hourlyRate"
-                          type="number"
-                          min="0"
-                          step="0.01"
-                          className="mt-2 h-11 border-emerald-500/25 bg-background/85 text-base font-semibold focus-visible:ring-emerald-500/40"
-                          {...register("payrollProfile.hourlyRate", { valueAsNumber: true })}
-                        />
-                      </div>
-
-                      <div className="mt-3 rounded-xl border border-amber-400/30 bg-amber-500/10 px-3 py-2.5">
-                        <p className="text-xs font-medium text-amber-800 dark:text-amber-200">
-                          Taxes and deductions are not included yet. Final take-home pay will be lower after payroll withholding.
-                        </p>
                       </div>
                     </div>
                   </div>

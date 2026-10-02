@@ -6,24 +6,25 @@ import { Download, Pencil, Plus, Wallet } from "lucide-react";
 import { toast } from "sonner";
 import { EntryDialog } from "@/components/entries/entry-dialog";
 import { EntriesTable } from "@/components/entries/entries-table";
+import { scheduledPositionForDate, usePositions } from "@/components/positions/use-positions";
 import { useConfirm } from "@/components/providers/confirm-provider";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import type { MonthlyPayEstimate, PayrollProfile } from "@/lib/payroll";
-import { minutesToHM, minutesToTenthsDecimal } from "@/lib/time";
+import type { MonthlyPayEstimate, PositionPayLine } from "@/lib/payroll";
+import { minutesToHM } from "@/lib/time";
+import type { Position } from "@/types/position";
 import type { TimeEntry } from "@/types/time-entry";
 
 type DashboardClientProps = {
-  initialProfileName?: string | null;
-  initialPayrollProfile?: PayrollProfile | null;
+  initialPositions?: Position[];
 };
 
 function DashboardEntriesSkeleton() {
   return (
     <div className="space-y-3" aria-hidden="true">
-      <div className="hidden overflow-hidden rounded-xl border border-border/70 bg-card md:block">
+      <div className="hidden overflow-hidden rounded-xl border border-border/70 bg-card lg:block">
         <div className="grid grid-cols-7 gap-4 border-b border-border/70 px-4 py-3">
           {Array.from({ length: 7 }).map((_, index) => (
             <div key={`dash-head-${index}`} className="h-3 animate-pulse rounded bg-muted/70" />
@@ -40,7 +41,7 @@ function DashboardEntriesSkeleton() {
         </div>
       </div>
 
-      <div className="grid gap-3 md:hidden">
+      <div className="grid gap-3 lg:hidden">
         {Array.from({ length: 3 }).map((_, card) => (
           <div key={`dash-mobile-${card}`} className="rounded-xl border border-border/70 bg-card/80 p-3">
             <div className="h-4 w-1/2 animate-pulse rounded bg-muted/70" />
@@ -57,23 +58,19 @@ function DashboardEntriesSkeleton() {
   );
 }
 
-export function DashboardClient({
-  initialProfileName = null,
-  initialPayrollProfile = null,
-}: DashboardClientProps) {
+export function DashboardClient({ initialPositions }: DashboardClientProps) {
   const confirm = useConfirm();
   const [month, setMonth] = useState(format(new Date(), "yyyy-MM"));
   const [entries, setEntries] = useState<TimeEntry[]>([]);
-  const [payrollProfile, setPayrollProfile] = useState<PayrollProfile | null>(initialPayrollProfile);
-  const [payrollProfileLoaded, setPayrollProfileLoaded] = useState(Boolean(initialPayrollProfile || initialProfileName));
-  const [profileName, setProfileName] = useState<string | null>(initialProfileName);
+  const { positions, setPositions, loaded: positionsLoaded } = usePositions(initialPositions);
   const [payEstimate, setPayEstimate] = useState<MonthlyPayEstimate | null>(null);
+  const [payByPosition, setPayByPosition] = useState<PositionPayLine[]>([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
   const [selectedEntry, setSelectedEntry] = useState<TimeEntry | null>(null);
   const [selectedDateForNewEntry, setSelectedDateForNewEntry] = useState<string | null>(null);
   const [editHourlyOpen, setEditHourlyOpen] = useState(false);
-  const [hourlyRateDraft, setHourlyRateDraft] = useState("");
+  const [hourlyRateDrafts, setHourlyRateDrafts] = useState<Record<string, string>>({});
   const [savingHourlyRate, setSavingHourlyRate] = useState(false);
 
   const today = format(new Date(), "yyyy-MM-dd");
@@ -99,30 +96,13 @@ export function DashboardClient({
     }
   }, [month]);
 
-  const fetchPayrollProfile = useCallback(async (signal?: AbortSignal) => {
-    try {
-      const res = await fetch("/api/profile", { signal });
-      const body = await res.json().catch(() => ({}));
-      if (!res.ok) return;
-      setProfileName(body?.profile?.name ?? null);
-      setPayrollProfile(body?.profile?.payrollProfile ?? null);
-    } catch (error) {
-      if (!(error instanceof DOMException && error.name === "AbortError")) {
-        console.error("Could not load payroll profile:", error);
-      }
-    } finally {
-      if (!(signal?.aborted)) {
-        setPayrollProfileLoaded(true);
-      }
-    }
-  }, []);
-
   const fetchPayEstimate = useCallback(async (signal?: AbortSignal) => {
     try {
       const res = await fetch(`/api/payroll/estimate?month=${month}`, { signal });
       const body = await res.json().catch(() => ({}));
       if (!res.ok) return;
       setPayEstimate(body?.estimate ?? null);
+      setPayByPosition(body?.byPosition ?? []);
     } catch (error) {
       if (!(error instanceof DOMException && error.name === "AbortError")) {
         console.error("Could not load pay estimate:", error);
@@ -130,46 +110,54 @@ export function DashboardClient({
     }
   }, [month]);
 
-  const saveHourlyRate = async () => {
-    if (!payrollProfile) {
-      toast.error("Payroll profile is not loaded yet");
-      return;
-    }
-    if (!profileName || profileName.trim().length < 2) {
-      toast.error("Please set your profile name in Settings first.");
-      return;
-    }
+  const openRateEditor = () => {
+    setHourlyRateDrafts(Object.fromEntries(positions.map((position) => [position.id, String(position.hourlyRate)])));
+    setEditHourlyOpen(true);
+  };
 
-    const parsedRate = Number(hourlyRateDraft);
-    if (!Number.isFinite(parsedRate) || parsedRate < 0) {
-      toast.error("Enter a valid hourly rate");
+  const saveHourlyRates = async () => {
+    const changes: Position[] = [];
+    for (const position of positions) {
+      const parsedRate = Number(hourlyRateDrafts[position.id] ?? position.hourlyRate);
+      if (!Number.isFinite(parsedRate) || parsedRate < 0) {
+        toast.error(`Enter a valid hourly rate for ${position.name}`);
+        return;
+      }
+      if (parsedRate !== position.hourlyRate) changes.push({ ...position, hourlyRate: parsedRate });
+    }
+    if (changes.length === 0) {
+      setEditHourlyOpen(false);
       return;
     }
 
     setSavingHourlyRate(true);
     try {
-      const updatedProfile: PayrollProfile = {
-        ...payrollProfile,
-        hourlyRate: parsedRate,
-      };
-
-      const res = await fetch("/api/profile", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: profileName,
-          payrollProfile: updatedProfile,
-        }),
-      });
-      const body = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        toast.error(body.error || "Could not update hourly rate");
-        return;
+      const saved: Position[] = [];
+      for (const position of changes) {
+        const res = await fetch(`/api/positions/${position.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name: position.name,
+            role: position.role,
+            hourlyRate: position.hourlyRate,
+            workSchedule: position.workSchedule,
+          }),
+        });
+        const body = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          toast.error(body.error || `Could not update ${position.name}`);
+          continue;
+        }
+        saved.push(body.position as Position);
       }
 
-      setPayrollProfile(body?.profile?.payrollProfile ?? updatedProfile);
-      setEditHourlyOpen(false);
-      toast.success("Hourly rate updated");
+      if (saved.length > 0) {
+        const savedById = new Map(saved.map((position) => [position.id, position]));
+        setPositions((prev) => prev.map((position) => savedById.get(position.id) ?? position));
+        toast.success(saved.length === 1 ? "Hourly rate updated" : "Hourly rates updated");
+      }
+      if (saved.length === changes.length) setEditHourlyOpen(false);
       await fetchPayEstimate();
     } finally {
       setSavingHourlyRate(false);
@@ -184,33 +172,40 @@ export function DashboardClient({
 
   useEffect(() => {
     const controller = new AbortController();
-    fetchPayrollProfile(controller.signal);
-    return () => controller.abort();
-  }, [fetchPayrollProfile]);
-
-  useEffect(() => {
-    const controller = new AbortController();
     fetchPayEstimate(controller.signal);
     return () => controller.abort();
   }, [fetchPayEstimate]);
 
-  const todayEntry = useMemo(
-    () => entries.find((entry) => entry.date === today) ?? null,
-    [entries, today],
-  );
+  // With several positions, "today" means the entry for the position scheduled today.
+  const todayEntry = useMemo(() => {
+    const todayEntries = entries.filter((entry) => entry.date === today);
+    const scheduled = positions.length > 1 ? scheduledPositionForDate(positions, today) : null;
+    if (scheduled) return todayEntries.find((entry) => entry.positionId === scheduled.id) ?? null;
+    return todayEntries[0] ?? null;
+  }, [entries, positions, today]);
 
   const totalMinutes = useMemo(
     () => entries.reduce((sum, entry) => sum + entry.workedMinutes, 0),
     [entries],
   );
 
-  const averageMinutes = entries.length ? Math.round(totalMinutes / entries.length) : 0;
+  const daysWorked = new Set(entries.map((entry) => entry.date)).size;
+  const averageMinutes = daysWorked ? Math.round(totalMinutes / daysWorked) : 0;
   const totalDecimal = useMemo(
-    () => entries.reduce((sum, entry) => sum + minutesToTenthsDecimal(entry.workedMinutes), 0),
+    () => entries.reduce((sum, entry) => sum + entry.workedTenths, 0),
     [entries],
   );
-  const averageDecimal = entries.length ? totalDecimal / entries.length : 0;
-  const hasPayrollProfile = Boolean(payrollProfile && payrollProfile.hourlyRate > 0);
+  const averageDecimal = daysWorked ? totalDecimal / daysWorked : 0;
+  const hasHourlyRate = positions.some((position) => position.hourlyRate > 0);
+  const tenthsByPosition = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const entry of entries) map.set(entry.positionId, (map.get(entry.positionId) ?? 0) + entry.workedTenths);
+    return map;
+  }, [entries]);
+  const positionNames = useMemo(
+    () => (positions.length > 1 ? Object.fromEntries(positions.map((position) => [position.id, position.name])) : undefined),
+    [positions],
+  );
 
   const onDelete = async (entry: TimeEntry) => {
     const ok = await confirm({
@@ -276,7 +271,7 @@ export function DashboardClient({
         </div>
       </section>
 
-      {!payrollProfileLoaded ? (
+      {!positionsLoaded ? (
         <Card className="border-amber-300/30 bg-gradient-to-br from-amber-100/45 via-background to-orange-100/40 dark:from-amber-500/8 dark:to-orange-500/8">
           <CardHeader className="gap-3">
             <div className="h-6 w-72 animate-pulse rounded-md bg-muted/70" />
@@ -284,7 +279,7 @@ export function DashboardClient({
             <div className="h-10 w-44 animate-pulse rounded-full bg-muted/70" />
           </CardHeader>
         </Card>
-      ) : !hasPayrollProfile ? (
+      ) : !hasHourlyRate ? (
         <Card className="border-amber-400/35 bg-gradient-to-br from-amber-100/70 via-background to-orange-100/65 dark:from-amber-500/12 dark:to-orange-500/10">
           <CardHeader className="gap-3">
             <CardTitle className="text-xl">Set your hourly rate to unlock pay estimate</CardTitle>
@@ -294,10 +289,7 @@ export function DashboardClient({
             <div>
               <Button
                 type="button"
-                onClick={() => {
-                  setHourlyRateDraft(String(payrollProfile?.hourlyRate ?? 0));
-                  setEditHourlyOpen(true);
-                }}
+                onClick={openRateEditor}
                 className="h-10 rounded-full bg-gradient-to-r from-cyan-500 to-blue-500 px-5 font-semibold text-white hover:from-cyan-400 hover:to-blue-400"
               >
                 <Wallet className="mr-2 h-4 w-4" />
@@ -365,10 +357,7 @@ export function DashboardClient({
               </div>
               <Button
                 type="button"
-                onClick={() => {
-                  setHourlyRateDraft(String(payrollProfile?.hourlyRate ?? 0));
-                  setEditHourlyOpen(true);
-                }}
+                onClick={openRateEditor}
                 className="h-10 w-full gap-2 rounded-full border border-sky-500/35 bg-sky-500/12 px-4 font-semibold text-sky-800 shadow-none transition hover:bg-sky-500/18 dark:border-sky-400/35 dark:bg-sky-400/10 dark:text-sky-100 dark:hover:bg-sky-400/18 sm:w-auto"
               >
                 <Wallet className="h-4 w-4" />
@@ -377,8 +366,22 @@ export function DashboardClient({
             </div>
             <CardDescription className="font-medium text-emerald-700 dark:text-emerald-100/85">Gross pay (est.)</CardDescription>
             <CardTitle className="mt-1 bg-gradient-to-r from-emerald-800 via-emerald-700 to-cyan-700 bg-clip-text text-4xl font-black tracking-tight text-transparent dark:from-emerald-100 dark:via-emerald-200 dark:to-cyan-200 sm:text-5xl">
-              {hasPayrollProfile && payEstimate ? `$${payEstimate.grossPay.toFixed(2)}` : "—"}
+              {hasHourlyRate && payEstimate ? `$${payEstimate.grossPay.toFixed(2)}` : "—"}
             </CardTitle>
+
+            {positions.length > 1 && payByPosition.length > 0 && (
+              <div className="mt-4 grid gap-2 sm:grid-cols-2">
+                {payByPosition.map((line) => (
+                  <div key={line.positionId} className="rounded-xl border border-emerald-400/25 bg-background/60 px-3 py-2">
+                    <p className="truncate text-sm font-semibold text-emerald-900 dark:text-emerald-100">{line.name}</p>
+                    <p className="mt-0.5 text-xs text-muted-foreground">
+                      {(tenthsByPosition.get(line.positionId) ?? 0).toFixed(1)} hrs × ${line.hourlyRate.toFixed(2)}/hr
+                    </p>
+                    <p className="mt-1 text-lg font-bold text-emerald-800 dark:text-emerald-100">${line.grossPay.toFixed(2)}</p>
+                  </div>
+                ))}
+              </div>
+            )}
 
             <div className="mt-4 grid gap-2 sm:grid-cols-2">
               <div className="rounded-xl border border-emerald-400/25 bg-emerald-500/10 px-3 py-2">
@@ -386,8 +389,8 @@ export function DashboardClient({
                 <p className="mt-1 text-lg font-bold text-emerald-800 dark:text-emerald-100">{totalDecimal.toFixed(1)} hrs</p>
               </div>
               <div className="rounded-xl border border-cyan-400/25 bg-cyan-500/10 px-3 py-2">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-cyan-700/90 dark:text-cyan-200/90">Taxable Gross</p>
-                <p className="mt-1 text-lg font-bold text-cyan-800 dark:text-cyan-100">${payEstimate?.taxableGross.toFixed(2) ?? "0.00"}</p>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-cyan-700/90 dark:text-cyan-200/90">Days Worked</p>
+                <p className="mt-1 text-lg font-bold text-cyan-800 dark:text-cyan-100">{daysWorked}</p>
               </div>
             </div>
 
@@ -405,7 +408,9 @@ export function DashboardClient({
         <CardHeader>
           <CardTitle className="bg-gradient-to-r from-slate-800 via-sky-700 to-indigo-700 bg-clip-text text-transparent dark:from-slate-100 dark:via-sky-100 dark:to-indigo-100">Monthly Entries</CardTitle>
           <CardDescription className="text-slate-600 dark:text-slate-300/75">
-            {loading ? "Loading..." : `${entries.length} entries for ${month}`}
+            {loading
+              ? "Loading..."
+              : `${entries.length} ${entries.length === 1 ? "entry" : "entries"} · ${format(new Date(`${month}-01T00:00:00`), "MMMM yyyy")}`}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -418,6 +423,7 @@ export function DashboardClient({
           ) : (
             <EntriesTable
               entries={entries}
+              positionNames={positionNames}
               onEdit={(entry) => {
                 setSelectedEntry(entry);
                 setSelectedDateForNewEntry(null);
@@ -433,6 +439,7 @@ export function DashboardClient({
         open={open}
         entry={selectedEntry}
         initialDate={selectedDateForNewEntry}
+        positions={positions}
         onOpenChange={setOpen}
         onSaved={async () => {
           await fetchEntries();
@@ -443,29 +450,35 @@ export function DashboardClient({
       <Dialog open={editHourlyOpen} onOpenChange={setEditHourlyOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Edit Hourly Rate</DialogTitle>
+            <DialogTitle>{positions.length > 1 ? "Edit Hourly Rates" : "Edit Hourly Rate"}</DialogTitle>
             <DialogDescription>
-              Update the hourly rate used for your gross pay estimate.
+              {positions.length > 1
+                ? "Each position is paid at its own rate. Gross pay adds them together."
+                : "Update the hourly rate used for your gross pay estimate."}
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-2">
-            <label htmlFor="hourly-rate-input" className="text-sm font-medium">
-              Hourly Rate (USD)
-            </label>
-            <Input
-              id="hourly-rate-input"
-              type="number"
-              min="0"
-              step="0.01"
-              value={hourlyRateDraft}
-              onChange={(e) => setHourlyRateDraft(e.target.value)}
-            />
+          <div className="space-y-3">
+            {positions.map((position) => (
+              <div key={position.id} className="space-y-1.5">
+                <label htmlFor={`hourly-rate-${position.id}`} className="text-sm font-medium">
+                  {positions.length > 1 ? `${position.name} (USD/hr)` : "Hourly Rate (USD)"}
+                </label>
+                <Input
+                  id={`hourly-rate-${position.id}`}
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={hourlyRateDrafts[position.id] ?? ""}
+                  onChange={(e) => setHourlyRateDrafts((prev) => ({ ...prev, [position.id]: e.target.value }))}
+                />
+              </div>
+            ))}
           </div>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => setEditHourlyOpen(false)}>
               Cancel
             </Button>
-            <Button type="button" onClick={saveHourlyRate} disabled={savingHourlyRate}>
+            <Button type="button" onClick={() => void saveHourlyRates()} disabled={savingHourlyRate}>
               {savingHourlyRate ? "Saving..." : "Save"}
             </Button>
           </DialogFooter>
