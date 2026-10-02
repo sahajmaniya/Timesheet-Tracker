@@ -20,7 +20,8 @@ Modern, responsive timesheet tracker built with Next.js App Router, TypeScript, 
 - Gross pay estimate from worked hours (hourly-rate based)
 - CSV export by month
 - Fill monthly timesheet PDF templates from saved entries
-- Role-based timesheet generation: SA / ISA
+- Multiple positions per user (e.g. an SA and an ISA job), each with its own timesheet type, hourly rate, and regular schedule
+- Role-based timesheet generation: SA / ISA (taken from the selected position)
 - PDF layout modes: `auto`, `standard`, `carry` with advanced alignment options
 - PDF preset save/apply workflow and optional preview-before-download
 - Per-user regular shift schedule in Settings
@@ -58,6 +59,11 @@ This app uses **one entry per user per day** with Prisma constraint:
 - `@@unique([userId, date])`
 
 This prevents accidental duplicates and matches monthly timesheet workflows.
+
+Each entry also belongs to a `Position` (`positionId`). Positions carry the timesheet
+type (SA/ISA), hourly rate, and regular schedule, so a user holding two jobs logs each
+day against the job worked; CSV/PDF exports can be scoped to one position and pay is
+estimated per position at its own rate.
 
 Known limitation:
 - Split shifts or multiple project entries on the same calendar date are not supported in the current schema.
@@ -177,17 +183,21 @@ npx prisma migrate deploy
 - `POST /api/auth/request-otp`
 - `POST /api/auth/forgot-password`
 - `POST /api/auth/reset-password`
-- `GET /api/entries?month=YYYY-MM`
+- `GET /api/positions`
+- `POST /api/positions`
+- `PATCH /api/positions/:id`
+- `DELETE /api/positions/:id` (blocked while the position has entries or is the last one)
+- `GET /api/entries?month=YYYY-MM[&positionId=...]`
 - `POST /api/entries`
 - `GET /api/entries/:id`
 - `PATCH /api/entries/:id`
 - `DELETE /api/entries/:id`
-- `GET /api/entries/export?month=YYYY-MM`
+- `GET /api/entries/export?month=YYYY-MM[&positionId=...]`
 - `POST /api/entries/fill-pdf`
 - `POST /api/import/excel`
 - `GET /api/profile`
 - `PATCH /api/profile`
-- `GET /api/payroll/estimate?month=YYYY-MM`
+- `GET /api/payroll/estimate?month=YYYY-MM[&positionId=...]` (includes a per-position breakdown)
 - `POST /api/monthly-summary/test`
 - `POST /api/cron/monthly-summary`
 - `GET /api/holidays?year=YYYY[&country=US]`
@@ -265,7 +275,9 @@ Current behavior:
 - For benchmarking/dev examples, an optional template path can be provided via `BENCH_PDF_TEMPLATE_PATH`.
 - Filled PDF time format:
   - `student_assistant`: 12-hour time with `AM/PM`
-  - `instructional_student_assistant`: compact 12-hour time (no `AM/PM`) to preserve template spacing
+  - `instructional_student_assistant`: no In/Out times; each day's hours go in the HOURS / 10ths boxes
+    (1.3 h → `1.0` + `.3`), matching the CSULB hourly voucher. The voucher's extra rows hold the
+    previous month's 31st and the next month's 1st; dates outside that range are rejected.
 - PDF renderer applies column-aware text fitting for tight templates.
 
 ## Password Policy
