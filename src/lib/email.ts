@@ -368,14 +368,14 @@ export async function sendMonthlySummaryEmail({
   name,
   month,
   totalWorkedHoursDecimal,
-  hourlyRate,
+  positions,
   grossPayEstimate,
 }: {
   to: string;
   name?: string | null;
   month: string;
   totalWorkedHoursDecimal: number;
-  hourlyRate: number;
+  positions: { name: string; hoursDecimal: number; hourlyRate: number; grossPay: number }[];
   grossPayEstimate: number;
 }) {
   const safeName = escapeHtml((name || "there").trim());
@@ -386,7 +386,7 @@ export async function sendMonthlySummaryEmail({
   if (!hasSmtpConfig()) {
     if (process.env.NODE_ENV === "development") {
       console.info(
-        `[DEV MONTHLY SUMMARY] ${to} | ${month} | hours=${totalWorkedHoursDecimal} | rate=${hourlyRate} | gross=${grossPayEstimate}`,
+        `[DEV MONTHLY SUMMARY] ${to} | ${month} | hours=${totalWorkedHoursDecimal} | positions=${positions.map((item) => `${item.name}:${item.hoursDecimal}h@${item.hourlyRate}`).join(",")} | gross=${grossPayEstimate}`,
       );
       return { devMode: true };
     }
@@ -407,7 +407,9 @@ export async function sendMonthlySummaryEmail({
     `PunchPilot monthly summary (${month})`,
     "",
     `Total worked hours: ${totalWorkedHoursDecimal.toFixed(2)}`,
-    `Hourly rate: $${hourlyRate.toFixed(2)}`,
+    ...positions.map(
+      (item) => `${item.name}: ${item.hoursDecimal.toFixed(2)} hrs x $${item.hourlyRate.toFixed(2)} = $${item.grossPay.toFixed(2)}`,
+    ),
     `Estimated gross pay: $${grossPayEstimate.toFixed(2)}`,
     "",
     "Note: this is a gross estimate before tax/deduction withholding.",
@@ -442,8 +444,12 @@ export async function sendMonthlySummaryEmail({
                     <div style="margin-top:4px;font-size:24px;line-height:1.2;color:#0f172a;font-weight:800;">${totalWorkedHoursDecimal.toFixed(2)} hrs</div>
                   </div>
                   <div style="padding:10px 0;border-bottom:1px solid #e2e8f0;">
-                    <div style="font-size:11px;text-transform:uppercase;letter-spacing:.14em;color:#64748b;font-weight:700;">Hourly Rate</div>
-                    <div style="margin-top:4px;font-size:20px;line-height:1.2;color:#0f172a;font-weight:700;">$${hourlyRate.toFixed(2)}</div>
+                    <div style="font-size:11px;text-transform:uppercase;letter-spacing:.14em;color:#64748b;font-weight:700;">By Position</div>
+                    ${positions
+                      .map(
+                        (item) => `<div style="margin-top:6px;font-size:14px;line-height:1.4;color:#0f172a;"><strong>${escapeHtml(item.name)}</strong> &middot; ${item.hoursDecimal.toFixed(2)} hrs &times; $${item.hourlyRate.toFixed(2)} = <strong>$${item.grossPay.toFixed(2)}</strong></div>`,
+                      )
+                      .join("")}
                   </div>
                   <div style="padding:10px 0 2px 0;">
                     <div style="font-size:11px;text-transform:uppercase;letter-spacing:.14em;color:#64748b;font-weight:700;">Estimated Gross Pay</div>

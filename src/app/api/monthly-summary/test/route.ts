@@ -43,7 +43,7 @@ export async function POST() {
       name: user.name,
       month: summary.month,
       totalWorkedHoursDecimal: summary.totalWorkedHoursDecimal,
-      hourlyRate: summary.hourlyRate,
+      positions: summary.positions,
       grossPayEstimate: summary.grossPayEstimate,
     });
 

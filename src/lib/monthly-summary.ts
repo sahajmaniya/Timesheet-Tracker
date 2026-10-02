@@ -1,12 +1,21 @@
 import { endOfMonth, format, startOfMonth, subMonths } from "date-fns";
-import { calcWorkedMinutes } from "@/lib/time";
+import { calculatePositionPayBreakdown } from "@/lib/payroll";
+import { ensureUserPositions } from "@/lib/positions";
 import { prisma } from "@/lib/prisma";
+import { calcWorkedMinutes } from "@/lib/time";
+
+export type MonthlySummaryPositionLine = {
+  name: string;
+  hoursDecimal: number;
+  hourlyRate: number;
+  grossPay: number;
+};
 
 export type MonthlySummaryData = {
   month: string;
   totalWorkedMinutes: number;
   totalWorkedHoursDecimal: number;
-  hourlyRate: number;
+  positions: MonthlySummaryPositionLine[];
   grossPayEstimate: number;
 };
 
@@ -24,7 +33,7 @@ export async function buildMonthlySummaryForUser(params: {
   const start = format(startOfMonth(monthDate), "yyyy-MM-dd");
   const end = format(endOfMonth(monthDate), "yyyy-MM-dd");
 
-  const [entries, user] = await Promise.all([
+  const [entries, positions] = await Promise.all([
     prisma.timeEntry.findMany({
       where: {
         userId: params.userId,
@@ -32,30 +41,30 @@ export async function buildMonthlySummaryForUser(params: {
       },
       include: { breaks: true },
     }),
-    prisma.user.findUnique({
-      where: { id: params.userId },
-      select: { hourlyRate: true },
-    }),
+    ensureUserPositions(params.userId),
   ]);
 
-  const totalWorkedMinutes = entries.reduce((sum, entry) => {
-    const workedMinutes = calcWorkedMinutes({
-      punchIn: entry.punchIn,
-      punchOut: entry.punchOut,
-      breaks: entry.breaks,
-    });
-    return sum + workedMinutes;
-  }, 0);
+  const pay = calculatePositionPayBreakdown(
+    entries.map((entry) => ({
+      positionId: entry.positionId,
+      workedMinutes: calcWorkedMinutes({ punchIn: entry.punchIn, punchOut: entry.punchOut, breaks: entry.breaks }),
+    })),
+    positions,
+  );
 
-  const totalWorkedHoursDecimal = round2(totalWorkedMinutes / 60);
-  const hourlyRate = Math.max(user?.hourlyRate ?? 0, 0);
-  const grossPayEstimate = round2(totalWorkedHoursDecimal * hourlyRate);
+  // Show every position that had hours; with a single position, show it even when idle.
+  const lines = pay.lines.filter((line) => line.workedMinutes > 0 || positions.length === 1);
 
   return {
     month: params.month,
-    totalWorkedMinutes,
-    totalWorkedHoursDecimal,
-    hourlyRate,
-    grossPayEstimate,
+    totalWorkedMinutes: pay.workedMinutes,
+    totalWorkedHoursDecimal: round2(pay.workedMinutes / 60),
+    positions: lines.map((line) => ({
+      name: line.name,
+      hoursDecimal: round2(line.workedMinutes / 60),
+      hourlyRate: line.hourlyRate,
+      grossPay: line.grossPay,
+    })),
+    grossPayEstimate: pay.grossPay,
   };
 }

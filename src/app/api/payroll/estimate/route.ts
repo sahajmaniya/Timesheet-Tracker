@@ -1,8 +1,10 @@
 import { endOfMonth, format, startOfMonth } from "date-fns";
 import { NextResponse } from "next/server";
 import { getServerAuthSession } from "@/lib/auth";
-import { calculateMonthlyPayEstimateWithSource } from "@/lib/payroll";
+import { calculatePositionPayBreakdown, grossOnlyEstimate } from "@/lib/payroll";
+import { ensureUserPositions } from "@/lib/positions";
 import { prisma } from "@/lib/prisma";
+import { calcWorkedMinutes } from "@/lib/time";
 import { dateRangeQuerySchema, monthQuerySchema } from "@/lib/validators";
 
 export async function GET(request: Request) {
@@ -33,66 +35,34 @@ export async function GET(request: Request) {
   const end = parsedRange?.data.end ?? format(endOfMonth(monthDate!), "yyyy-MM-dd");
   const periodKey = parsedRange?.data ? `${start}_to_${end}` : parsedMonth!.data;
 
-  const [entries, user] = await Promise.all([
+  const positionId = searchParams.get("positionId") || undefined;
+  const [entries, allPositions] = await Promise.all([
     prisma.timeEntry.findMany({
       where: {
         userId: session.user.id,
+        positionId,
         date: { gte: start, lte: end },
       },
       include: { breaks: true },
     }),
-    prisma.user.findUnique({
-      where: { id: session.user.id },
-      select: {
-        calculationSource: true,
-        hourlyRate: true,
-        federalStatus: true,
-        stateStatus: true,
-        federalTaxPercent: true,
-        stateTaxPercent: true,
-        otherDeductionMonthly: true,
-      },
-    }),
+    ensureUserPositions(session.user.id),
   ]);
+  const positions = positionId ? allPositions.filter((position) => position.id === positionId) : allPositions;
 
-  if (!user) {
-    return NextResponse.json({ error: "User not found" }, { status: 404 });
-  }
-
-  const totalWorkedMinutes = entries.reduce((sum, entry) => {
-    const inMinutes = toMinutes(entry.punchIn);
-    const outMinutes = toMinutes(entry.punchOut);
-    const base = Math.max(outMinutes - inMinutes, 0);
-    const breakMinutes = entry.breaks.reduce((breakSum, item) => {
-      return breakSum + Math.max(toMinutes(item.end) - toMinutes(item.start), 0);
-    }, 0);
-    return sum + Math.max(base - breakMinutes, 0);
-  }, 0);
-
-  const estimate = await calculateMonthlyPayEstimateWithSource({
-    month: periodKey,
-    workedMinutes: totalWorkedMinutes,
-    profile: {
-      hourlyRate: user.hourlyRate ?? 0,
-      federalStatus: user.federalStatus ?? "S",
-      stateStatus: user.stateStatus ?? "S-00",
-      federalTaxPercent: user.federalTaxPercent ?? 0,
-      stateTaxPercent: user.stateTaxPercent ?? 0,
-      otherDeductionMonthly: user.otherDeductionMonthly ?? 0,
-    },
-  });
+  const breakdown = calculatePositionPayBreakdown(
+    entries.map((entry) => ({
+      positionId: entry.positionId,
+      workedMinutes: calcWorkedMinutes({ punchIn: entry.punchIn, punchOut: entry.punchOut, breaks: entry.breaks }),
+    })),
+    positions,
+  );
 
   return NextResponse.json({
     month: periodKey,
     start,
     end,
-    workedMinutes: totalWorkedMinutes,
-    estimate,
+    workedMinutes: breakdown.workedMinutes,
+    estimate: grossOnlyEstimate(breakdown.grossPay),
+    byPosition: breakdown.lines,
   });
-}
-
-function toMinutes(value: string): number {
-  const [h, m] = value.split(":").map(Number);
-  if (!Number.isFinite(h) || !Number.isFinite(m)) return 0;
-  return h * 60 + m;
 }

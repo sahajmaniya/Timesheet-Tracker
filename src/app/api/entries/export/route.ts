@@ -1,10 +1,12 @@
 import { endOfMonth, format, startOfMonth } from "date-fns";
 import { getServerAuthSession } from "@/lib/auth";
 import { buildDownloadFilename } from "@/lib/downloads";
+import { calculatePositionPayBreakdown } from "@/lib/payroll";
 import { finalizeApiTimer, startApiTimer } from "@/lib/perf";
+import { ensureUserPositions } from "@/lib/positions";
 import { prisma } from "@/lib/prisma";
 import { clientIpFromHeaders, enforceRateLimit } from "@/lib/security";
-import { calcBreakMinutes, calcWorkedMinutes, formatTime12h, minutesToTenthsDecimal } from "@/lib/time";
+import { calcBreakMinutes, calcWorkedMinutes, entryTenths, formatTime12h } from "@/lib/time";
 import { dateRangeQuerySchema, monthQuerySchema } from "@/lib/validators";
 
 export async function GET(request: Request) {
@@ -50,11 +52,21 @@ export async function GET(request: Request) {
   const monthDate = parsedMonth ? new Date(`${parsedMonth.data}-01T00:00:00`) : null;
   const start = parsedRange?.data.start ?? format(startOfMonth(monthDate!), "yyyy-MM-dd");
   const end = parsedRange?.data.end ?? format(endOfMonth(monthDate!), "yyyy-MM-dd");
+  const allPositions = await ensureUserPositions(session.user.id);
+  const positionId = searchParams.get("positionId") || undefined;
+  const scopedPosition = positionId ? allPositions.find((position) => position.id === positionId) : undefined;
+  if (positionId && !scopedPosition) {
+    return finalizeApiTimer(new Response("Position not found", { status: 404 }), "entries.export", startedAt);
+  }
+  const positions = scopedPosition ? [scopedPosition] : allPositions;
+  const positionNameById = new Map(allPositions.map((position) => [position.id, position.name]));
+  const positionRoleById = new Map(allPositions.map((position) => [position.id, position.role]));
   const periodLabel = parsedRange?.data ? `${start}_to_${end}` : parsedMonth!.data;
 
   const entries = await prisma.timeEntry.findMany({
     where: {
       userId: session.user.id,
+      positionId,
       date: { gte: start, lte: end },
     },
     include: {
@@ -62,13 +74,12 @@ export async function GET(request: Request) {
     },
     orderBy: { date: "asc" },
   });
-  const user = await prisma.user.findUnique({
-    where: { id: session.user.id },
-    select: { hourlyRate: true },
-  });
+
+  const csvText = (value: string) => `"${value.replaceAll('"', '""')}"`;
 
   const header = [
     "Date",
+    "Position",
     "Punch In",
     "Punch Out",
     "Breaks",
@@ -81,6 +92,8 @@ export async function GET(request: Request) {
   let totalMinutes = 0;
   let totalDecimal = 0;
 
+  const pricedEntries: { positionId: string; workedMinutes: number }[] = [];
+  const tenthsByPosition = new Map<string, number>();
   const rows = entries.map((entry) => {
     const breakMinutes = calcBreakMinutes(entry.breaks);
     const workedMinutes = calcWorkedMinutes({
@@ -88,9 +101,11 @@ export async function GET(request: Request) {
       punchOut: entry.punchOut,
       breaks: entry.breaks,
     });
-    const workedDecimal = minutesToTenthsDecimal(workedMinutes);
+    const workedDecimal = entryTenths(entry, positionRoleById.get(entry.positionId));
     totalMinutes += workedMinutes;
     totalDecimal += workedDecimal;
+    pricedEntries.push({ positionId: entry.positionId, workedMinutes });
+    tenthsByPosition.set(entry.positionId, (tenthsByPosition.get(entry.positionId) ?? 0) + workedDecimal);
 
     const breaksText = entry.breaks
       .map((item) => `${formatTime12h(item.start)}-${formatTime12h(item.end)}`)
@@ -99,6 +114,7 @@ export async function GET(request: Request) {
 
     return [
       entry.date,
+      csvText(positionNameById.get(entry.positionId) ?? ""),
       formatTime12h(entry.punchIn),
       formatTime12h(entry.punchOut),
       `"${breaksText}"`,
@@ -115,18 +131,23 @@ export async function GET(request: Request) {
     "",
     "",
     "",
+    "",
     String(totalMinutes),
     totalDecimal.toFixed(1),
     "\"\"",
   ].join(",");
 
-  const hourlyRate = Math.max(user?.hourlyRate ?? 0, 0);
-  const totalGrossPay = (totalMinutes / 60) * hourlyRate;
+  const pay = calculatePositionPayBreakdown(pricedEntries, positions);
   const summaryRows = [
     "",
     `"Summary"`,
-    `"Hourly Rate (USD)","$${hourlyRate.toFixed(2)}"`,
-    `"Total Gross Pay (${periodLabel})","$${totalGrossPay.toFixed(2)}"`,
+    ...pay.lines
+      .filter((line) => line.workedMinutes > 0 || positions.length === 1)
+      .map(
+        (line) =>
+          `${csvText(line.name)},"${(tenthsByPosition.get(line.positionId) ?? 0).toFixed(1)} hrs","$${line.hourlyRate.toFixed(2)}/hr","$${line.grossPay.toFixed(2)}"`,
+      ),
+    `"Total Gross Pay (${periodLabel})","$${pay.grossPay.toFixed(2)}"`,
   ];
 
   const csv = [header.join(","), ...rows, totalsRow, ...summaryRows].join("\n");
