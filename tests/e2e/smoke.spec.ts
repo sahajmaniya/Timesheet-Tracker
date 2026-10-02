@@ -3,8 +3,8 @@ import { expect, test } from "@playwright/test";
 test.describe("Public smoke", () => {
   test("landing page renders primary CTA", async ({ page }) => {
     await page.goto("/");
-    await expect(page.getByRole("heading", { name: /Timesheets That Feel Fast/i })).toBeVisible();
-    await expect(page.getByRole("link", { name: /Create Account/i })).toBeVisible();
+    await expect(page.getByRole("heading", { name: /Modern Timesheet Tracking/i })).toBeVisible();
+    await expect(page.getByRole("link", { name: /Create Account/i }).first()).toBeVisible();
   });
 
   test("protected routes redirect to sign in when unauthenticated", async ({ page }) => {
