@@ -43,7 +43,7 @@ export default async function SignUpPage() {
           <p className="max-w-lg text-sm leading-7 text-slate-600 sm:text-base dark:text-slate-300">
             Set up your account once and start managing daily entries, monthly totals, and export-ready timesheets with a cleaner workflow.
           </p>
-          <div className="grid gap-3 md:grid-cols-3">
+          <div className="hidden gap-3 sm:grid md:grid-cols-3">
             <div className="rounded-2xl border border-cyan-300/35 bg-gradient-to-r from-white/85 to-cyan-50/60 p-4 text-sm text-slate-700 dark:border-cyan-800/35 dark:from-slate-900/75 dark:to-cyan-950/20 dark:text-slate-200">
               <CalendarClock className="mb-2 h-4 w-4 text-cyan-700 dark:text-cyan-300" />
               Daily punch flow
