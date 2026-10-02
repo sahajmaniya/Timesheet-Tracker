@@ -2,7 +2,9 @@ import { describe, expect, it } from "vitest";
 import {
   monthQuerySchema,
   payrollPeriodSchema,
+  positionSchema,
   signupSchema,
+  timeEntrySchema,
   timesheetCalibrationSchema,
   workScheduleSchema,
 } from "@/lib/validators";
@@ -97,5 +99,20 @@ describe("validators", () => {
     if (!parsed.success) {
       expect(parsed.error.issues[0]?.message).toBe("Break end must be after break start");
     }
+  });
+
+  it("validates positions", () => {
+    const valid = { name: "CS Lab ISA", role: "instructional_student_assistant", hourlyRate: 22.5, workSchedule: DEFAULT_WORK_SCHEDULE };
+    expect(positionSchema.safeParse(valid).success).toBe(true);
+    expect(positionSchema.safeParse({ ...valid, role: "manager" }).success).toBe(false);
+    expect(positionSchema.safeParse({ ...valid, name: "x" }).success).toBe(false);
+    expect(positionSchema.safeParse({ ...valid, hourlyRate: -1 }).success).toBe(false);
+  });
+
+  it("accepts time entries with or without a position", () => {
+    const entry = { date: "2026-10-02", punchIn: "09:00", punchOut: "13:00", breaks: [] };
+    expect(timeEntrySchema.safeParse(entry).success).toBe(true);
+    expect(timeEntrySchema.safeParse({ ...entry, positionId: "pos_123" }).success).toBe(true);
+    expect(timeEntrySchema.safeParse({ ...entry, positionId: "" }).success).toBe(false);
   });
 });

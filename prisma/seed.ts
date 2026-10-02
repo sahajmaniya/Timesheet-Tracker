@@ -16,6 +16,12 @@ async function main() {
     create: { email, password: hash, name: "Demo User" },
   });
 
+  const position =
+    (await prisma.position.findFirst({ where: { userId: user.id }, orderBy: { createdAt: "asc" } })) ??
+    (await prisma.position.create({
+      data: { userId: user.id, name: "Student Assistant", role: "student_assistant", hourlyRate: 18 },
+    }));
+
   const now = new Date();
   const year = now.getFullYear();
   const month = now.getMonth() + 1;
@@ -23,10 +29,11 @@ async function main() {
   for (let d = 1; d <= 10; d++) {
     const date = `${year}-${pad(month)}-${pad(d)}`;
     await prisma.timeEntry.upsert({
-      where: { userId_date: { userId: user.id, date } },
+      where: { userId_positionId_date: { userId: user.id, positionId: position.id, date } },
       update: {},
       create: {
         userId: user.id,
+        positionId: position.id,
         date,
         punchIn: "09:00",
         punchOut: "13:30",

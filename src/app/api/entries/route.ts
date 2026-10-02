@@ -2,7 +2,9 @@ import { startOfMonth, endOfMonth, format } from "date-fns";
 import { NextResponse } from "next/server";
 import { getServerAuthSession } from "@/lib/auth";
 import { serializeEntry } from "@/lib/entries";
+import { findSameDayConflict } from "@/lib/entry-conflicts";
 import { finalizeApiTimer, startApiTimer } from "@/lib/perf";
+import { resolvePositionForUser } from "@/lib/positions";
 import { prisma } from "@/lib/prisma";
 import { validateChronology } from "@/lib/time";
 import { monthQuerySchema, timeEntrySchema } from "@/lib/validators";
@@ -29,16 +31,18 @@ export async function GET(request: Request) {
   const monthDate = new Date(`${parsedMonth.data}-01T00:00:00`);
   const start = format(startOfMonth(monthDate), "yyyy-MM-dd");
   const end = format(endOfMonth(monthDate), "yyyy-MM-dd");
+  const positionId = searchParams.get("positionId") || undefined;
 
   const entries = await prisma.timeEntry.findMany({
     where: {
       userId: session.user.id,
+      positionId,
       date: {
         gte: start,
         lte: end,
       },
     },
-    include: { breaks: { orderBy: { start: "asc" } } },
+    include: { breaks: { orderBy: { start: "asc" } }, position: { select: { role: true } } },
     orderBy: { date: "asc" },
   });
 
@@ -73,25 +77,25 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: chronologyError }, { status: 400 });
     }
 
-    const existing = await prisma.timeEntry.findUnique({
-      where: {
-        userId_date: {
-          userId: session.user.id,
-          date: parsed.data.date,
-        },
-      },
-    });
+    const position = await resolvePositionForUser(session.user.id, parsed.data.positionId);
+    if (!position) {
+      return NextResponse.json({ error: "Position not found." }, { status: 400 });
+    }
 
-    if (existing) {
-      return NextResponse.json(
-        { error: "An entry for this date already exists. Edit it instead." },
-        { status: 409 },
-      );
+    const conflict = await findSameDayConflict({
+      userId: session.user.id,
+      positionId: position.id,
+      date: parsed.data.date,
+      shift: parsed.data,
+    });
+    if (conflict) {
+      return NextResponse.json({ error: conflict.error }, { status: conflict.status });
     }
 
     const created = await prisma.timeEntry.create({
       data: {
         userId: session.user.id,
+        positionId: position.id,
         date: parsed.data.date,
         punchIn: parsed.data.punchIn,
         punchOut: parsed.data.punchOut,
@@ -100,7 +104,7 @@ export async function POST(request: Request) {
           create: parsed.data.breaks.map((item) => ({ start: item.start, end: item.end })),
         },
       },
-      include: { breaks: { orderBy: { start: "asc" } } },
+      include: { breaks: { orderBy: { start: "asc" } }, position: { select: { role: true } } },
     });
 
     return NextResponse.json({ entry: serializeEntry(created) }, { status: 201 });
@@ -126,10 +130,12 @@ export async function DELETE(request: Request) {
   const monthDate = new Date(`${parsedMonth.data}-01T00:00:00`);
   const start = format(startOfMonth(monthDate), "yyyy-MM-dd");
   const end = format(endOfMonth(monthDate), "yyyy-MM-dd");
+  const positionId = searchParams.get("positionId") || undefined;
 
   const result = await prisma.timeEntry.deleteMany({
     where: {
       userId: session.user.id,
+      positionId,
       date: {
         gte: start,
         lte: end,

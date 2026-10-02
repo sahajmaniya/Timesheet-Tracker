@@ -7,6 +7,7 @@ const START_KEYS = ["Start Time", "Start", "Punch In", "punchIn"];
 const END_KEYS = ["End Time", "End", "Punch Out", "punchOut"];
 const BREAK_START_KEYS = ["Break Start", "Break Start Time", "breakStart"];
 const BREAK_END_KEYS = ["Break End", "Break End Time", "breakEnd"];
+const NOTES_KEYS = ["Notes", "Note", "notes", "Description"];
 
 function pickValue(row: Record<string, unknown>, keys: string[]) {
   for (const key of keys) {
@@ -114,7 +115,7 @@ export function parseTimesheetWorkbook(buffer: Buffer): ImportedSheetEntry[] {
         punchIn,
         punchOut,
         breaks: breakStart && breakEnd ? [{ start: breakStart, end: breakEnd }] : [],
-        notes: `Imported from ${sheetName}`,
+        notes: String(pickValue(row, NOTES_KEYS) ?? "").trim() || `Imported from ${sheetName}`,
         sheetName,
       });
     }

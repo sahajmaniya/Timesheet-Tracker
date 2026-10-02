@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { getServerAuthSession } from "@/lib/auth";
 import { serializeEntry } from "@/lib/entries";
+import { findSameDayConflict } from "@/lib/entry-conflicts";
+import { resolvePositionForUser } from "@/lib/positions";
 import { prisma } from "@/lib/prisma";
 import { validateChronology } from "@/lib/time";
 import { timeEntrySchema } from "@/lib/validators";
@@ -16,7 +18,7 @@ export async function GET(_: Request, { params }: Params) {
   const { id } = await params;
   const entry = await prisma.timeEntry.findFirst({
     where: { id, userId: session.user.id },
-    include: { breaks: { orderBy: { start: "asc" } } },
+    include: { breaks: { orderBy: { start: "asc" } }, position: { select: { role: true } } },
   });
 
   if (!entry) {
@@ -57,24 +59,31 @@ export async function PATCH(request: Request, { params }: Params) {
       return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
 
-    const duplicateDate = await prisma.timeEntry.findFirst({
-      where: {
-        userId: session.user.id,
-        date: parsed.data.date,
-        id: { not: id },
-      },
-    });
+    // Omitting positionId keeps the entry's current position.
+    let positionId = current.positionId;
+    if (parsed.data.positionId && parsed.data.positionId !== current.positionId) {
+      const position = await resolvePositionForUser(session.user.id, parsed.data.positionId);
+      if (!position) {
+        return NextResponse.json({ error: "Position not found." }, { status: 400 });
+      }
+      positionId = position.id;
+    }
 
-    if (duplicateDate) {
-      return NextResponse.json(
-        { error: "An entry for this date already exists." },
-        { status: 409 },
-      );
+    const conflict = await findSameDayConflict({
+      userId: session.user.id,
+      positionId,
+      date: parsed.data.date,
+      shift: parsed.data,
+      excludeEntryId: id,
+    });
+    if (conflict) {
+      return NextResponse.json({ error: conflict.error }, { status: conflict.status });
     }
 
     const updated = await prisma.timeEntry.update({
       where: { id },
       data: {
+        positionId,
         date: parsed.data.date,
         punchIn: parsed.data.punchIn,
         punchOut: parsed.data.punchOut,
@@ -87,7 +96,7 @@ export async function PATCH(request: Request, { params }: Params) {
           })),
         },
       },
-      include: { breaks: { orderBy: { start: "asc" } } },
+      include: { breaks: { orderBy: { start: "asc" } }, position: { select: { role: true } } },
     });
 
     return NextResponse.json({ entry: serializeEntry(updated) });

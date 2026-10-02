@@ -91,3 +91,52 @@ export function addMinutesToHHmm(time: string, delta: number) {
   const nextM = String(date.getMinutes()).padStart(2, "0");
   return `${nextH}:${nextM}`;
 }
+
+/** Worked intervals of a shift (minutes since midnight), i.e. the shift minus its breaks. */
+export function workedSegments(entry: { punchIn: string; punchOut: string; breaks: { start: string; end: string }[] }) {
+  const toMinutes = (time: string) => minutesBetween("00:00", time);
+  const sortedBreaks = [...entry.breaks]
+    .map((item) => ({ start: toMinutes(item.start), end: toMinutes(item.end) }))
+    .filter((item) => item.end > item.start)
+    .sort((a, b) => a.start - b.start);
+
+  const segments: { start: number; end: number }[] = [];
+  let cursor = toMinutes(entry.punchIn);
+  const shiftEnd = toMinutes(entry.punchOut);
+  for (const item of sortedBreaks) {
+    if (item.start > cursor) segments.push({ start: cursor, end: Math.min(item.start, shiftEnd) });
+    cursor = Math.max(cursor, item.end);
+  }
+  if (shiftEnd > cursor) segments.push({ start: cursor, end: shiftEnd });
+  return segments.filter((segment) => segment.end > segment.start);
+}
+
+/** True when two shifts have overlapping worked time (touching end/start is fine). */
+export function shiftsOverlap(
+  a: { punchIn: string; punchOut: string; breaks: { start: string; end: string }[] },
+  b: { punchIn: string; punchOut: string; breaks: { start: string; end: string }[] },
+) {
+  const bSegments = workedSegments(b);
+  return workedSegments(a).some((x) => bSegments.some((y) => x.start < y.end && y.start < x.end));
+}
+
+/**
+ * ISA timesheets: each separate work session is converted to tenths with the
+ * voucher table, then summed (e.g. 1h24m + 45m → 1.4 + 0.8 = 2.2).
+ */
+export function sessionTenthsTotal(entry: { punchIn: string; punchOut: string; breaks: { start: string; end: string }[] }) {
+  const tenths = workedSegments(entry).reduce(
+    (sum, segment) => sum + Math.round(minutesToTenthsDecimal(segment.end - segment.start) * 10),
+    0,
+  );
+  return tenths / 10;
+}
+
+/** Day hours in tenths as the position's voucher counts them. */
+export function entryTenths(
+  entry: { punchIn: string; punchOut: string; breaks: { start: string; end: string }[] },
+  role?: string | null,
+) {
+  if (role === "instructional_student_assistant") return sessionTenthsTotal(entry);
+  return minutesToTenthsDecimal(calcWorkedMinutes(entry));
+}

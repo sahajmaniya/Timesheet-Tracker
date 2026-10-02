@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { getServerAuthSession } from "@/lib/auth";
+import { findSameDayConflict } from "@/lib/entry-conflicts";
 import { parseTimesheetWorkbook } from "@/lib/excel-import";
+import { resolvePositionForUser } from "@/lib/positions";
 import { prisma } from "@/lib/prisma";
 import { clientIpFromHeaders, enforceRateLimit } from "@/lib/security";
 import { validateChronology } from "@/lib/time";
@@ -35,6 +37,11 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Please upload an .xlsx file." }, { status: 400 });
     }
 
+    const position = await resolvePositionForUser(session.user.id, String(formData.get("positionId") ?? "").trim() || null);
+    if (!position) {
+      return NextResponse.json({ error: "Position not found." }, { status: 400 });
+    }
+
     const arrayBuffer = await file.arrayBuffer();
     const entries = parseTimesheetWorkbook(Buffer.from(arrayBuffer));
 
@@ -58,14 +65,28 @@ export async function POST(request: Request) {
 
       const existing = await prisma.timeEntry.findUnique({
         where: {
-          userId_date: {
+          userId_positionId_date: {
             userId: session.user.id,
+            positionId: position.id,
             date: entry.date,
           },
         },
       });
 
       if (existing && mode === "skip") {
+        skipped += 1;
+        continue;
+      }
+
+      // Rows that overlap another position's shift that day are skipped.
+      const conflict = await findSameDayConflict({
+        userId: session.user.id,
+        positionId: position.id,
+        date: entry.date,
+        shift: entry,
+        excludeEntryId: existing?.id,
+      });
+      if (conflict) {
         skipped += 1;
         continue;
       }
@@ -88,6 +109,7 @@ export async function POST(request: Request) {
         await prisma.timeEntry.create({
           data: {
             userId: session.user.id,
+            positionId: position.id,
             date: entry.date,
             punchIn: entry.punchIn,
             punchOut: entry.punchOut,
