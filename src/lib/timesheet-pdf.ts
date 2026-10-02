@@ -1,7 +1,7 @@
 import { PDFDocument, StandardFonts, degrees, rgb } from "pdf-lib";
-import { addDays, differenceInCalendarDays, format, parseISO } from "date-fns";
+import { addDays, addMonths, differenceInCalendarDays, eachDayOfInterval, format, parseISO } from "date-fns";
 import type { Break } from "@prisma/client";
-import { calcWorkedMinutes, minutesToTenthsDecimal } from "@/lib/time";
+import { calcWorkedMinutes, minutesToTenthsDecimal, sessionTenthsTotal } from "@/lib/time";
 import { getTimesheetTemplate, type TimesheetRole } from "@/lib/timesheet-templates";
 
 type EntryForPdf = {
@@ -33,6 +33,73 @@ export const DEFAULT_TIMESHEET_CALIBRATION: TimesheetCalibration = {
   dateShiftX: 0,
   dateShiftY: 0,
 };
+
+/** Raised when entries fall on dates the voucher has no row for. */
+export class TimesheetPlacementError extends Error {
+  constructor(public readonly dates: string[]) {
+    super(
+      `These dates don't fit on this voucher: ${dates.join(", ")}. ` +
+        "An ISA voucher covers one month plus the previous month's 31st and the next month's 1st.",
+    );
+    this.name = "TimesheetPlacementError";
+  }
+}
+
+/**
+ * The month a fixed-row voucher is for: the selected month, or for a payroll
+ * period the month holding most of its days (e.g. Jul 31–Aug 31 → August).
+ */
+export function getVoucherMonth(month: string, periodStart?: string, periodEnd?: string) {
+  if (!periodStart || !periodEnd) return month;
+  const daysByMonth = new Map<string, number>();
+  for (const day of eachDayOfInterval({ start: parseISO(periodStart), end: parseISO(periodEnd) })) {
+    const key = format(day, "yyyy-MM");
+    daysByMonth.set(key, (daysByMonth.get(key) ?? 0) + 1);
+  }
+  let best = month;
+  let bestCount = -1;
+  for (const [key, count] of daysByMonth) {
+    if (count >= bestCount) {
+      best = key;
+      bestCount = count;
+    }
+  }
+  return best;
+}
+
+/**
+ * Row slot on the ISA voucher. Columns hold [prev-month 31, 1–10], [11–21],
+ * [22–31, next-month 1]; returns null for dates the voucher cannot show.
+ */
+export function getFixedDaySlotIndex(date: string, voucherMonth: string) {
+  const monthStart = parseISO(`${voucherMonth}-01`);
+  const day = Number(date.slice(8, 10));
+  const dateMonth = date.slice(0, 7);
+
+  if (dateMonth === voucherMonth) {
+    if (day <= 10) return { columnIndex: 0, rowIndex: day };
+    if (day <= 21) return { columnIndex: 1, rowIndex: day - 11 };
+    return { columnIndex: 2, rowIndex: day - 22 };
+  }
+  if (dateMonth === format(addMonths(monthStart, -1), "yyyy-MM") && day === 31) {
+    return { columnIndex: 0, rowIndex: 0 };
+  }
+  if (dateMonth === format(addMonths(monthStart, 1), "yyyy-MM") && day === 1) {
+    return { columnIndex: 2, rowIndex: 10 };
+  }
+  return null;
+}
+
+/** Splits a tenths value for the HOURS / 10ths boxes: 1.3 → "1.0" + ".3", 3 → "3.0" + none. */
+export function splitHoursAndTenths(hoursInTenths: number) {
+  const totalTenths = Math.round(hoursInTenths * 10);
+  const wholeHours = Math.floor(totalTenths / 10);
+  const tenths = totalTenths % 10;
+  return {
+    hours: wholeHours > 0 ? `${wholeHours}.0` : null,
+    tenths: tenths > 0 ? `.${tenths}` : null,
+  };
+}
 
 type TemplateDateCell = {
   date: string;
@@ -268,33 +335,46 @@ export async function fillTimesheetPdfTemplate({
   const weeklyTenthsByWeek = new Map<number, number>();
   let monthlyTenths = 0;
 
-  const getFixedDaySlot = (date: string) => {
-    const fixed = template.layout.fixedDaySlotMapping;
-    if (!fixed?.enabled) return null;
-    const day = Number(date.slice(-2));
-    if (!Number.isFinite(day) || day < 1 || day > 31) return null;
-
-    let columnIndex = 0;
-    let rowIndex = 0;
-    if (day <= 10) {
-      columnIndex = 0;
-      rowIndex = day;
-    } else if (day <= 21) {
-      columnIndex = 1;
-      rowIndex = day - 11;
-    } else {
-      columnIndex = 2;
-      rowIndex = day - 22;
-    }
-
-    const baseX = fixed.columnBaseX[columnIndex];
-    const textY = fixed.firstRowTextY - rowIndex * fixed.rowStepY;
-    return { baseX, textY };
-  };
+  const fixedSlots = useFixedDaySlots ? template.layout.fixedDaySlotMapping : undefined;
+  const voucherMonth = getVoucherMonth(month, periodStart, periodEnd);
+  const unplacedDates: string[] = [];
 
   for (const entry of entries) {
-    const fixedSlot = useFixedDaySlots ? getFixedDaySlot(entry.date) : null;
-    const cell = fixedSlot ? { x: fixedSlot.baseX, y: fixedSlot.textY - template.layout.topRowOffsetY, week: 0 } : cells.find((item) => item.date === entry.date);
+    if (fixedSlots) {
+      const slot = getFixedDaySlotIndex(entry.date, voucherMonth);
+      if (!slot) {
+        unplacedDates.push(entry.date);
+        continue;
+      }
+      const dayTenths = sessionTenthsTotal({
+        punchIn: entry.punchIn,
+        punchOut: entry.punchOut,
+        breaks: entry.breaks.filter((item) => isHHmm(item.start) && isHHmm(item.end)),
+      });
+      monthlyTenths += dayTenths;
+
+      const { hours, tenths } = splitHoursAndTenths(dayTenths);
+      const y = fixedSlots.firstRowTextY - slot.rowIndex * fixedSlots.rowStepY + activeCalibration.shiftY;
+      const boxes: Array<[string | null, number]> = [
+        [hours, fixedSlots.hoursCenterX[slot.columnIndex]],
+        [tenths, fixedSlots.tenthsCenterX[slot.columnIndex]],
+      ];
+      for (const [text, centerX] of boxes) {
+        if (!text) continue;
+        const textWidth = font.widthOfTextAtSize(text, fixedSlots.textSize);
+        drawText({
+          text,
+          x: centerX - textWidth / 2 + activeCalibration.shiftX,
+          y,
+          size: fixedSlots.textSize,
+          drawFont: font,
+          drawColor: color,
+        });
+      }
+      continue;
+    }
+
+    const cell = cells.find((item) => item.date === entry.date);
     if (!cell) continue;
 
     const safeBreaks = entry.breaks.filter((item) => isHHmm(item.start) && isHHmm(item.end));
@@ -314,31 +394,19 @@ export async function fillTimesheetPdfTemplate({
     const dayTenths = minutesToTenthsDecimal(workedMinutesTotal);
     const topTenths = lunch ? minutesToTenthsDecimal(topWorked) : dayTenths;
     const bottomTenths = lunch ? Math.max(0, Number((dayTenths - topTenths).toFixed(1))) : 0;
-    if (!useFixedDaySlots) {
-      weeklyTenthsByWeek.set(cell.week, (weeklyTenthsByWeek.get(cell.week) ?? 0) + dayTenths);
-    }
+    weeklyTenthsByWeek.set(cell.week, (weeklyTenthsByWeek.get(cell.week) ?? 0) + dayTenths);
     monthlyTenths += dayTenths;
 
     // Template row layout:
     // - date/day row in the middle
     // - first (top) work segment above that row
     // - second (bottom) work segment below that row
-    const topY = fixedSlot
-      ? fixedSlot.textY + activeCalibration.shiftY
-      : (cell.y + template.layout.topRowOffsetY) * yScale + activeCalibration.shiftY;
+    const topY = (cell.y + template.layout.topRowOffsetY) * yScale + activeCalibration.shiftY;
     const bottomY = (cell.y + template.layout.bottomRowOffsetY) * yScale + activeCalibration.shiftY;
-    const textSize = fixedSlot
-      ? 10.1
-      : (role === "instructional_student_assistant" ? 10.1 : 7.8) * yScale;
-    const inCenterX = fixedSlot
-      ? cell.x + template.layout.inOffsetX + activeCalibration.shiftX
-      : (cell.x + template.layout.inOffsetX) * xScale + activeCalibration.shiftX;
-    const outCenterX = fixedSlot
-      ? cell.x + template.layout.outOffsetX + activeCalibration.shiftX
-      : (cell.x + template.layout.outOffsetX) * xScale + activeCalibration.shiftX;
-    const hoursCenterX = fixedSlot
-      ? cell.x + template.layout.hoursOffsetX + activeCalibration.shiftX
-      : (cell.x + template.layout.hoursOffsetX) * xScale + activeCalibration.shiftX;
+    const textSize = 7.8 * yScale;
+    const inCenterX = (cell.x + template.layout.inOffsetX) * xScale + activeCalibration.shiftX;
+    const outCenterX = (cell.x + template.layout.outOffsetX) * xScale + activeCalibration.shiftX;
+    const hoursCenterX = (cell.x + template.layout.hoursOffsetX) * xScale + activeCalibration.shiftX;
     const drawCenteredAt = ({
       text,
       centerX,
@@ -432,6 +500,26 @@ export async function fillTimesheetPdfTemplate({
     }
   }
 
+  if (unplacedDates.length > 0) {
+    throw new TimesheetPlacementError(unplacedDates);
+  }
+
+  const payPeriod = template.layout.payPeriodField;
+  if (payPeriod && pageRotation === 0) {
+    const { clearRect, background } = payPeriod;
+    page.drawRectangle({ ...clearRect, color: rgb(...background) });
+    const payPeriodText = format(parseISO(`${voucherMonth}-01`), "MM/yy");
+    const textWidth = bold.widthOfTextAtSize(payPeriodText, payPeriod.size);
+    drawText({
+      text: payPeriodText,
+      x: payPeriod.centerX - textWidth / 2,
+      y: payPeriod.baselineY,
+      size: payPeriod.size,
+      drawFont: bold,
+      drawColor: rgb(0, 0, 0),
+    });
+  }
+
   // Weekly totals column (right side).
   const weeklyX = template.layout.weeklyTotalX * xScale + activeCalibration.shiftX + activeCalibration.totalsShiftX;
   if (showWeeklyTotals) {
@@ -462,12 +550,12 @@ export async function fillTimesheetPdfTemplate({
       { x: 540.52, y: 93.24 },
     ];
     for (const target of isaTotalCenters) {
-      const w = bold.widthOfTextAtSize(monthlyText, 10);
+      const w = bold.widthOfTextAtSize(monthlyText, 10.2);
       drawText({
         text: monthlyText,
         x: target.x - w / 2 + activeCalibration.shiftX + activeCalibration.totalsShiftX,
         y: target.y + activeCalibration.shiftY + activeCalibration.totalsShiftY,
-        size: 10,
+        size: 10.2,
         drawFont: bold,
         drawColor: color,
       });

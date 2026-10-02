@@ -10,6 +10,7 @@ export const breakSchema = z.object({
 });
 
 export const timeEntrySchema = z.object({
+  positionId: z.string().trim().min(1).optional(),
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Date must be YYYY-MM-DD"),
   punchIn: z.string().regex(hhmmRegex, "Time must be HH:mm"),
   punchOut: z.string().regex(hhmmRegex, "Time must be HH:mm"),
@@ -123,6 +124,15 @@ export const workScheduleSchema = z.object({
   }
 });
 
+export const positionRoleSchema = z.enum(["student_assistant", "instructional_student_assistant"]);
+
+export const positionSchema = z.object({
+  name: z.string().trim().min(2, "Position name must be at least 2 characters").max(80),
+  role: positionRoleSchema,
+  hourlyRate: z.number().min(0, "Hourly rate must be 0 or more").max(1000, "Hourly rate is too high"),
+  workSchedule: workScheduleSchema,
+});
+
 export const payrollProfileSchema = z.object({
   hourlyRate: z.number().min(0, "Hourly rate must be 0 or more").max(1000, "Hourly rate is too high"),
   federalStatus: z.string().trim().min(1).max(20),
@@ -172,3 +182,4 @@ export type ProfileUpdateInput = z.infer<typeof profileUpdateSchema>;
 export type TimesheetCalibrationInput = z.infer<typeof timesheetCalibrationSchema>;
 export type PayrollProfileInput = z.infer<typeof payrollProfileSchema>;
 export type PayrollPeriodInput = z.infer<typeof payrollPeriodSchema>;
+export type PositionInput = z.infer<typeof positionSchema>;

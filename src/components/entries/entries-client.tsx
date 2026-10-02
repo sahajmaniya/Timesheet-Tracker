@@ -1,10 +1,12 @@
 "use client";
 
 import { eachDayOfInterval, endOfMonth, format, getDay, isAfter, startOfMonth } from "date-fns";
+import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   AlertTriangle,
   BellRing,
+  Briefcase,
   CalendarCheck2,
   CalendarRange,
   CheckCircle2,
@@ -21,6 +23,7 @@ import {
 import { toast } from "sonner";
 import { EntryDialog } from "@/components/entries/entry-dialog";
 import { EntriesTable } from "@/components/entries/entries-table";
+import { usePositions } from "@/components/positions/use-positions";
 import { useConfirm } from "@/components/providers/confirm-provider";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -29,9 +32,9 @@ import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { buildDownloadFilename, getFilenameFromContentDisposition } from "@/lib/downloads";
 import { getUsFederalHolidayMap } from "@/lib/holidays";
-import { minutesToHM, minutesToTenthsDecimal } from "@/lib/time";
-import { DEFAULT_TIMESHEET_ROLE, timesheetRoleOptions, timesheetTemplates, type TimesheetRole } from "@/lib/timesheet-templates";
-import { DEFAULT_WORK_SCHEDULE, weekdayKeys, type WorkSchedule } from "@/lib/work-schedule";
+import { minutesToHM } from "@/lib/time";
+import { DEFAULT_TIMESHEET_ROLE, timesheetTemplates, type TimesheetRole } from "@/lib/timesheet-templates";
+import { weekdayKeys } from "@/lib/work-schedule";
 import type { TimeEntry } from "@/types/time-entry";
 import type { TimeEntryInput } from "@/lib/validators";
 
@@ -87,7 +90,7 @@ function sanitizePdfFilenameBase(value: string) {
 function EntriesTableSkeleton() {
   return (
     <div className="space-y-3" aria-hidden="true">
-      <div className="hidden overflow-hidden rounded-xl border border-border/70 bg-card md:block">
+      <div className="hidden overflow-hidden rounded-xl border border-border/70 bg-card lg:block">
         <div className="grid grid-cols-7 gap-4 border-b border-border/70 px-4 py-3">
           {Array.from({ length: 7 }).map((_, index) => (
             <div key={`head-${index}`} className="h-3 animate-pulse rounded bg-muted/70" />
@@ -114,7 +117,7 @@ function EntriesTableSkeleton() {
         </div>
       </div>
 
-      <div className="grid gap-3 md:hidden">
+      <div className="grid gap-3 lg:hidden">
         {Array.from({ length: 4 }).map((_, card) => (
           <div key={`mobile-${card}`} className="rounded-xl border border-border/70 bg-card/80 p-3">
             <div className="h-4 w-1/2 animate-pulse rounded bg-muted/70" />
@@ -144,7 +147,6 @@ export function EntriesClient() {
   const [importing, setImporting] = useState(false);
   const [timesheetTemplateFile, setTimesheetTemplateFile] = useState<File | null>(null);
   const [timesheetLayoutMode, setTimesheetLayoutMode] = useState<"auto" | "standard" | "carry">("auto");
-  const [timesheetRole, setTimesheetRole] = useState<TimesheetRole>(DEFAULT_TIMESHEET_ROLE);
   const [fillingPdf, setFillingPdf] = useState(false);
   const [deletingMonth, setDeletingMonth] = useState(false);
   const [showWalkthrough, setShowWalkthrough] = useState(false);
@@ -169,7 +171,9 @@ export function EntriesClient() {
   const [pendingLayoutMode, setPendingLayoutMode] = useState<"auto" | "standard" | "carry">("auto");
   const [recentActions, setRecentActions] = useState<{ id: number; label: string; at: string }[]>([]);
   const [holidayMap, setHolidayMap] = useState<Record<string, string>>({});
-  const [workSchedule, setWorkSchedule] = useState<WorkSchedule>(DEFAULT_WORK_SCHEDULE);
+  const { positions } = usePositions();
+  const [positionFilter, setPositionFilter] = useState("");
+  const [importPositionId, setImportPositionId] = useState("");
   const [payrollPeriods, setPayrollPeriods] = useState<PayrollPeriod[]>([]);
   const [selectedPayrollPeriodId, setSelectedPayrollPeriodId] = useState("");
   const [payrollPeriodLabel, setPayrollPeriodLabel] = useState("");
@@ -177,6 +181,22 @@ export function EntriesClient() {
   const [payrollPeriodEnd, setPayrollPeriodEnd] = useState(format(endOfMonth(new Date()), "yyyy-MM-dd"));
   const [savingPayrollPeriod, setSavingPayrollPeriod] = useState(false);
   const [payrollPeriodDialogOpen, setPayrollPeriodDialogOpen] = useState(false);
+  // With a single position everything is implicitly scoped to it.
+  const activePosition =
+    positions.length === 1 ? positions[0] : positions.find((position) => position.id === positionFilter) ?? null;
+  const activePositionId = activePosition?.id ?? null;
+  const scopedPositions = useMemo(
+    () => (activePosition ? [activePosition] : positions),
+    [activePosition, positions],
+  );
+  const positionNames = useMemo(
+    () => (positions.length > 1 ? Object.fromEntries(positions.map((position) => [position.id, position.name])) : undefined),
+    [positions],
+  );
+  const effectiveImportPositionId = positions.some((position) => position.id === importPositionId)
+    ? importPositionId
+    : activePositionId ?? positions[0]?.id ?? "";
+  const timesheetRole: TimesheetRole = activePosition?.role ?? DEFAULT_TIMESHEET_ROLE;
   const selectedTemplate = timesheetTemplates[timesheetRole];
   const selectedPayrollPeriod = useMemo(
     () => payrollPeriods.find((period) => period.id === selectedPayrollPeriodId) ?? null,
@@ -201,7 +221,8 @@ export function EntriesClient() {
   const fetchEntries = useCallback(async (signal?: AbortSignal) => {
     setLoading(true);
     try {
-      const res = await fetch(`/api/entries?month=${month}`, { signal });
+      const positionQuery = activePositionId ? `&positionId=${activePositionId}` : "";
+      const res = await fetch(`/api/entries?month=${month}${positionQuery}`, { signal });
       const body = await res.json();
       if (!res.ok) {
         toast.error(body.error || "Could not load entries");
@@ -215,7 +236,7 @@ export function EntriesClient() {
     } finally {
       setLoading(false);
     }
-  }, [month]);
+  }, [activePositionId, month]);
 
   const fetchPayrollPeriods = useCallback(async () => {
     try {
@@ -231,18 +252,6 @@ export function EntriesClient() {
     }
   }, []);
 
-  const fetchWorkSchedule = useCallback(async () => {
-    try {
-      const res = await fetch("/api/profile");
-      const body = await res.json().catch(() => ({}));
-      if (res.ok && body?.profile?.workSchedule) {
-        setWorkSchedule(body.profile.workSchedule as WorkSchedule);
-      }
-    } catch {
-      // The schedule is optional; use the empty default until Settings is configured.
-    }
-  }, []);
-
   useEffect(() => {
     const controller = new AbortController();
     fetchEntries(controller.signal);
@@ -254,8 +263,23 @@ export function EntriesClient() {
   }, [fetchPayrollPeriods]);
 
   useEffect(() => {
-    void fetchWorkSchedule();
-  }, [fetchWorkSchedule]);
+    try {
+      const savedFilter = window.localStorage.getItem("entries_position_filter");
+      if (savedFilter) setPositionFilter(savedFilter);
+    } catch {
+      // ignore storage issues
+    }
+  }, []);
+
+  const changePositionFilter = (nextId: string) => {
+    setPositionFilter(nextId);
+    setBulkSelectedIds([]);
+    try {
+      window.localStorage.setItem("entries_position_filter", nextId);
+    } catch {
+      // ignore storage issues
+    }
+  };
 
   useEffect(() => {
     try {
@@ -265,10 +289,6 @@ export function EntriesClient() {
       if (stepRaw) setWalkthroughStep(Math.max(0, Math.min(2, Number(stepRaw) || 0)));
       const previewPref = window.localStorage.getItem("entries_preview_pdf_before_download");
       if (previewPref === "false") setPreviewPdfBeforeDownload(false);
-      const rolePref = window.localStorage.getItem("entries_timesheet_role");
-      if (rolePref && rolePref in timesheetTemplates) {
-        setTimesheetRole(rolePref as TimesheetRole);
-      }
       const presetsRaw = window.localStorage.getItem("entries_pdf_presets");
       if (presetsRaw) {
         const parsedPresets = JSON.parse(presetsRaw) as PdfPreferencePreset[];
@@ -291,10 +311,11 @@ export function EntriesClient() {
     } catch {
       setShowWalkthrough(true);
     }
-  }, [month, timesheetRole]);
+  }, [month]);
 
   const restoreEntry = useCallback(async (entry: TimeEntry) => {
     const payload: TimeEntryInput = {
+      positionId: entry.positionId,
       date: entry.date,
       punchIn: entry.punchIn,
       punchOut: entry.punchOut,
@@ -333,12 +354,10 @@ export function EntriesClient() {
 
   const totals = useMemo(() => {
     const total = entries.reduce((sum, entry) => sum + entry.workedMinutes, 0);
-    const avg = entries.length ? Math.round(total / entries.length) : 0;
-    const totalDecimal = entries.reduce(
-      (sum, entry) => sum + minutesToTenthsDecimal(entry.workedMinutes),
-      0,
-    );
-    const avgDecimal = entries.length ? totalDecimal / entries.length : 0;
+    const daysWorked = new Set(entries.map((entry) => entry.date)).size;
+    const avg = daysWorked ? Math.round(total / daysWorked) : 0;
+    const totalDecimal = entries.reduce((sum, entry) => sum + entry.workedTenths, 0);
+    const avgDecimal = daysWorked ? totalDecimal / daysWorked : 0;
     return { total, avg, totalDecimal, avgDecimal };
   }, [entries]);
 
@@ -347,38 +366,40 @@ export function EntriesClient() {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const isCurrentMonth = format(today, "yyyy-MM") === month;
-    const loggedDates = new Set(entries.map((entry) => entry.date));
+    const logged = new Set(entries.map((entry) => `${entry.date}|${entry.positionId}`));
 
-    const expectedDates = eachDayOfInterval({
+    // Each scheduled position on each workday is one expected shift.
+    const expected = eachDayOfInterval({
       start: startOfMonth(monthDate),
       end: endOfMonth(monthDate),
     })
-      .filter((day) => {
+      .filter((day) => !isCurrentMonth || !isAfter(day, today))
+      .flatMap((day) => {
         const weekday = weekdayKeys[getDay(day)];
-        const isWorkday = Boolean(weekday && workSchedule[weekday]?.enabled);
-        if (!isWorkday) return false;
-        if (!isCurrentMonth) return true;
-        return !isAfter(day, today);
-      })
-      .map((day) => format(day, "yyyy-MM-dd"));
+        const date = format(day, "yyyy-MM-dd");
+        return scopedPositions
+          .filter((position) => position.workSchedule[weekday]?.enabled)
+          .map((position) => ({ date, position }));
+      });
 
-    const loggedExpected = expectedDates.filter((date) => loggedDates.has(date)).length;
-    const missing = expectedDates.filter((date) => !loggedDates.has(date));
-    const progress = expectedDates.length
-      ? Math.min(100, Math.round((loggedExpected / expectedDates.length) * 100))
+    const missing = expected.filter((item) => !logged.has(`${item.date}|${item.position.id}`));
+    const loggedExpected = expected.length - missing.length;
+    const progress = expected.length
+      ? Math.min(100, Math.round((loggedExpected / expected.length) * 100))
       : 100;
 
     return {
-      expectedCount: expectedDates.length,
+      hasSchedule: scopedPositions.some((position) => weekdayKeys.some((day) => position.workSchedule[day]?.enabled)),
+      expectedCount: expected.length,
       loggedExpected,
       missing,
       progress,
     };
-  }, [entries, month, workSchedule]);
+  }, [entries, month, scopedPositions]);
 
   const entriesByDate = useMemo(() => {
-    const map = new Map<string, TimeEntry>();
-    for (const entry of entries) map.set(entry.date, entry);
+    const map = new Map<string, TimeEntry[]>();
+    for (const entry of entries) map.set(entry.date, [...(map.get(entry.date) ?? []), entry]);
     return map;
   }, [entries]);
 
@@ -417,8 +438,8 @@ export function EntriesClient() {
     });
     return allDays.map((day) => {
       const date = format(day, "yyyy-MM-dd");
-      const entry = entriesByDate.get(date);
-      const workedMinutes = entry?.workedMinutes ?? 0;
+      const dayEntries = entriesByDate.get(date) ?? [];
+      const workedMinutes = dayEntries.reduce((sum, entry) => sum + entry.workedMinutes, 0);
       const intensity =
         workedMinutes === 0
           ? 0
@@ -432,7 +453,7 @@ export function EntriesClient() {
         dayLabel: format(day, "d"),
         weekday: getDay(day),
         intensity,
-        hasEntry: Boolean(entry),
+        hasEntry: dayEntries.length > 0,
         holidayName: holidayMap[date] ?? null,
       };
     });
@@ -583,15 +604,15 @@ export function EntriesClient() {
   const onExportCsv = useCallback(async () => {
     const ok = await confirmValidationForAction("with CSV export");
     if (!ok) return;
-    const exportQuery = selectedPayrollPeriod
+    const exportQuery = (selectedPayrollPeriod
       ? `start=${selectedPayrollPeriod.startDate}&end=${selectedPayrollPeriod.endDate}`
-      : `month=${month}`;
+      : `month=${month}`) + (activePositionId ? `&positionId=${activePositionId}` : "");
     window.open(`/api/entries/export?${exportQuery}`, "_blank");
     toast.success("CSV export started", {
       description: `Your ${selectedPayrollPeriod?.label ?? month} file opened in a new tab.`,
     });
     addRecentAction(`Exported CSV (${selectedPayrollPeriod?.label ?? month})`);
-  }, [addRecentAction, confirmValidationForAction, month, selectedPayrollPeriod]);
+  }, [activePositionId, addRecentAction, confirmValidationForAction, month, selectedPayrollPeriod]);
 
   const savePayrollPeriod = async () => {
     if (!payrollPeriodLabel.trim() || !payrollPeriodStart || !payrollPeriodEnd) {
@@ -649,6 +670,7 @@ export function EntriesClient() {
     const formData = new FormData();
     formData.append("file", importFile);
     formData.append("mode", importMode);
+    if (effectiveImportPositionId) formData.append("positionId", effectiveImportPositionId);
 
     setImporting(true);
     try {
@@ -685,7 +707,7 @@ export function EntriesClient() {
     }
 
     const preset: PdfPreferencePreset = {
-      id: `${timesheetRole}-${trimmed.toLowerCase().replace(/\s+/g, "-")}`,
+      id: trimmed.toLowerCase().replace(/\s+/g, "-"),
       name: trimmed,
       role: timesheetRole,
       layoutMode: timesheetLayoutMode,
@@ -707,12 +729,11 @@ export function EntriesClient() {
   const applyPreset = (presetId: string) => {
     const preset = savedPresets.find((item) => item.id === presetId);
     if (!preset) return;
-    setTimesheetRole(preset.role);
     setTimesheetLayoutMode(preset.layoutMode);
     setPreviewPdfBeforeDownload(preset.previewBeforeDownload);
     setPresetName(preset.name);
     toast.success(`Applied preset "${preset.name}".`, {
-      description: "Role, layout mode, and preview preference were updated.",
+      description: "Layout mode and preview preference were updated.",
     });
   };
 
@@ -743,7 +764,7 @@ export function EntriesClient() {
   };
 
   const autoFixValidation = async () => {
-    const fixable = entries.filter((entry) => validationIssues.some((issue) => issue.date === entry.date));
+    const fixable = entries.filter((entry) => validationIssues.some((issue) => issue.id.startsWith(`${entry.id}-`)));
     if (fixable.length === 0) {
       toast.message("No fixable issues found.");
       return;
@@ -863,16 +884,19 @@ export function EntriesClient() {
     setCreatingMissing(true);
     let created = 0;
     try {
-      for (const date of candidates) {
+      for (const { date, position } of candidates) {
+        const weekday = weekdayKeys[new Date(`${date}T00:00:00`).getDay()];
+        const daySchedule = position.workSchedule[weekday];
         const res = await fetch("/api/entries", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
+            positionId: position.id,
             date,
-            punchIn: "09:00",
-            punchOut: "13:00",
+            punchIn: daySchedule.start,
+            punchOut: daySchedule.end,
             notes: "Auto-created reminder entry",
-            breaks: [],
+            breaks: [{ start: daySchedule.breakStart, end: daySchedule.breakEnd }],
           }),
         });
         if (res.ok) created += 1;
@@ -903,10 +927,10 @@ export function EntriesClient() {
       { id: "template", label: "Blank PDF template uploaded", done: Boolean(timesheetTemplateFile) },
       { id: "entries", label: "At least one entry in selected month", done: entries.length > 0 },
       { id: "errors", label: "No critical validation errors", done: blockingValidationCount === 0 },
-      { id: "role", label: "Timesheet type selected", done: Boolean(timesheetRole) },
+      { id: "position", label: "Position selected (sets the timesheet type)", done: Boolean(activePosition) },
     ];
     return { items, allDone: items.every((item) => item.done) };
-  }, [blockingValidationCount, entries.length, timesheetRole, timesheetTemplateFile]);
+  }, [activePosition, blockingValidationCount, entries.length, timesheetTemplateFile]);
 
   const onFillTimesheetPdf = useCallback(async (layoutOverride?: "auto" | "standard" | "carry", bypassChecklist = false) => {
     const selectedLayoutMode = layoutOverride ?? timesheetLayoutMode;
@@ -916,6 +940,12 @@ export function EntriesClient() {
       return;
     }
 
+    if (!activePosition) {
+      toast.error("Choose a position first.", {
+        description: "Each position has its own timesheet. Pick one in the Position selector at the top.",
+      });
+      return;
+    }
     if (!timesheetTemplateFile) {
       toast.error("Select a blank timesheet PDF first.");
       return;
@@ -951,7 +981,7 @@ export function EntriesClient() {
       formData.append("periodEnd", selectedPayrollPeriod.endDate);
     }
     formData.append("layoutMode", selectedLayoutMode);
-    formData.append("timesheetRole", timesheetRole);
+    formData.append("positionId", activePosition.id);
     formData.append("generatedDate", format(new Date(), "M/d/yyyy"));
 
     setFillingPdf(true);
@@ -1023,11 +1053,11 @@ export function EntriesClient() {
       } catch {
         // ignore storage issues
       }
-      addRecentAction(`Generated ${timesheetTemplates[timesheetRole].label} PDF (${selectedPayrollPeriod?.label ?? month}, ${selectedLayoutMode})`);
+      addRecentAction(`Generated ${activePosition.name} PDF (${selectedPayrollPeriod?.label ?? month}, ${selectedLayoutMode})`);
     } finally {
       setFillingPdf(false);
     }
-  }, [addRecentAction, confirm, confirmValidationForAction, month, presetName, previewPdfBeforeDownload, selectedPayrollPeriod, timesheetLayoutMode, timesheetRole, timesheetTemplateFile]);
+  }, [activePosition, addRecentAction, confirm, confirmValidationForAction, month, presetName, previewPdfBeforeDownload, selectedPayrollPeriod, timesheetLayoutMode, timesheetRole, timesheetTemplateFile]);
 
   useEffect(() => {
     const onKeydown = (event: KeyboardEvent) => {
@@ -1071,7 +1101,9 @@ export function EntriesClient() {
 
     const ok = await confirm({
       title: "Delete All Entries (This Month)?",
-      description: `Delete all ${entries.length} entries for ${month}? This cannot be undone.`,
+      description: activePosition && positions.length > 1
+        ? `Delete all ${entries.length} ${activePosition.name} entries for ${month}? This cannot be undone.`
+        : `Delete all ${entries.length} entries for ${month}? This cannot be undone.`,
       confirmText: "Delete all",
       destructive: true,
     });
@@ -1079,7 +1111,8 @@ export function EntriesClient() {
 
     setDeletingMonth(true);
     try {
-      const res = await fetch(`/api/entries?month=${month}`, { method: "DELETE" });
+      const positionQuery = activePositionId ? `&positionId=${activePositionId}` : "";
+      const res = await fetch(`/api/entries?month=${month}${positionQuery}`, { method: "DELETE" });
       const body = await res.json().catch(() => ({}));
       if (!res.ok) {
         toast.error(body.error || "Could not delete month entries");
@@ -1115,8 +1148,9 @@ export function EntriesClient() {
     }
   };
 
+  // On phones the entries list comes right after the summary; analytics and tools follow (max-md:order-*).
   return (
-    <div className="space-y-6 pb-24 md:pb-0">
+    <div className="flex flex-col gap-6 pb-24 md:pb-0">
       {showWalkthrough && (
         <Card className="border-primary/25 bg-gradient-to-r from-primary/12 via-background to-sky-500/10">
           <CardHeader className="pb-2">
@@ -1187,6 +1221,38 @@ export function EntriesClient() {
         </Card>
       )}
 
+      {positions.length > 1 && (
+        <Card className="border-violet-500/25 bg-gradient-to-r from-violet-100/70 via-background to-indigo-100/60 dark:from-violet-500/12 dark:via-background dark:to-indigo-500/10">
+          <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
+            <div className="flex min-w-0 items-start gap-3">
+              <div className="rounded-xl bg-violet-600 p-2 text-white shadow-sm dark:bg-violet-400 dark:text-violet-950">
+                <Briefcase className="h-5 w-5" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-violet-950 dark:text-violet-50">Position</p>
+                <p className="mt-0.5 text-xs text-violet-800/80 dark:text-violet-100/75">
+                  {activePosition
+                    ? `Showing only ${activePosition.name}. CSV export and the PDF use its ${timesheetTemplates[activePosition.role].shortLabel} timesheet.`
+                    : "Showing all positions. Pick one to export its CSV or generate its timesheet PDF."}
+                </p>
+              </div>
+            </div>
+            <select
+              value={activePositionId ?? ""}
+              onChange={(e) => changePositionFilter(e.target.value)}
+              className="h-10 w-full rounded-md border border-violet-500/30 bg-background/90 px-3 text-sm font-medium sm:w-auto sm:min-w-[260px] dark:border-violet-300/25"
+            >
+              <option value="">All positions</option>
+              {positions.map((position) => (
+                <option key={position.id} value={position.id}>
+                  {position.name} · {timesheetTemplates[position.role].shortLabel}
+                </option>
+              ))}
+            </select>
+          </CardContent>
+        </Card>
+      )}
+
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <Card className="relative overflow-hidden border-border/70 bg-gradient-to-br from-sky-200/70 via-background to-cyan-200/60 shadow-[0_18px_40px_-24px_rgba(34,211,238,0.35)] dark:from-sky-500/15 dark:to-cyan-500/10 dark:shadow-[0_18px_40px_-24px_rgba(34,211,238,0.55)]">
           <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_16%_22%,rgba(56,189,248,0.2),transparent_52%)]" />
@@ -1228,18 +1294,29 @@ export function EntriesClient() {
         <Card className="relative overflow-hidden border-border/70 bg-gradient-to-br from-amber-200/60 via-background to-lime-100/65 shadow-[0_18px_40px_-24px_rgba(132,204,22,0.28)] dark:from-amber-500/12 dark:to-lime-500/10 dark:shadow-[0_18px_40px_-24px_rgba(132,204,22,0.45)]">
           <CardHeader className="relative pb-2">
             <CardDescription className="font-medium text-amber-700 dark:text-amber-100/80">Schedule progress</CardDescription>
-            <CardTitle className="text-2xl font-bold tracking-tight text-amber-900 dark:text-amber-100">
-              {scheduleStats.loggedExpected}/{scheduleStats.expectedCount}
-            </CardTitle>
-            <div className="mt-1 h-2 overflow-hidden rounded-full bg-amber-200/70 dark:bg-amber-200/15">
-              <div
-                className="h-full rounded-full bg-gradient-to-r from-amber-500 to-lime-500 transition-all"
-                style={{ width: `${scheduleStats.progress}%` }}
-              />
-            </div>
-            <p className="pt-1 text-xs font-medium text-amber-700/80 dark:text-amber-100/75">
-              {scheduleStats.progress}% of expected scheduled shifts logged
-            </p>
+            {scheduleStats.hasSchedule ? (
+              <>
+                <CardTitle className="text-2xl font-bold tracking-tight text-amber-900 dark:text-amber-100">
+                  {scheduleStats.loggedExpected}/{scheduleStats.expectedCount}
+                </CardTitle>
+                <div className="mt-1 h-2 overflow-hidden rounded-full bg-amber-200/70 dark:bg-amber-200/15">
+                  <div
+                    className="h-full rounded-full bg-gradient-to-r from-amber-500 to-lime-500 transition-all"
+                    style={{ width: `${scheduleStats.progress}%` }}
+                  />
+                </div>
+                <p className="pt-1 text-xs font-medium text-amber-700/80 dark:text-amber-100/75">
+                  {scheduleStats.progress}% of scheduled shifts logged
+                </p>
+              </>
+            ) : (
+              <>
+                <CardTitle className="text-xl font-bold tracking-tight text-amber-900 dark:text-amber-100">No schedule set</CardTitle>
+                <p className="pt-1 text-xs font-medium text-amber-700/80 dark:text-amber-100/75">
+                  <Link href="/settings" className="underline underline-offset-2">Add your regular days in Settings</Link> to track missed shifts.
+                </p>
+              </>
+            )}
           </CardHeader>
         </Card>
 
@@ -1286,7 +1363,7 @@ export function EntriesClient() {
         </CardContent>
       </Card>
 
-      <Card className="border-border/65 bg-gradient-to-br from-teal-100/60 via-background to-sky-100/60 dark:from-teal-500/8 dark:to-sky-500/8">
+      <Card className="max-md:order-2 border-border/65 bg-gradient-to-br from-teal-100/60 via-background to-sky-100/60 dark:from-teal-500/8 dark:to-sky-500/8">
         <CardHeader className="pb-2">
           <CardTitle className="flex items-center gap-2 text-base">
             <CalendarCheck2 className="h-4 w-4 text-teal-600 dark:text-teal-300" />
@@ -1312,11 +1389,16 @@ export function EntriesClient() {
                   key={day.date}
                   type="button"
                   onClick={() => {
-                    const entry = entriesByDate.get(day.date);
-                  if (entry) {
-                    setSelectedEntry(entry);
+                    const dayEntries = entriesByDate.get(day.date) ?? [];
+                  if (dayEntries.length > 0) {
+                    setSelectedEntry(dayEntries[0]);
                     setSelectedDateForNewEntry(null);
                     setOpen(true);
+                    if (dayEntries.length > 1) {
+                      toast.message(`${dayEntries.length} entries on this day`, {
+                        description: "Edit the other one from the table below, or pick a position at the top.",
+                      });
+                    }
                   } else {
                     setSelectedEntry(null);
                     setSelectedDateForNewEntry(day.date);
@@ -1372,7 +1454,7 @@ export function EntriesClient() {
         </CardContent>
       </Card>
 
-      <Card className="border-border/65 bg-gradient-to-br from-rose-100/60 via-background to-amber-100/60 dark:from-rose-500/8 dark:to-amber-500/8">
+      <Card className="max-md:order-2 border-border/65 bg-gradient-to-br from-rose-100/60 via-background to-amber-100/60 dark:from-rose-500/8 dark:to-amber-500/8">
         <CardHeader className="pb-2">
           <CardTitle className="flex items-center gap-2 text-base">
             <AlertTriangle className="h-4 w-4 text-rose-500" />
@@ -1439,7 +1521,7 @@ export function EntriesClient() {
         </CardContent>
       </Card>
 
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid gap-4 max-md:order-2 lg:grid-cols-2">
         <Card className="border-border/65 bg-gradient-to-br from-amber-100/70 via-background to-orange-100/60 dark:from-amber-500/8 dark:to-orange-500/8">
           <CardHeader className="pb-2">
             <CardTitle className="flex items-center gap-2 text-base">
@@ -1447,12 +1529,20 @@ export function EntriesClient() {
               Missing Shift Check
             </CardTitle>
             <CardDescription>
-              Based on the workdays you configured in Settings for the selected month.
+              {activePosition && positions.length > 1
+                ? `Based on the ${activePosition.name} schedule in Settings for the selected month.`
+                : "Based on the workdays you configured in Settings for the selected month."}
             </CardDescription>
           </CardHeader>
           <CardContent className="pt-0 text-sm">
-            {scheduleStats.missing.length === 0 ? (
-              <p className="text-emerald-700 dark:text-emerald-300">All expected shifts are logged. Nice work.</p>
+            {!scheduleStats.hasSchedule ? (
+              <p className="text-muted-foreground">
+                No regular schedule yet.{" "}
+                <Link href="/settings" className="font-medium text-foreground underline underline-offset-2">Set your workdays in Settings</Link>{" "}
+                to get reminders for missed shifts.
+              </p>
+            ) : scheduleStats.missing.length === 0 ? (
+              <p className="text-emerald-700 dark:text-emerald-300">All scheduled shifts are logged. Nice work.</p>
             ) : remindersSnoozed ? (
               <div className="space-y-2">
                 <p className="text-muted-foreground">Reminders snoozed for this month.</p>
@@ -1479,9 +1569,10 @@ export function EntriesClient() {
                   {scheduleStats.missing.length} expected shift(s) missing.
                 </p>
                 <div className="flex flex-wrap gap-2">
-                  {scheduleStats.missing.slice(0, 6).map((date) => (
-                    <span key={date} className="rounded-full border border-amber-400/40 bg-amber-50 px-2 py-0.5 text-xs text-amber-800 dark:bg-amber-500/10 dark:text-amber-200">
+                  {scheduleStats.missing.slice(0, 6).map(({ date, position }) => (
+                    <span key={`${date}-${position.id}`} className="rounded-full border border-amber-400/40 bg-amber-50 px-2 py-0.5 text-xs text-amber-800 dark:bg-amber-500/10 dark:text-amber-200">
                       {format(new Date(`${date}T00:00:00`), "MMM d (EEE)")}
+                      {positions.length > 1 && !activePosition ? ` · ${position.name}` : ""}
                     </span>
                   ))}
                   {scheduleStats.missing.length > 6 && (
@@ -1534,12 +1625,14 @@ export function EntriesClient() {
         </Card>
       </div>
 
-      <Card className="border-border/65 bg-gradient-to-br from-sky-200/45 via-background to-indigo-200/35 shadow-[0_22px_45px_-30px_rgba(59,130,246,0.25)] dark:from-sky-500/8 dark:to-indigo-500/6 dark:shadow-[0_22px_45px_-30px_rgba(59,130,246,0.45)]">
+      <Card className="max-md:order-1 border-border/65 bg-gradient-to-br from-sky-200/45 via-background to-indigo-200/35 shadow-[0_22px_45px_-30px_rgba(59,130,246,0.25)] dark:from-sky-500/8 dark:to-indigo-500/6 dark:shadow-[0_22px_45px_-30px_rgba(59,130,246,0.45)]">
         <CardHeader className="space-y-3 pb-4">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <CardTitle className="bg-gradient-to-r from-slate-800 via-sky-700 to-indigo-700 bg-clip-text text-transparent dark:from-slate-100 dark:via-sky-100 dark:to-indigo-100">Entries</CardTitle>
-              <CardDescription className="text-slate-600 dark:text-slate-300/75">Faster monthly logging and edits.</CardDescription>
+              <CardDescription className="text-slate-600 dark:text-slate-300/75">
+                {activePosition && positions.length > 1 ? `${activePosition.name} shifts` : "All shifts"} for {format(calendarMonthDate, "MMMM yyyy")}.
+              </CardDescription>
             </div>
             <div className="grid w-full grid-cols-1 gap-2 sm:flex sm:w-auto sm:flex-wrap">
               <Button
@@ -1574,10 +1667,10 @@ export function EntriesClient() {
           </div>
         </CardHeader>
 
-        <CardContent className="space-y-4 pt-0">
+        <CardContent className="flex flex-col gap-4 pt-0">
           <div
             id="entries-import-section"
-            className="rounded-xl border border-dashed border-cyan-500/25 bg-gradient-to-r from-cyan-100/65 via-background/80 to-sky-100/60 p-3 sm:p-4 dark:border-cyan-300/20 dark:from-cyan-500/10 dark:via-background/70 dark:to-sky-500/10"
+            className="max-md:order-2 rounded-xl border border-dashed border-cyan-500/25 bg-gradient-to-r from-cyan-100/65 via-background/80 to-sky-100/60 p-3 sm:p-4 dark:border-cyan-300/20 dark:from-cyan-500/10 dark:via-background/70 dark:to-sky-500/10"
           >
             <div className="flex flex-col gap-2.5 md:flex-row md:items-end md:justify-between">
               <div className="space-y-1">
@@ -1594,6 +1687,20 @@ export function EntriesClient() {
               </div>
 
               <div className="grid w-full grid-cols-1 gap-2 sm:grid-cols-2 md:flex md:w-auto md:items-center md:justify-end">
+                {positions.length > 1 && (
+                  <select
+                    value={effectiveImportPositionId}
+                    onChange={(e) => setImportPositionId(e.target.value)}
+                    aria-label="Import rows into position"
+                    className="h-10 min-w-0 rounded-md border border-cyan-500/30 bg-background/90 px-3 text-sm md:w-56 dark:border-cyan-300/25 dark:bg-background/80"
+                  >
+                    {positions.map((position) => (
+                      <option key={position.id} value={position.id}>
+                        Import as {position.name}
+                      </option>
+                    ))}
+                  </select>
+                )}
                 <select
                   value={importMode}
                   onChange={(e) => setImportMode(e.target.value === "skip" ? "skip" : "overwrite")}
@@ -1612,7 +1719,7 @@ export function EntriesClient() {
 
           <div
             id="entries-pdf-section"
-            className="rounded-xl border border-dashed border-indigo-500/25 bg-gradient-to-r from-indigo-100/65 via-background/80 to-blue-100/60 p-3 sm:p-4 dark:border-indigo-300/20 dark:from-indigo-500/10 dark:via-background/70 dark:to-blue-500/10"
+            className="max-md:order-2 rounded-xl border border-dashed border-indigo-500/25 bg-gradient-to-r from-indigo-100/65 via-background/80 to-blue-100/60 p-3 sm:p-4 dark:border-indigo-300/20 dark:from-indigo-500/10 dark:via-background/70 dark:to-blue-500/10"
           >
             <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(280px,320px)]">
               <div className="space-y-2">
@@ -1626,29 +1733,16 @@ export function EntriesClient() {
                   onChange={(e) => setTimesheetTemplateFile(e.target.files?.[0] ?? null)}
                   className="w-full text-sm file:mr-3 file:rounded-md file:border file:border-indigo-500/35 file:bg-indigo-500/10 file:px-2.5 file:py-1.5 file:text-xs file:font-medium file:text-indigo-900 hover:file:bg-indigo-500/15 dark:file:border-indigo-300/30 dark:file:text-indigo-100"
                 />
-                <select
-                  value={timesheetRole}
-                  onChange={(e) => {
-                    const selectedRole =
-                      e.target.value in timesheetTemplates
-                        ? (e.target.value as TimesheetRole)
-                        : DEFAULT_TIMESHEET_ROLE;
-                    setTimesheetRole(selectedRole);
-                    setTimesheetLayoutMode("auto");
-                    try {
-                      window.localStorage.setItem("entries_timesheet_role", selectedRole);
-                    } catch {
-                      // ignore storage issues
-                    }
-                  }}
-                  className="h-10 w-full rounded-md border border-indigo-500/30 bg-background/90 px-3 text-sm dark:border-indigo-300/25 dark:bg-background/80"
-                >
-                  {timesheetRoleOptions.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
+                {activePosition ? (
+                  <div className="rounded-md border border-indigo-500/30 bg-background/90 px-3 py-2 text-sm">
+                    <span className="font-semibold">{activePosition.name}</span>
+                    <span className="text-muted-foreground"> · {selectedTemplate.shortLabel} timesheet</span>
+                  </div>
+                ) : (
+                  <p className="rounded-md border border-amber-400/40 bg-amber-500/10 px-3 py-2 text-xs font-medium text-amber-900 dark:text-amber-100">
+                    Choose a position in the selector at the top. Each position gets its own timesheet PDF.
+                  </p>
+                )}
                 <p className="text-[11px] text-slate-500 dark:text-slate-400">{selectedTemplate.description}</p>
                 {showRoleHints && (
                   <div className="pt-1">
@@ -1702,7 +1796,7 @@ export function EntriesClient() {
                       <option value="" disabled>Apply saved preset</option>
                       {savedPresets.map((preset) => (
                         <option key={preset.id} value={preset.id}>
-                          {preset.name} ({timesheetTemplates[preset.role].label})
+                          {preset.name}
                         </option>
                       ))}
                     </select>
@@ -1721,7 +1815,10 @@ export function EntriesClient() {
               <div className="rounded-lg border border-indigo-500/20 bg-background/55 p-3 dark:bg-background/35">
                 <div className="space-y-1 text-[11px] text-slate-600 dark:text-slate-300/80">
                   <p>
-                    Timesheet Type: <span className="font-semibold text-slate-800 dark:text-slate-100">{selectedTemplate.label}</span>
+                    Timesheet Type:{" "}
+                    <span className="font-semibold text-slate-800 dark:text-slate-100">
+                      {activePosition ? `${activePosition.name} · ${selectedTemplate.shortLabel}` : "Choose a position"}
+                    </span>
                   </p>
                   <p>
                     Default layout mode: <span className="font-semibold capitalize text-slate-800 dark:text-slate-100">{timesheetLayoutMode}</span>
@@ -1856,6 +1953,7 @@ export function EntriesClient() {
                       }`}
                     >
                       {entry.date}
+                      {positionNames && !activePosition ? ` · ${positionNames[entry.positionId] ?? ""}` : ""}
                     </button>
                   );
                 })}
@@ -1923,6 +2021,7 @@ export function EntriesClient() {
               <TabsContent value="table">
                 <EntriesTable
                   entries={entries}
+                  positionNames={activePosition ? undefined : positionNames}
                   onEdit={(entry) => {
                     setSelectedEntry(entry);
                     setOpen(true);
@@ -1950,6 +2049,8 @@ export function EntriesClient() {
         open={open}
         entry={selectedEntry}
         initialDate={selectedDateForNewEntry}
+        positions={positions}
+        defaultPositionId={activePositionId}
         onOpenChange={setOpen}
         onSaved={fetchEntries}
       />

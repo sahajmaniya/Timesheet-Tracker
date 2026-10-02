@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 
 function initialsFromName(name?: string | null, email?: string | null) {
@@ -32,6 +32,15 @@ export function UserAvatar({
   );
   const source = image || generated;
   const showFallback = !source || failedSource === source;
+  const imageRef = useRef<HTMLImageElement | null>(null);
+
+  // A server-rendered image can fail before React attaches onError; catch that case.
+  useEffect(() => {
+    const image = imageRef.current;
+    if (!image?.complete || image.naturalWidth > 0) return;
+    const frame = requestAnimationFrame(() => setFailedSource(source));
+    return () => cancelAnimationFrame(frame);
+  }, [source]);
 
   return (
     <div
@@ -45,6 +54,7 @@ export function UserAvatar({
       {!showFallback && (
         // eslint-disable-next-line @next/next/no-img-element
         <img
+          ref={imageRef}
           src={source}
           alt={name || email || "User avatar"}
           className="absolute inset-0 h-full w-full object-cover"

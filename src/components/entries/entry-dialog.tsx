@@ -10,14 +10,22 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { TimeEntryForm } from "@/components/forms/time-entry-form";
+import { scheduledPositionForDate } from "@/components/positions/use-positions";
 import { getUsFederalHolidayName } from "@/lib/holidays";
+import type { Position } from "@/types/position";
 import type { TimeEntry } from "@/types/time-entry";
 import type { TimeEntryInput } from "@/lib/validators";
 
-function mapToInput(entry?: TimeEntry | null, initialDate?: string | null): TimeEntryInput | undefined {
+function mapToInput(
+  entry: TimeEntry | null | undefined,
+  initialDate: string | null | undefined,
+  positions: Position[],
+  defaultPositionId: string | null | undefined,
+): TimeEntryInput | undefined {
   if (!entry && !initialDate) return undefined;
   if (!entry && initialDate) {
     return {
+      positionId: scheduledPositionForDate(positions, initialDate)?.id ?? defaultPositionId ?? positions[0]?.id,
       date: initialDate,
       punchIn: "09:00",
       punchOut: "13:00",
@@ -28,6 +36,7 @@ function mapToInput(entry?: TimeEntry | null, initialDate?: string | null): Time
   if (!entry) return undefined;
 
   return {
+    positionId: entry.positionId,
     date: entry.date,
     punchIn: entry.punchIn,
     punchOut: entry.punchOut,
@@ -40,17 +49,24 @@ export function EntryDialog({
   open,
   entry,
   initialDate,
+  positions,
+  defaultPositionId,
   onOpenChange,
   onSaved,
 }: {
   open: boolean;
   entry?: TimeEntry | null;
   initialDate?: string | null;
+  positions: Position[];
+  defaultPositionId?: string | null;
   onOpenChange: (open: boolean) => void;
   onSaved: () => Promise<void>;
 }) {
   const [submitting, setSubmitting] = useState(false);
-  const inputData = useMemo(() => mapToInput(entry, initialDate), [entry, initialDate]);
+  const inputData = useMemo(
+    () => mapToInput(entry, initialDate, positions, defaultPositionId),
+    [defaultPositionId, entry, initialDate, positions],
+  );
   const selectedDate = entry?.date ?? initialDate ?? null;
   const fallbackHolidayName = useMemo(() => {
     if (!selectedDate) return null;
@@ -127,7 +143,7 @@ export function EntryDialog({
         <DialogHeader>
           <DialogTitle>{entry ? "Edit time entry" : "New time entry"}</DialogTitle>
           <DialogDescription>
-            Use quick actions for faster logging, then fine-tune as needed.
+            {entry ? "Update the times or notes for this day." : "Use quick actions for faster logging, then fine-tune as needed."}
           </DialogDescription>
           {holidayName && selectedDate && (
             <p className="mt-1 rounded-md border border-amber-300/60 bg-amber-50 px-2.5 py-1.5 text-xs font-medium text-amber-900 dark:border-amber-300/25 dark:bg-amber-500/10 dark:text-amber-100">
@@ -138,6 +154,10 @@ export function EntryDialog({
         <TimeEntryForm
           key={`${entry?.id ?? "new"}-${initialDate ?? "today"}`}
           initialValues={inputData}
+          positions={positions}
+          defaultPositionId={defaultPositionId}
+          autoSelectPosition={!entry}
+          isEditing={Boolean(entry)}
           holidayName={holidayName}
           submitLabel={entry ? "Save changes" : "Create entry"}
           submitting={submitting}

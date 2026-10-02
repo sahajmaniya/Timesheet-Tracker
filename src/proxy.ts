@@ -16,7 +16,8 @@ export default withAuth(
       "Content-Security-Policy",
       [
         "default-src 'self'",
-        "img-src 'self' data: blob:",
+        // Google profile photos and generated initials avatars.
+        "img-src 'self' data: blob: https://lh3.googleusercontent.com https://api.dicebear.com",
         "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
         "style-src 'self' 'unsafe-inline'",
         "font-src 'self' data:",

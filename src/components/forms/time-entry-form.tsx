@@ -3,7 +3,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { format } from "date-fns";
 import { Coffee, Clock3, Minus, Plus, Sparkles, Trash2 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useFieldArray, useForm, useWatch } from "react-hook-form";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -11,9 +11,46 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { addMinutesToHHmm, calcBreakMinutes, calcWorkedMinutes, formatTenthsDecimal, formatTime12h, minutesToHM, nowHHmm } from "@/lib/time";
+import { scheduledPositionForDate } from "@/components/positions/use-positions";
+import {
+  addMinutesToHHmm,
+  calcBreakMinutes,
+  calcWorkedMinutes,
+  entryTenths,
+  formatTime12h,
+  minutesBetween,
+  minutesToHM,
+  minutesToTenthsDecimal,
+  nowHHmm,
+  workedSegments,
+} from "@/lib/time";
+import { timesheetTemplates } from "@/lib/timesheet-templates";
 import { timeEntrySchema, type TimeEntryInput } from "@/lib/validators";
-import { type WorkSchedule } from "@/lib/work-schedule";
+import { weekdayKeys } from "@/lib/work-schedule";
+import type { Position } from "@/types/position";
+
+type WorkSession = { start: string; end: string };
+
+function toHHmm(totalMinutes: number) {
+  return `${String(Math.floor(totalMinutes / 60)).padStart(2, "0")}:${String(totalMinutes % 60).padStart(2, "0")}`;
+}
+
+/** Work sessions of a day: the shift split at its gaps (stored as breaks). */
+function toSessions(punchIn: string, punchOut: string, breaks: { start: string; end: string }[]): WorkSession[] {
+  const segments = workedSegments({ punchIn, punchOut, breaks });
+  if (segments.length === 0) return [{ start: punchIn, end: punchOut }];
+  return segments.map((segment) => ({ start: toHHmm(segment.start), end: toHHmm(segment.end) }));
+}
+
+function sessionsError(sessions: WorkSession[]) {
+  const sorted = [...sessions].sort((a, b) => a.start.localeCompare(b.start));
+  for (let i = 0; i < sorted.length; i++) {
+    if (!sorted[i].start || !sorted[i].end) return "Fill in every session's start and end.";
+    if (sorted[i].end <= sorted[i].start) return "Each session must end after it starts.";
+    if (i > 0 && sorted[i].start < sorted[i - 1].end) return "Sessions can't overlap.";
+  }
+  return null;
+}
 
 const defaultEntry: TimeEntryInput = {
   date: format(new Date(), "yyyy-MM-dd"),
@@ -25,6 +62,10 @@ const defaultEntry: TimeEntryInput = {
 
 export function TimeEntryForm({
   initialValues,
+  positions,
+  defaultPositionId,
+  autoSelectPosition = false,
+  isEditing = false,
   holidayName,
   submitLabel,
   submitting,
@@ -32,13 +73,20 @@ export function TimeEntryForm({
   onCancel,
 }: {
   initialValues?: TimeEntryInput;
+  positions: Position[];
+  defaultPositionId?: string | null;
+  /** New entries: follow the date to the position scheduled on that weekday. */
+  autoSelectPosition?: boolean;
+  isEditing?: boolean;
   holidayName?: string | null;
   submitLabel: string;
   submitting: boolean;
   onSubmit: (values: TimeEntryInput) => Promise<void>;
   onCancel?: () => void;
 }) {
-  const [workSchedule, setWorkSchedule] = useState<WorkSchedule | null>(null);
+  const fallbackPositionId = defaultPositionId ?? positions[0]?.id;
+  // Once the user picks a position by hand, stop auto-switching it when the date changes.
+  const positionTouchedRef = useRef(false);
   const {
     register,
     control,
@@ -50,18 +98,51 @@ export function TimeEntryForm({
     resolver: zodResolver(timeEntrySchema),
     mode: "onChange",
     reValidateMode: "onChange",
-    defaultValues: initialValues ?? defaultEntry,
+    defaultValues: initialValues ?? { ...defaultEntry, positionId: fallbackPositionId },
   });
 
-  const { fields, append, remove } = useFieldArray({ control, name: "breaks" });
+  const { fields, append, remove, replace } = useFieldArray({ control, name: "breaks" });
 
   const punchIn = useWatch({ control, name: "punchIn" });
   const punchOut = useWatch({ control, name: "punchOut" });
   const breaks = useWatch({ control, name: "breaks" }) ?? [];
   const date = useWatch({ control, name: "date" });
+  const positionId = useWatch({ control, name: "positionId" });
+  const selectedPosition = positions.find((position) => position.id === positionId) ?? null;
+  // ISA days are logged as separate work sessions; the gaps between them are stored as breaks.
+  const sessionMode = selectedPosition?.role === "instructional_student_assistant";
+  const formSessions = toSessions(punchIn, punchOut, breaks);
+  // Holds edits that are not valid yet (e.g. overlapping) so the form values stay consistent.
+  const [draftSessions, setDraftSessions] = useState<WorkSession[] | null>(null);
+  const sessions = draftSessions ?? formSessions;
+  const sessionError = draftSessions ? sessionsError(draftSessions) : null;
+
+  const updateSessions = (next: WorkSession[]) => {
+    if (sessionsError(next)) {
+      setDraftSessions(next);
+      return;
+    }
+    setDraftSessions(null);
+    const sorted = [...next].sort((a, b) => a.start.localeCompare(b.start));
+    setValue("punchIn", sorted[0].start, { shouldValidate: true });
+    setValue("punchOut", sorted[sorted.length - 1].end, { shouldValidate: true });
+    replace(
+      sorted.slice(1).flatMap((session, index) =>
+        session.start > sorted[index].end ? [{ start: sorted[index].end, end: session.start }] : [],
+      ),
+    );
+  };
+
+  const addSession = () => {
+    const lastEnd = sessions[sessions.length - 1]?.end ?? "09:00";
+    const start = minutesBetween("00:00", lastEnd) >= 22 * 60 ? lastEnd : addMinutesToHHmm(lastEnd, 60);
+    const end = minutesBetween("00:00", start) >= 23 * 60 ? "23:59" : addMinutesToHHmm(start, 60);
+    updateSessions([...sessions, { start, end }]);
+  };
 
   const breakMinutes = calcBreakMinutes(breaks);
   const workedMinutes = calcWorkedMinutes({ punchIn, punchOut, breaks });
+  const dayTenths = entryTenths({ punchIn, punchOut, breaks }, selectedPosition?.role);
   const allValues = useWatch({ control });
   const hasInvalidShiftWindow = Boolean(punchIn && punchOut && punchOut <= punchIn);
 
@@ -73,10 +154,13 @@ export function TimeEntryForm({
       if (!raw) return;
       const parsed = JSON.parse(raw) as TimeEntryInput;
       if (!parsed || !parsed.date || !parsed.punchIn || !parsed.punchOut) return;
-      reset(parsed);
+      const draftPositionExists = positions.some((position) => position.id === parsed.positionId);
+      reset({ ...parsed, positionId: draftPositionExists ? parsed.positionId : fallbackPositionId });
     } catch {
       // ignore bad local draft
     }
+    // Restore the draft once; later position list refreshes must not wipe edits.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialValues, reset]);
 
   useEffect(() => {
@@ -95,23 +179,12 @@ export function TimeEntryForm({
   }, [allValues, initialValues]);
 
   useEffect(() => {
-    let ignore = false;
-    const fetchSchedule = async () => {
-      try {
-        const res = await fetch("/api/profile");
-        const body = await res.json().catch(() => ({}));
-        if (!res.ok || !body.profile?.workSchedule || ignore) return;
-        setWorkSchedule(body.profile.workSchedule as WorkSchedule);
-      } catch {
-        // ignore profile fetch issues
-      }
-    };
-
-    void fetchSchedule();
-    return () => {
-      ignore = true;
-    };
-  }, []);
+    if (!autoSelectPosition || positionTouchedRef.current || !date) return;
+    const scheduled = scheduledPositionForDate(positions, date);
+    if (scheduled && scheduled.id !== positionId) {
+      setValue("positionId", scheduled.id, { shouldValidate: true });
+    }
+  }, [autoSelectPosition, date, positionId, positions, setValue]);
 
   const setPreset = (start: string, end: string) => {
     setValue("punchIn", start, { shouldValidate: true });
@@ -127,12 +200,15 @@ export function TimeEntryForm({
 
   const applyRegularSchedule = () => {
     if (!date) return;
-    const day = new Date(`${date}T00:00:00`).getDay();
-    const dayKey = (["sun", "mon", "tue", "wed", "thu", "fri", "sat"] as const)[day];
-    const daySchedule = workSchedule?.[dayKey];
+    const dayKey = weekdayKeys[new Date(`${date}T00:00:00`).getDay()];
+    const daySchedule = selectedPosition?.workSchedule[dayKey];
 
     if (!daySchedule || !daySchedule.enabled) {
-      toast.message("No regular schedule set for this day. Update it in Settings.");
+      toast.message(
+        selectedPosition
+          ? `No regular ${selectedPosition.name} shift on this day. Update it in Settings.`
+          : "No regular schedule set for this day. Update it in Settings.",
+      );
       return;
     }
 
@@ -143,7 +219,11 @@ export function TimeEntryForm({
       [{ start: daySchedule.breakStart, end: daySchedule.breakEnd }],
       { shouldValidate: true },
     );
-    toast.success(`Applied ${dayKey.toUpperCase()} regular schedule`);
+    toast.success(
+      selectedPosition
+        ? `Applied ${dayKey.toUpperCase()} regular ${selectedPosition.name} shift`
+        : `Applied ${dayKey.toUpperCase()} regular schedule`,
+    );
   };
 
   const addBreakNow = () => {
@@ -175,15 +255,28 @@ export function TimeEntryForm({
   };
 
   return (
-    <form className="space-y-5" onSubmit={handleSubmit(onSubmit)}>
+    <form
+      className="space-y-5"
+      onSubmit={handleSubmit(async (values) => {
+        if (sessionError) {
+          toast.error(sessionError);
+          return;
+        }
+        await onSubmit(values);
+      })}
+    >
       <Card className="border border-border/60 bg-muted/15">
         <CardContent className="space-y-4 px-4 pb-4 pt-6 sm:px-5 sm:pb-5 sm:pt-7">
-          <div className="flex items-center gap-2 text-sm font-medium tracking-wide">
+          {/* Collapsed while editing an existing day, where "now" actions rarely apply. */}
+          <details open={!isEditing} className="group">
+          <summary className="flex cursor-pointer list-none items-center gap-2 text-sm font-medium tracking-wide [&::-webkit-details-marker]:hidden">
             <Sparkles className="h-4 w-4 text-primary" />
             Quick actions
-          </div>
+            <span className="ml-auto text-xs font-normal text-muted-foreground group-open:hidden">Show</span>
+            <span className="ml-auto hidden text-xs font-normal text-muted-foreground group-open:inline">Hide</span>
+          </summary>
 
-          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
             <Button
               className="h-auto min-h-20 flex-col items-start justify-center rounded-2xl border-primary/40 bg-primary/12 px-4 py-3 text-left text-[0.95rem] font-semibold text-primary hover:bg-primary/18"
               type="button"
@@ -220,6 +313,8 @@ export function TimeEntryForm({
               </span>
               <span>End Shift Now</span>
             </Button>
+            {!sessionMode && (
+            <>
             <Button
               className="h-auto min-h-20 flex-col items-start justify-center rounded-2xl px-4 py-3 text-left text-[0.95rem] font-semibold"
               type="button"
@@ -244,6 +339,8 @@ export function TimeEntryForm({
               </span>
               <span>End Latest Break</span>
             </Button>
+            </>
+            )}
             {holidayName && (
               <>
                 <Button
@@ -272,7 +369,7 @@ export function TimeEntryForm({
             )}
           </div>
 
-          <div className="flex flex-wrap gap-2">
+          <div className="mt-4 flex flex-wrap gap-2">
             <Button
               type="button"
               size="sm"
@@ -299,23 +396,56 @@ export function TimeEntryForm({
               10am-2pm
             </Button>
           </div>
+          </details>
 
           <div className="grid gap-2 rounded-xl bg-background/80 p-3 text-sm md:grid-cols-3">
             <p>
-              Shift: <span className="font-semibold">{formatTime12h(punchIn)} - {formatTime12h(punchOut)}</span>
+              {sessionMode ? "Day:" : "Shift:"} <span className="font-semibold">{formatTime12h(punchIn)} - {formatTime12h(punchOut)}</span>
             </p>
             <p>
-              Breaks: <span className="font-semibold">{minutesToHM(Math.max(0, breakMinutes))}</span>
+              {sessionMode ? (
+                <>
+                  Sessions: <span className="font-semibold">{sessions.length}</span>
+                </>
+              ) : (
+                <>
+                  Breaks: <span className="font-semibold">{minutesToHM(Math.max(0, breakMinutes))}</span>
+                </>
+              )}
             </p>
             <p>
               Worked: <span className="font-semibold text-primary">{minutesToHM(Math.max(0, workedMinutes))}</span>
-              <span className="ml-2 text-xs text-muted-foreground">({formatTenthsDecimal(Math.max(0, workedMinutes))} hrs)</span>
+              <span className="ml-2 text-xs text-muted-foreground">({Math.max(0, dayTenths).toFixed(1)} hrs)</span>
             </p>
           </div>
         </CardContent>
       </Card>
 
-      <div className="grid gap-4 sm:grid-cols-3">
+      {positions.length > 1 && (
+        <div className="min-w-0 space-y-1">
+          <Label htmlFor="positionId">Position</Label>
+          <select
+            id="positionId"
+            className="h-10 w-full min-w-0 rounded-md border border-input bg-background px-3 text-sm"
+            {...register("positionId", {
+              onChange: () => {
+                positionTouchedRef.current = true;
+              },
+            })}
+          >
+            {positions.map((position) => (
+              <option key={position.id} value={position.id}>
+                {position.name} · {timesheetTemplates[position.role].shortLabel}
+              </option>
+            ))}
+          </select>
+          <p className="text-xs text-muted-foreground">
+            Hours count toward this position&apos;s timesheet and pay rate.
+          </p>
+        </div>
+      )}
+
+      <div className={`grid gap-4 ${sessionMode ? "" : "sm:grid-cols-3"}`}>
         <div className="min-w-0 space-y-1">
           <Label htmlFor="date">Date</Label>
           <Input id="date" type="date" className="min-w-0" {...register("date")} />
@@ -323,6 +453,8 @@ export function TimeEntryForm({
           {!errors.date && <p className="text-xs text-muted-foreground">Pick the exact work day this row should represent.</p>}
         </div>
 
+        {!sessionMode && (
+        <>
         <div className="min-w-0 space-y-1">
           <Label htmlFor="punchIn">Punch In</Label>
           <Input id="punchIn" type="time" className="min-w-0" {...register("punchIn")} />
@@ -336,13 +468,87 @@ export function TimeEntryForm({
           {errors.punchOut && <p className="text-xs text-destructive">{errors.punchOut.message}</p>}
           {!errors.punchOut && <p className="text-xs text-muted-foreground">Set when the shift ended, for example `17:00`.</p>}
         </div>
+        </>
+        )}
       </div>
-      {hasInvalidShiftWindow && (
+      {!sessionMode && hasInvalidShiftWindow && (
         <p className="text-xs text-amber-700 dark:text-amber-300">
           Punch-out should be later than punch-in. Try adjusting one of the times.
         </p>
       )}
 
+      {sessionMode ? (
+        <div className="space-y-2">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <Label>Work sessions</Label>
+              <p className="text-xs text-muted-foreground">
+                Add each separate time you worked on this day. Each session is rounded to tenths, then added up.
+              </p>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            {sessions.map((session, index) => {
+              const minutes = session.end > session.start ? minutesBetween(session.start, session.end) : 0;
+              return (
+                <div
+                  key={index}
+                  className="grid min-w-0 grid-cols-[auto_1fr_1fr_auto] items-center gap-2 rounded-lg border bg-card p-2 sm:grid-cols-[auto_1fr_1fr_auto_auto]"
+                >
+                  <span className="text-xs font-semibold text-muted-foreground">#{index + 1}</span>
+                  <Input
+                    type="time"
+                    aria-label={`Session ${index + 1} start`}
+                    className="min-w-0"
+                    value={session.start}
+                    onChange={(e) => updateSessions(sessions.map((item, i) => (i === index ? { ...item, start: e.target.value } : item)))}
+                  />
+                  <Input
+                    type="time"
+                    aria-label={`Session ${index + 1} end`}
+                    className="min-w-0"
+                    value={session.end}
+                    onChange={(e) => updateSessions(sessions.map((item, i) => (i === index ? { ...item, end: e.target.value } : item)))}
+                  />
+                  <span className="col-span-3 col-start-2 text-xs text-muted-foreground sm:col-span-1 sm:col-start-auto sm:w-16 sm:text-right">
+                    {minutesToTenthsDecimal(minutes).toFixed(1)} hrs
+                  </span>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    aria-label={`Remove session ${index + 1}`}
+                    className="col-start-4 row-start-1 justify-self-end sm:col-start-auto sm:row-start-auto"
+                    disabled={sessions.length === 1}
+                    onClick={() => updateSessions(sessions.filter((_, i) => i !== index))}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              );
+            })}
+          </div>
+
+          <Button type="button" variant="outline" size="sm" onClick={addSession}>
+            <Plus className="mr-1 h-4 w-4" />
+            Add session
+          </Button>
+
+          {sessionError ? (
+            <p className="text-xs text-destructive">{sessionError}</p>
+          ) : (
+            <p className="text-sm font-medium">
+              Day total: <span className="text-primary">{Math.max(0, dayTenths).toFixed(1)} hrs</span>
+              {sessions.length > 1 && (
+                <span className="ml-1 text-xs font-normal text-muted-foreground">
+                  ({sessions.map((session) => minutesToTenthsDecimal(minutesBetween(session.start, session.end)).toFixed(1)).join(" + ")})
+                </span>
+              )}
+            </p>
+          )}
+        </div>
+      ) : (
       <div className="space-y-2">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <Label>Break timeline</Label>
@@ -390,6 +596,7 @@ export function TimeEntryForm({
 
         {errors.breaks && <p className="text-xs text-destructive">Please check break times.</p>}
       </div>
+      )}
 
       <div className="space-y-1">
         <Label htmlFor="notes">Shift notes</Label>

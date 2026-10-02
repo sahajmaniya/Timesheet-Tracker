@@ -1,7 +1,7 @@
 import type { Break, TimeEntry } from "@prisma/client";
-import { calcBreakMinutes, calcWorkedMinutes } from "@/lib/time";
+import { calcBreakMinutes, calcWorkedMinutes, entryTenths } from "@/lib/time";
 
-export type EntryWithBreaks = TimeEntry & { breaks: Break[] };
+export type EntryWithBreaks = TimeEntry & { breaks: Break[]; position?: { role: string } | null };
 
 export function serializeEntry(entry: EntryWithBreaks) {
   const breakMinutes = calcBreakMinutes(entry.breaks);
@@ -13,6 +13,7 @@ export function serializeEntry(entry: EntryWithBreaks) {
 
   return {
     id: entry.id,
+    positionId: entry.positionId,
     date: entry.date,
     punchIn: entry.punchIn,
     punchOut: entry.punchOut,
@@ -20,6 +21,8 @@ export function serializeEntry(entry: EntryWithBreaks) {
     breaks: entry.breaks,
     breakMinutes,
     workedMinutes,
+    workedTenths: entryTenths(entry, entry.position?.role),
+    sessionBased: entry.position?.role === "instructional_student_assistant",
     createdAt: entry.createdAt.toISOString(),
     updatedAt: entry.updatedAt.toISOString(),
   };

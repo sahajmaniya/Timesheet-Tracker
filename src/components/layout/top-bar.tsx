@@ -110,8 +110,7 @@ export function TopBar() {
                 </div>
               </Link>
               <Button variant="outline" size="sm" className="h-9 min-w-0 rounded-xl px-2.5 sm:px-3.5" onClick={doSignOut}>
-                <span className="lg:hidden">Out</span>
-                <span className="hidden lg:inline">Sign out</span>
+                Sign out
               </Button>
             </div>
           </div>

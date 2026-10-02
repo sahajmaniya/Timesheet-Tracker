@@ -1,12 +1,3 @@
-export type PayrollProfile = {
-  hourlyRate: number;
-  federalStatus: string;
-  stateStatus: string;
-  federalTaxPercent: number;
-  stateTaxPercent: number;
-  otherDeductionMonthly: number;
-};
-
 export type MonthlyPayEstimate = {
   grossPay: number;
   taxableGross: number;
@@ -20,36 +11,59 @@ export type MonthlyPayEstimate = {
 
 const roundCurrency = (value: number) => Math.round(value * 100) / 100;
 
-function calculateBuiltInAutoTaxEstimate(
-  workedMinutes: number,
-  profile: PayrollProfile,
-): MonthlyPayEstimate {
-  const workedHours = workedMinutes / 60;
-  const grossPay = roundCurrency(workedHours * Math.max(profile.hourlyRate || 0, 0));
-  const taxableGross = grossPay;
-  const federalTax = 0;
-  const stateTax = 0;
-  const otherDeductions = 0;
-  const totalDeductions = 0;
-  const netPay = grossPay;
+export type PositionPayLine = {
+  positionId: string;
+  name: string;
+  role: string;
+  hourlyRate: number;
+  workedMinutes: number;
+  grossPay: number;
+};
+
+/**
+ * Splits worked minutes by position and prices each at its own hourly rate.
+ * Every position is listed (with zeros when unused) so callers can show the
+ * full breakdown; entries for unknown positions are ignored.
+ */
+export function calculatePositionPayBreakdown(
+  entries: { positionId: string; workedMinutes: number }[],
+  positions: { id: string; name: string; role: string; hourlyRate: number }[],
+) {
+  const minutesByPosition = new Map<string, number>();
+  for (const entry of entries) {
+    minutesByPosition.set(entry.positionId, (minutesByPosition.get(entry.positionId) ?? 0) + entry.workedMinutes);
+  }
+
+  const lines: PositionPayLine[] = positions.map((position) => {
+    const workedMinutes = minutesByPosition.get(position.id) ?? 0;
+    const hourlyRate = Math.max(position.hourlyRate || 0, 0);
+    return {
+      positionId: position.id,
+      name: position.name,
+      role: position.role,
+      hourlyRate,
+      workedMinutes,
+      grossPay: roundCurrency((workedMinutes / 60) * hourlyRate),
+    };
+  });
 
   return {
-    grossPay,
-    taxableGross,
-    federalTax,
-    stateTax,
-    otherDeductions,
-    totalDeductions,
-    netPay,
-    source: "local_estimate",
+    lines,
+    workedMinutes: lines.reduce((sum, line) => sum + line.workedMinutes, 0),
+    grossPay: roundCurrency(lines.reduce((sum, line) => sum + line.grossPay, 0)),
   };
 }
 
-export async function calculateMonthlyPayEstimateWithSource(params: {
-  month: string;
-  workedMinutes: number;
-  profile: PayrollProfile;
-}): Promise<MonthlyPayEstimate> {
-  void params.month;
-  return calculateBuiltInAutoTaxEstimate(params.workedMinutes, params.profile);
+/** Wraps a gross amount in the estimate shape (taxes are not modelled yet). */
+export function grossOnlyEstimate(grossPay: number): MonthlyPayEstimate {
+  return {
+    grossPay,
+    taxableGross: grossPay,
+    federalTax: 0,
+    stateTax: 0,
+    otherDeductions: 0,
+    totalDeductions: 0,
+    netPay: grossPay,
+    source: "local_estimate",
+  };
 }

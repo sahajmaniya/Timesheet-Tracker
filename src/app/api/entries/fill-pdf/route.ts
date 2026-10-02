@@ -3,9 +3,10 @@ import { NextResponse } from "next/server";
 import { getServerAuthSession } from "@/lib/auth";
 import { buildDownloadFilename } from "@/lib/downloads";
 import { finalizeApiTimer, startApiTimer } from "@/lib/perf";
+import { ensureUserPositions } from "@/lib/positions";
 import { prisma } from "@/lib/prisma";
 import { clientIpFromHeaders, enforceRateLimit } from "@/lib/security";
-import { fillTimesheetPdfTemplate } from "@/lib/timesheet-pdf";
+import { fillTimesheetPdfTemplate, TimesheetPlacementError } from "@/lib/timesheet-pdf";
 import { parseTimesheetRole } from "@/lib/timesheet-templates";
 import { dateRangeQuerySchema, monthQuerySchema, timesheetCalibrationSchema } from "@/lib/validators";
 
@@ -44,7 +45,7 @@ export async function POST(request: Request) {
     const generatedDateRaw = String(formData.get("generatedDate") ?? "").trim();
     const layoutModeRaw = String(formData.get("layoutMode") ?? "auto");
     const calibrationRaw = formData.get("calibration");
-    const timesheetRole = parseTimesheetRole(formData.get("timesheetRole"));
+    const positionIdRaw = String(formData.get("positionId") ?? "").trim();
     const layoutMode =
       layoutModeRaw === "standard" || layoutModeRaw === "carry" || layoutModeRaw === "auto"
         ? layoutModeRaw
@@ -87,6 +88,22 @@ export async function POST(request: Request) {
       return finalizeApiTimer(NextResponse.json({ error: "Only PDF files are supported." }, { status: 400 }), "entries.fill-pdf", startedAt);
     }
 
+    // A timesheet belongs to one position; its template role comes from that position.
+    const positions = await ensureUserPositions(session.user.id);
+    const position = positionIdRaw
+      ? positions.find((item) => item.id === positionIdRaw)
+      : positions.length === 1
+        ? positions[0]
+        : undefined;
+    if (!position) {
+      return finalizeApiTimer(
+        NextResponse.json({ error: "Choose which position this timesheet is for." }, { status: 400 }),
+        "entries.fill-pdf",
+        startedAt,
+      );
+    }
+    const timesheetRole = parseTimesheetRole(position.role);
+
     const monthDate = new Date(`${parsedMonth.data}-01T00:00:00`);
     const start = parsedRange?.data.start ?? format(startOfMonth(monthDate), "yyyy-MM-dd");
     const end = parsedRange?.data.end ?? format(endOfMonth(monthDate), "yyyy-MM-dd");
@@ -94,6 +111,7 @@ export async function POST(request: Request) {
     const entries = await prisma.timeEntry.findMany({
       where: {
         userId: session.user.id,
+        positionId: position.id,
         date: { gte: start, lte: end },
       },
       include: { breaks: { orderBy: { start: "asc" } } },
@@ -147,6 +165,9 @@ export async function POST(request: Request) {
       startedAt,
     );
   } catch (error) {
+    if (error instanceof TimesheetPlacementError) {
+      return finalizeApiTimer(NextResponse.json({ error: error.message }, { status: 400 }), "entries.fill-pdf", startedAt);
+    }
     console.error("Fill timesheet PDF failed:", error);
     const message = error instanceof Error ? error.message : "Could not fill this template.";
     return finalizeApiTimer(

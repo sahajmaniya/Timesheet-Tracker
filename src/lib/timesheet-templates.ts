@@ -25,17 +25,34 @@ export type TimesheetLayoutConfig = {
   };
   generatedDateCenters: number[];
   generatedDateY: number;
+  /**
+   * Voucher with fixed date rows (CSULB ISA hourly voucher). Three columns of
+   * 11 rows: [prev-month 31, 1–10], [11–21], [22–31, next-month 1].
+   */
   fixedDaySlotMapping?: {
     enabled: boolean;
-    columnBaseX: [number, number, number];
+    /** Centers of the HOURS (whole hours) and 10ths columns, per column. */
+    hoursCenterX: [number, number, number];
+    tenthsCenterX: [number, number, number];
     firstRowTextY: number;
     rowStepY: number;
+    textSize: number;
+  };
+  /** "MM/YY" pay period box; any value printed on the blank is painted over first. */
+  payPeriodField?: {
+    centerX: number;
+    baselineY: number;
+    size: number;
+    clearRect: { x: number; y: number; width: number; height: number };
+    /** Cell background as 0–1 RGB. */
+    background: [number, number, number];
   };
 };
 
 export type TimesheetTemplateDefinition = {
   role: TimesheetRole;
   label: string;
+  shortLabel: string;
   description: string;
   section1TrcCodes: string[];
   section2TrcCodes: string[];
@@ -74,23 +91,17 @@ export const timesheetTemplates: Record<TimesheetRole, TimesheetTemplateDefiniti
   student_assistant: {
     role: "student_assistant",
     label: "Student Assistant (SA)",
+    shortLabel: "SA",
     description: "CSULB-style Student Assistant timesheet with REG + leave sections.",
     section1TrcCodes: ["REG"],
     section2TrcCodes: ["HOL", "OTPR", "PH", "SHE08", "SHGRV", "SHIN08", "SHSWG", "SL", "VA"],
     hoursRenderMode: "split_by_break",
-    layout: {
-      ...baseLayout,
-      fixedDaySlotMapping: {
-        enabled: false,
-        columnBaseX: [69, 339, 609],
-        firstRowTextY: 430,
-        rowStepY: 18,
-      },
-    },
+    layout: baseLayout,
   },
   instructional_student_assistant: {
     role: "instructional_student_assistant",
     label: "Instructional Student Assistant (ISA)",
+    shortLabel: "ISA",
     description: "ISA role template with total-hours rendering (no break rows in the PDF).",
     section1TrcCodes: ["REG"],
     section2TrcCodes: ["HOL", "OTPR", "PH", "SHE08", "SHGRV", "SHIN08", "SHSWG", "SL", "VA"],
@@ -99,11 +110,19 @@ export const timesheetTemplates: Record<TimesheetRole, TimesheetTemplateDefiniti
       ...baseLayout,
       fixedDaySlotMapping: {
         enabled: true,
-        // Tuned to align with existing ISA filled-sheet coordinate system.
-        // Day blocks are [1-10], [11-21], [22-31].
-        columnBaseX: [74, 247, 420],
-        firstRowTextY: 572.2,
+        // Measured from a submitted CSULB ISA voucher (Letter portrait, 612x792).
+        hoursCenterX: [144.1, 317.17, 490.26],
+        tenthsCenterX: [194.33, 367.42, 540.49],
+        firstRowTextY: 572.26,
         rowStepY: 12.36,
+        textSize: 10.2,
+      },
+      payPeriodField: {
+        centerX: 107.79,
+        baselineY: 695.02,
+        size: 10.2,
+        clearRect: { x: 70, y: 689.5, width: 80, height: 17.5 },
+        background: [0.8, 1, 1], // #ccffff
       },
     },
   },
