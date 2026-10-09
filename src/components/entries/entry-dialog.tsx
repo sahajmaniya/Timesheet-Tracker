@@ -41,6 +41,7 @@ function mapToInput(
     punchIn: entry.punchIn,
     punchOut: entry.punchOut,
     notes: entry.notes,
+    sessionNotes: entry.sessionNotes,
     breaks: entry.breaks.map((b) => ({ id: b.id, start: b.start, end: b.end })),
   };
 }

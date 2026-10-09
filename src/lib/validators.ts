@@ -15,6 +15,8 @@ export const timeEntrySchema = z.object({
   punchIn: z.string().regex(hhmmRegex, "Time must be HH:mm"),
   punchOut: z.string().regex(hhmmRegex, "Time must be HH:mm"),
   notes: z.string().max(2000).optional().nullable(),
+  /** Session-based (ISA) days: one note per work session, in session time order. */
+  sessionNotes: z.array(z.string().max(500)).max(20).optional(),
   breaks: z.array(breakSchema),
 });
 
