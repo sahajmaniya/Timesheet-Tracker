@@ -3,7 +3,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { format } from "date-fns";
 import { Coffee, Clock3, Minus, Plus, Sparkles, Trash2 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useFieldArray, useForm, useWatch } from "react-hook-form";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -29,27 +29,70 @@ import { timeEntrySchema, type TimeEntryInput } from "@/lib/validators";
 import { weekdayKeys } from "@/lib/work-schedule";
 import type { Position } from "@/types/position";
 
-type WorkSession = { start: string; end: string };
+type WorkSession = { id: number; start: string; end: string; note: string };
+type BreakRange = { start: string; end: string };
+
+let nextSessionId = 1;
 
 function toHHmm(totalMinutes: number) {
   return `${String(Math.floor(totalMinutes / 60)).padStart(2, "0")}:${String(totalMinutes % 60).padStart(2, "0")}`;
 }
 
-/** Work sessions of a day: the shift split at its gaps (stored as breaks). */
-function toSessions(punchIn: string, punchOut: string, breaks: { start: string; end: string }[]): WorkSession[] {
+/**
+ * Work sessions of a day: the shift split at its gaps (stored as breaks), with each
+ * session's note. Older days without per-session notes show the day note on session 1.
+ */
+function toSessions(
+  punchIn: string,
+  punchOut: string,
+  breaks: BreakRange[],
+  sessionNotes: string[] = [],
+  legacyDayNote?: string | null,
+): WorkSession[] {
   const segments = workedSegments({ punchIn, punchOut, breaks });
-  if (segments.length === 0) return [{ start: punchIn, end: punchOut }];
-  return segments.map((segment) => ({ start: toHHmm(segment.start), end: toHHmm(segment.end) }));
+  const ranges = segments.length === 0
+    ? [{ start: punchIn, end: punchOut }]
+    : segments.map((segment) => ({ start: toHHmm(segment.start), end: toHHmm(segment.end) }));
+  const notes = sessionNotes.length > 0 ? sessionNotes : legacyDayNote ? [legacyDayNote] : [];
+  return ranges.map((range, index) => ({ id: nextSessionId++, ...range, note: notes[index] ?? "" }));
+}
+
+/** Day note built from session notes, so CSV export and the notes digest stay readable. */
+function composeDayNote(sorted: WorkSession[]) {
+  const withNotes = sorted.filter((session) => session.note.trim());
+  if (sorted.length === 1) return withNotes[0]?.note.trim() ?? "";
+  return withNotes
+    .map((session) => `${formatTime12h(session.start)}–${formatTime12h(session.end)}: ${session.note.trim()}`)
+    .join("; ");
+}
+
+/** Entry times for valid sessions: first start, last end, and the gaps between sessions as breaks. */
+function sessionsToShift(sessions: WorkSession[]) {
+  const sorted = [...sessions].sort((a, b) => a.start.localeCompare(b.start));
+  return {
+    sessionNotes: sorted.map((session) => session.note.trim()),
+    dayNote: composeDayNote(sorted),
+    punchIn: sorted[0].start,
+    punchOut: sorted[sorted.length - 1].end,
+    breaks: sorted.slice(1).flatMap((session, index) =>
+      session.start > sorted[index].end ? [{ start: sorted[index].end, end: session.start }] : [],
+    ),
+  };
 }
 
 function sessionsError(sessions: WorkSession[]) {
+  if (sessions.some((session) => !session.start || !session.end)) return "Enter a start and end time for every session.";
   const sorted = [...sessions].sort((a, b) => a.start.localeCompare(b.start));
   for (let i = 0; i < sorted.length; i++) {
-    if (!sorted[i].start || !sorted[i].end) return "Fill in every session's start and end.";
     if (sorted[i].end <= sorted[i].start) return "Each session must end after it starts.";
     if (i > 0 && sorted[i].start < sorted[i - 1].end) return "Sessions can't overlap.";
   }
   return null;
+}
+
+function sessionTenths(session: WorkSession) {
+  if (!session.start || !session.end || session.end <= session.start) return null;
+  return minutesToTenthsDecimal(minutesBetween(session.start, session.end));
 }
 
 const defaultEntry: TimeEntryInput = {
@@ -93,6 +136,7 @@ export function TimeEntryForm({
     setValue,
     handleSubmit,
     reset,
+    getValues,
     formState: { errors },
   } = useForm<TimeEntryInput>({
     resolver: zodResolver(timeEntrySchema),
@@ -111,33 +155,38 @@ export function TimeEntryForm({
   const selectedPosition = positions.find((position) => position.id === positionId) ?? null;
   // ISA days are logged as separate work sessions; the gaps between them are stored as breaks.
   const sessionMode = selectedPosition?.role === "instructional_student_assistant";
-  const formSessions = toSessions(punchIn, punchOut, breaks);
-  // Holds edits that are not valid yet (e.g. overlapping) so the form values stay consistent.
-  const [draftSessions, setDraftSessions] = useState<WorkSession[] | null>(null);
-  const sessions = draftSessions ?? formSessions;
-  const sessionError = draftSessions ? sessionsError(draftSessions) : null;
+  // The session rows are the source of truth while editing: they keep exactly what was typed
+  // (even half-typed or out of order) and only valid sessions are written to the entry's times.
+  const [sessions, setSessions] = useState<WorkSession[]>(() =>
+    toSessions(punchIn, punchOut, breaks, initialValues?.sessionNotes, initialValues?.notes),
+  );
+  const [focusSessionId, setFocusSessionId] = useState<number | null>(null);
+  // Call after anything outside the editor changes the times (presets, quick actions, drafts).
+  const resyncSessions = useCallback(() => {
+    const values = getValues();
+    setSessions(toSessions(values.punchIn, values.punchOut, values.breaks ?? [], values.sessionNotes));
+  }, [getValues]);
+  const sessionError = sessionsError(sessions);
+  const hasBlankSession = sessions.some((session) => !session.start || !session.end);
 
   const updateSessions = (next: WorkSession[]) => {
-    if (sessionsError(next)) {
-      setDraftSessions(next);
-      return;
-    }
-    setDraftSessions(null);
-    const sorted = [...next].sort((a, b) => a.start.localeCompare(b.start));
-    setValue("punchIn", sorted[0].start, { shouldValidate: true });
-    setValue("punchOut", sorted[sorted.length - 1].end, { shouldValidate: true });
-    replace(
-      sorted.slice(1).flatMap((session, index) =>
-        session.start > sorted[index].end ? [{ start: sorted[index].end, end: session.start }] : [],
-      ),
-    );
+    setSessions(next);
+    if (sessionsError(next)) return;
+    const shift = sessionsToShift(next);
+    setValue("sessionNotes", shift.sessionNotes);
+    setValue("notes", shift.dayNote);
+    setValue("punchIn", shift.punchIn, { shouldValidate: true });
+    setValue("punchOut", shift.punchOut, { shouldValidate: true });
+    replace(shift.breaks);
   };
 
+  const updateSessionTime = (id: number, field: "start" | "end" | "note", value: string) =>
+    updateSessions(sessions.map((session) => (session.id === id ? { ...session, [field]: value } : session)));
+
   const addSession = () => {
-    const lastEnd = sessions[sessions.length - 1]?.end ?? "09:00";
-    const start = minutesBetween("00:00", lastEnd) >= 22 * 60 ? lastEnd : addMinutesToHHmm(lastEnd, 60);
-    const end = minutesBetween("00:00", start) >= 23 * 60 ? "23:59" : addMinutesToHHmm(start, 60);
-    updateSessions([...sessions, { start, end }]);
+    const id = nextSessionId++;
+    setFocusSessionId(id);
+    updateSessions([...sessions, { id, start: "", end: "", note: "" }]);
   };
 
   const breakMinutes = calcBreakMinutes(breaks);
@@ -156,6 +205,7 @@ export function TimeEntryForm({
       if (!parsed || !parsed.date || !parsed.punchIn || !parsed.punchOut) return;
       const draftPositionExists = positions.some((position) => position.id === parsed.positionId);
       reset({ ...parsed, positionId: draftPositionExists ? parsed.positionId : fallbackPositionId });
+      queueMicrotask(resyncSessions);
     } catch {
       // ignore bad local draft
     }
@@ -183,18 +233,23 @@ export function TimeEntryForm({
     const scheduled = scheduledPositionForDate(positions, date);
     if (scheduled && scheduled.id !== positionId) {
       setValue("positionId", scheduled.id, { shouldValidate: true });
+      queueMicrotask(resyncSessions);
     }
-  }, [autoSelectPosition, date, positionId, positions, setValue]);
+  }, [autoSelectPosition, date, positionId, positions, resyncSessions, setValue]);
 
   const setPreset = (start: string, end: string) => {
     setValue("punchIn", start, { shouldValidate: true });
     setValue("punchOut", end, { shouldValidate: true });
+    // For session-based days a preset is one clean session, so drop old gaps.
+    if (sessionMode) replace([]);
+    resyncSessions();
   };
 
   const applyPresetWithBreak = (start: string, end: string, breakStart: string, breakEnd: string, label: string) => {
     setValue("punchIn", start, { shouldValidate: true });
     setValue("punchOut", end, { shouldValidate: true });
     setValue("breaks", [{ start: breakStart, end: breakEnd }], { shouldValidate: true });
+    resyncSessions();
     toast.success(`Applied ${label}`);
   };
 
@@ -219,6 +274,7 @@ export function TimeEntryForm({
       [{ start: daySchedule.breakStart, end: daySchedule.breakEnd }],
       { shouldValidate: true },
     );
+    resyncSessions();
     toast.success(
       selectedPosition
         ? `Applied ${dayKey.toUpperCase()} regular ${selectedPosition.name} shift`
@@ -242,12 +298,14 @@ export function TimeEntryForm({
       shouldValidate: true,
     });
     setValue("breaks", [], { shouldValidate: true });
+    resyncSessions();
     toast.message("No-work holiday note added. You can close dialog if no entry is needed.");
   };
 
   const logWorkedHoliday = () => {
     setPreset("09:00", "13:00");
     setValue("breaks", [], { shouldValidate: true });
+    resyncSessions();
     setValue("notes", holidayName ? `Worked on public holiday: ${holidayName}` : "Worked on public holiday", {
       shouldValidate: true,
     });
@@ -258,7 +316,7 @@ export function TimeEntryForm({
     <form
       className="space-y-5"
       onSubmit={handleSubmit(async (values) => {
-        if (sessionError) {
+        if (sessionMode && sessionError) {
           toast.error(sessionError);
           return;
         }
@@ -293,7 +351,10 @@ export function TimeEntryForm({
               className="h-auto min-h-20 flex-col items-start justify-center rounded-2xl px-4 py-3 text-left text-[0.95rem] font-semibold"
               type="button"
               variant="outline"
-              onClick={() => setValue("punchIn", nowHHmm(), { shouldValidate: true })}
+              onClick={() => {
+                setValue("punchIn", nowHHmm(), { shouldValidate: true });
+                resyncSessions();
+              }}
             >
               <span className="mb-1 inline-flex items-center gap-2 text-xs uppercase tracking-wider text-muted-foreground">
                 <Clock3 className="h-3.5 w-3.5" />
@@ -305,7 +366,10 @@ export function TimeEntryForm({
               className="h-auto min-h-20 flex-col items-start justify-center rounded-2xl px-4 py-3 text-left text-[0.95rem] font-semibold"
               type="button"
               variant="outline"
-              onClick={() => setValue("punchOut", nowHHmm(), { shouldValidate: true })}
+              onClick={() => {
+                setValue("punchOut", nowHHmm(), { shouldValidate: true });
+                resyncSessions();
+              }}
             >
               <span className="mb-1 inline-flex items-center gap-2 text-xs uppercase tracking-wider text-muted-foreground">
                 <Clock3 className="h-3.5 w-3.5" />
@@ -430,6 +494,7 @@ export function TimeEntryForm({
             {...register("positionId", {
               onChange: () => {
                 positionTouchedRef.current = true;
+                resyncSessions();
               },
             })}
           >
@@ -483,17 +548,18 @@ export function TimeEntryForm({
             <div>
               <Label>Work sessions</Label>
               <p className="text-xs text-muted-foreground">
-                Add each separate time you worked on this day. Each session is rounded to tenths, then added up.
+                Add each separate time you worked on this day, with a note for each. Each session is rounded to tenths,
+                then added up.
               </p>
             </div>
           </div>
 
           <div className="space-y-2">
             {sessions.map((session, index) => {
-              const minutes = session.end > session.start ? minutesBetween(session.start, session.end) : 0;
+              const tenths = sessionTenths(session);
               return (
                 <div
-                  key={index}
+                  key={session.id}
                   className="grid min-w-0 grid-cols-[auto_1fr_1fr_auto] items-center gap-2 rounded-lg border bg-card p-2 sm:grid-cols-[auto_1fr_1fr_auto_auto]"
                 >
                   <span className="text-xs font-semibold text-muted-foreground">#{index + 1}</span>
@@ -502,17 +568,18 @@ export function TimeEntryForm({
                     aria-label={`Session ${index + 1} start`}
                     className="min-w-0"
                     value={session.start}
-                    onChange={(e) => updateSessions(sessions.map((item, i) => (i === index ? { ...item, start: e.target.value } : item)))}
+                    autoFocus={session.id === focusSessionId}
+                    onChange={(e) => updateSessionTime(session.id, "start", e.target.value)}
                   />
                   <Input
                     type="time"
                     aria-label={`Session ${index + 1} end`}
                     className="min-w-0"
                     value={session.end}
-                    onChange={(e) => updateSessions(sessions.map((item, i) => (i === index ? { ...item, end: e.target.value } : item)))}
+                    onChange={(e) => updateSessionTime(session.id, "end", e.target.value)}
                   />
                   <span className="col-span-3 col-start-2 text-xs text-muted-foreground sm:col-span-1 sm:col-start-auto sm:w-16 sm:text-right">
-                    {minutesToTenthsDecimal(minutes).toFixed(1)} hrs
+                    {tenths === null ? "—" : `${tenths.toFixed(1)} hrs`}
                   </span>
                   <Button
                     type="button"
@@ -521,10 +588,18 @@ export function TimeEntryForm({
                     aria-label={`Remove session ${index + 1}`}
                     className="col-start-4 row-start-1 justify-self-end sm:col-start-auto sm:row-start-auto"
                     disabled={sessions.length === 1}
-                    onClick={() => updateSessions(sessions.filter((_, i) => i !== index))}
+                    onClick={() => updateSessions(sessions.filter((item) => item.id !== session.id))}
                   >
                     <Trash2 className="h-4 w-4" />
                   </Button>
+                  <Input
+                    aria-label={`Session ${index + 1} note`}
+                    className="col-span-4 h-9 min-w-0 text-sm sm:col-span-5"
+                    placeholder="What did you work on? (optional)"
+                    maxLength={500}
+                    value={session.note}
+                    onChange={(e) => updateSessionTime(session.id, "note", e.target.value)}
+                  />
                 </div>
               );
             })}
@@ -535,14 +610,19 @@ export function TimeEntryForm({
             Add session
           </Button>
 
-          {sessionError ? (
+          {hasBlankSession ? (
+            <p className="text-xs text-muted-foreground">Enter the start and end time for each session.</p>
+          ) : sessionError ? (
             <p className="text-xs text-destructive">{sessionError}</p>
           ) : (
             <p className="text-sm font-medium">
               Day total: <span className="text-primary">{Math.max(0, dayTenths).toFixed(1)} hrs</span>
               {sessions.length > 1 && (
                 <span className="ml-1 text-xs font-normal text-muted-foreground">
-                  ({sessions.map((session) => minutesToTenthsDecimal(minutesBetween(session.start, session.end)).toFixed(1)).join(" + ")})
+                  ({[...sessions]
+                    .sort((a, b) => a.start.localeCompare(b.start))
+                    .map((session) => (sessionTenths(session) ?? 0).toFixed(1))
+                    .join(" + ")})
                 </span>
               )}
             </p>
@@ -598,10 +678,12 @@ export function TimeEntryForm({
       </div>
       )}
 
-      <div className="space-y-1">
-        <Label htmlFor="notes">Shift notes</Label>
-        <Textarea id="notes" placeholder="Tasks completed, reminders, supervisor requests..." {...register("notes")} />
-      </div>
+      {!sessionMode && (
+        <div className="space-y-1">
+          <Label htmlFor="notes">Shift notes</Label>
+          <Textarea id="notes" placeholder="Tasks completed, reminders, supervisor requests..." {...register("notes")} />
+        </div>
+      )}
 
       <div className="flex flex-col-reverse gap-2 border-t pt-4 sm:flex-row sm:justify-end">
         {onCancel && (

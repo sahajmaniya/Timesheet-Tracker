@@ -114,5 +114,7 @@ describe("validators", () => {
     expect(timeEntrySchema.safeParse(entry).success).toBe(true);
     expect(timeEntrySchema.safeParse({ ...entry, positionId: "pos_123" }).success).toBe(true);
     expect(timeEntrySchema.safeParse({ ...entry, positionId: "" }).success).toBe(false);
+    expect(timeEntrySchema.safeParse({ ...entry, sessionNotes: ["Proctored exam", ""] }).success).toBe(true);
+    expect(timeEntrySchema.safeParse({ ...entry, sessionNotes: ["x".repeat(501)] }).success).toBe(false);
   });
 });

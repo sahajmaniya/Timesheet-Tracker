@@ -18,6 +18,9 @@ export function serializeEntry(entry: EntryWithBreaks) {
     punchIn: entry.punchIn,
     punchOut: entry.punchOut,
     notes: entry.notes,
+    sessionNotes: Array.isArray(entry.sessionNotes)
+      ? entry.sessionNotes.map((note) => (typeof note === "string" ? note : ""))
+      : [],
     breaks: entry.breaks,
     breakMinutes,
     workedMinutes,

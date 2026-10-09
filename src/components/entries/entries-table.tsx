@@ -24,11 +24,17 @@ function hhmm(totalMinutes: number) {
 /** Work sessions of a session-based (ISA) day; empty for SA days. */
 function daySessions(entry: TimeEntry) {
   if (!entry.sessionBased) return [];
-  return workedSegments(entry).map((segment) => ({
+  return workedSegments(entry).map((segment, index) => ({
     start: hhmm(segment.start),
     end: hhmm(segment.end),
     minutes: segment.end - segment.start,
+    note: entry.sessionNotes[index]?.trim() ?? "",
   }));
+}
+
+/** Session-based days with per-session notes show them on each session instead of one day note. */
+function hasSessionNotes(entry: TimeEntry) {
+  return entry.sessionBased && entry.sessionNotes.some((note) => note.trim());
 }
 
 export function EntriesTable({
@@ -69,7 +75,8 @@ export function EntriesTable({
               {sessions.length > 0 ? (
                 <div className="mt-3 space-y-1.5 text-sm">
                   {sessions.map((session, index) => (
-                    <div key={session.start} className="flex items-center justify-between gap-2 rounded-lg border border-border/60 bg-background/60 px-2.5 py-1.5">
+                    <div key={session.start} className="rounded-lg border border-border/60 bg-background/60 px-2.5 py-1.5">
+                    <div className="flex items-center justify-between gap-2">
                       <span className="inline-flex min-w-0 flex-wrap items-center gap-x-1.5">
                         {sessions.length > 1 && (
                           <span className="inline-flex items-center gap-1 whitespace-nowrap text-muted-foreground">
@@ -81,6 +88,8 @@ export function EntriesTable({
                         </span>
                       </span>
                       <span className="shrink-0 whitespace-nowrap font-medium">{minutesToTenthsDecimal(session.minutes).toFixed(1)} hrs</span>
+                    </div>
+                    {session.note && <p className="mt-0.5 break-words text-xs text-muted-foreground">{session.note}</p>}
                     </div>
                   ))}
                   <p className="pt-1 font-semibold text-primary">
@@ -113,7 +122,9 @@ export function EntriesTable({
                   <p className="mt-2 text-xs text-muted-foreground">{entry.workedTenths.toFixed(1)} decimal hrs</p>
                 </>
               )}
-              <p className="mt-2 break-words text-sm text-muted-foreground">{entry.notes || "No notes"}</p>
+              {!hasSessionNotes(entry) && (
+                <p className="mt-2 break-words text-sm text-muted-foreground">{entry.notes || "No notes"}</p>
+              )}
             </div>
           );
         })}
@@ -170,7 +181,13 @@ export function EntriesTable({
                         {entry.sessionBased ? `Day total · ${minutesToHM(entry.workedMinutes)} clock time` : `${entry.workedTenths.toFixed(1)} decimal hrs`}
                       </div>
                     </TableCell>
-                    <TableCell className="max-w-56 truncate text-muted-foreground">{entry.notes || "No notes"}</TableCell>
+                    <TableCell className="max-w-56 truncate text-muted-foreground">
+                      {hasSessionNotes(entry)
+                        ? subRows.length > 0
+                          ? ""
+                          : sessions[0]?.note
+                        : entry.notes || "No notes"}
+                    </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-1">
                         <Button variant="ghost" size="icon" onClick={() => onEdit(entry)}>
@@ -197,7 +214,9 @@ export function EntriesTable({
                       <TableCell className="py-1.5">{formatTime12h(session.end)}</TableCell>
                       <TableCell className="py-1.5" />
                       <TableCell className="py-1.5">{minutesToTenthsDecimal(session.minutes).toFixed(1)} hrs</TableCell>
-                      <TableCell className="py-1.5" />
+                      <TableCell className="max-w-56 truncate py-1.5 text-muted-foreground" title={session.note || undefined}>
+                        {session.note}
+                      </TableCell>
                       <TableCell className="py-1.5" />
                     </TableRow>
                   ))}

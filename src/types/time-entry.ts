@@ -11,6 +11,8 @@ export type TimeEntry = {
   punchIn: string;
   punchOut: string;
   notes: string | null;
+  /** One note per work session (session-based days), in session time order. */
+  sessionNotes: string[];
   breaks: BreakItem[];
   breakMinutes: number;
   workedMinutes: number;

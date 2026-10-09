@@ -100,6 +100,7 @@ export async function POST(request: Request) {
         punchIn: parsed.data.punchIn,
         punchOut: parsed.data.punchOut,
         notes: parsed.data.notes,
+        sessionNotes: parsed.data.sessionNotes ?? undefined,
         breaks: {
           create: parsed.data.breaks.map((item) => ({ start: item.start, end: item.end })),
         },

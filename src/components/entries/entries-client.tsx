@@ -320,6 +320,7 @@ export function EntriesClient() {
       punchIn: entry.punchIn,
       punchOut: entry.punchOut,
       notes: entry.notes,
+      sessionNotes: entry.sessionNotes.length > 0 ? entry.sessionNotes : undefined,
       breaks: entry.breaks.map((item) => ({ start: item.start, end: item.end })),
     };
 
