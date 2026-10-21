@@ -14,7 +14,7 @@ import { Textarea } from "@/components/ui/textarea";
 const supportFormSchema = z.object({
   name: z.string().trim().min(2, "Please enter your name").max(80, "Name is too long"),
   email: z.string().trim().toLowerCase().email("Please enter a valid email"),
-  category: z.enum(["General", "Import", "Export", "Billing", "Bug"]),
+  category: z.enum(["General", "Hours", "Export", "Billing", "Bug"]),
   subject: z.string().trim().min(4, "Please add a short subject").max(120, "Subject is too long"),
   message: z.string().trim().min(20, "Please share a few more details").max(2500, "Message is too long"),
 });
@@ -100,7 +100,7 @@ export function SupportQueryForm() {
             {...register("category")}
           >
             <option value="General">General</option>
-            <option value="Import">Import</option>
+            <option value="Hours">Hours & Sessions</option>
             <option value="Export">Export</option>
             <option value="Billing">Billing</option>
             <option value="Bug">Bug</option>
