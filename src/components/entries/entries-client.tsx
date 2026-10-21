@@ -10,9 +10,7 @@ import {
   CalendarCheck2,
   CalendarRange,
   CheckCircle2,
-  ClipboardList,
   Download,
-  FileUp,
   History,
   Layers3,
   Plus,
@@ -142,9 +140,6 @@ export function EntriesClient() {
   const [open, setOpen] = useState(false);
   const [selectedEntry, setSelectedEntry] = useState<TimeEntry | null>(null);
   const [selectedDateForNewEntry, setSelectedDateForNewEntry] = useState<string | null>(null);
-  const [importFile, setImportFile] = useState<File | null>(null);
-  const [importMode, setImportMode] = useState<"overwrite" | "skip">("overwrite");
-  const [importing, setImporting] = useState(false);
   const [timesheetTemplateFile, setTimesheetTemplateFile] = useState<File | null>(null);
   const [timesheetLayoutMode, setTimesheetLayoutMode] = useState<"auto" | "standard" | "carry">("auto");
   const [fillingPdf, setFillingPdf] = useState(false);
@@ -173,7 +168,6 @@ export function EntriesClient() {
   const [holidayMap, setHolidayMap] = useState<Record<string, string>>({});
   const { positions } = usePositions();
   const [positionFilter, setPositionFilter] = useState("");
-  const [importPositionId, setImportPositionId] = useState("");
   const [payrollPeriods, setPayrollPeriods] = useState<PayrollPeriod[]>([]);
   const [selectedPayrollPeriodId, setSelectedPayrollPeriodId] = useState("");
   const [payrollPeriodLabel, setPayrollPeriodLabel] = useState("");
@@ -193,9 +187,6 @@ export function EntriesClient() {
     () => (positions.length > 1 ? Object.fromEntries(positions.map((position) => [position.id, position.name])) : undefined),
     [positions],
   );
-  const effectiveImportPositionId = positions.some((position) => position.id === importPositionId)
-    ? importPositionId
-    : activePositionId ?? positions[0]?.id ?? "";
   const timesheetRole: TimesheetRole = activePosition?.role ?? DEFAULT_TIMESHEET_ROLE;
   const selectedTemplate = timesheetTemplates[timesheetRole];
   const selectedPayrollPeriod = useMemo(
@@ -662,44 +653,6 @@ export function EntriesClient() {
     toast.success("Payroll period removed");
   };
 
-  const onImportWorkbook = async () => {
-    if (!importFile) {
-      toast.error("Select an Excel file first.");
-      return;
-    }
-
-    const formData = new FormData();
-    formData.append("file", importFile);
-    formData.append("mode", importMode);
-    if (effectiveImportPositionId) formData.append("positionId", effectiveImportPositionId);
-
-    setImporting(true);
-    try {
-      const res = await fetch("/api/import/excel", {
-        method: "POST",
-        body: formData,
-      });
-      const body = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        toast.error(body.error || "Import failed");
-        return;
-      }
-
-      const summary = body.summary;
-      toast.success(
-        `Import complete: ${summary.created} created, ${summary.updated} updated, ${summary.skipped} skipped`,
-        {
-          description: "Your table was refreshed with the latest imported rows.",
-        },
-      );
-      addRecentAction(`Imported Excel (${summary.created} new, ${summary.updated} updated)`);
-      setImportFile(null);
-      await fetchEntries();
-    } finally {
-      setImporting(false);
-    }
-  };
-
   const saveCurrentPreset = () => {
     const trimmed = presetName.trim();
     if (!trimmed) {
@@ -746,22 +699,6 @@ export function EntriesClient() {
     } catch {
       // ignore storage issues
     }
-  };
-
-  const downloadSampleImportCsv = () => {
-    const csv = [
-      "Date,Start Time,End Time,Break Start,Break End,Notes",
-      `${month}-03,09:00,13:00,11:00,11:15,Sample entry`,
-      `${month}-05,09:30,14:00,12:00,12:30,Imported template row`,
-      `${month}-07,10:00,15:00,,,No break row example`,
-    ].join("\n");
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `timesheet_import_sample_${month}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
   };
 
   const autoFixValidation = async () => {
@@ -1167,11 +1104,15 @@ export function EntriesClient() {
             {walkthroughStep === 0 && (
               <button
                 type="button"
-                onClick={() => document.getElementById("entries-import-section")?.scrollIntoView({ behavior: "smooth", block: "start" })}
+                onClick={() => {
+                  setSelectedEntry(null);
+                  setSelectedDateForNewEntry(null);
+                  setOpen(true);
+                }}
                 className="w-full rounded-xl border border-border/70 bg-card/70 p-3 text-left transition hover:bg-accent/60"
               >
-                <p className="font-semibold">1. Import or add entries</p>
-                <p className="mt-1 text-muted-foreground">Bring past month data from Excel or create daily entries.</p>
+                <p className="font-semibold">1. Add your entries</p>
+                <p className="mt-1 text-muted-foreground">Log each shift with Add Entry, or tap a day in the heatmap.</p>
               </button>
             )}
             {walkthroughStep === 1 && (
@@ -1607,7 +1548,7 @@ export function EntriesClient() {
               <History className="h-4 w-4 text-blue-500" />
               Recent Activity
             </CardTitle>
-            <CardDescription>Your latest import, export, PDF, and restore actions.</CardDescription>
+            <CardDescription>Your latest export, PDF, and restore actions.</CardDescription>
           </CardHeader>
           <CardContent className="pt-0 text-sm">
             {recentActions.length === 0 ? (
@@ -1669,55 +1610,6 @@ export function EntriesClient() {
         </CardHeader>
 
         <CardContent className="flex flex-col gap-4 pt-0">
-          <div
-            id="entries-import-section"
-            className="max-md:order-2 rounded-xl border border-dashed border-cyan-500/25 bg-gradient-to-r from-cyan-100/65 via-background/80 to-sky-100/60 p-3 sm:p-4 dark:border-cyan-300/20 dark:from-cyan-500/10 dark:via-background/70 dark:to-sky-500/10"
-          >
-            <div className="flex flex-col gap-2.5 md:flex-row md:items-end md:justify-between">
-              <div className="space-y-1">
-                <p className="text-sm font-semibold text-cyan-800 dark:text-cyan-100">Import Previous Months (.xlsx)</p>
-                <p className="text-xs text-slate-600 dark:text-slate-300/80">
-                  Supports your timesheet template with Date, Start Time, End Time, Break Start, Break End.
-                </p>
-                <input
-                  type="file"
-                  accept=".xlsx,.xls"
-                  onChange={(e) => setImportFile(e.target.files?.[0] ?? null)}
-                  className="w-full max-w-sm text-sm file:mr-3 file:rounded-md file:border file:border-cyan-500/35 file:bg-cyan-500/10 file:px-2.5 file:py-1.5 file:text-xs file:font-medium file:text-cyan-900 hover:file:bg-cyan-500/15 dark:file:border-cyan-300/30 dark:file:text-cyan-100"
-                />
-              </div>
-
-              <div className="grid w-full grid-cols-1 gap-2 sm:grid-cols-2 md:flex md:w-auto md:items-center md:justify-end">
-                {positions.length > 1 && (
-                  <select
-                    value={effectiveImportPositionId}
-                    onChange={(e) => setImportPositionId(e.target.value)}
-                    aria-label="Import rows into position"
-                    className="h-10 min-w-0 rounded-md border border-cyan-500/30 bg-background/90 px-3 text-sm md:w-56 dark:border-cyan-300/25 dark:bg-background/80"
-                  >
-                    {positions.map((position) => (
-                      <option key={position.id} value={position.id}>
-                        Import as {position.name}
-                      </option>
-                    ))}
-                  </select>
-                )}
-                <select
-                  value={importMode}
-                  onChange={(e) => setImportMode(e.target.value === "skip" ? "skip" : "overwrite")}
-                  className="h-10 min-w-0 rounded-md border border-cyan-500/30 bg-background/90 px-3 text-sm md:w-56 dark:border-cyan-300/25 dark:bg-background/80"
-                >
-                  <option value="overwrite">Overwrite existing dates</option>
-                  <option value="skip">Skip existing dates</option>
-                </select>
-                <Button className="w-full md:w-auto" onClick={onImportWorkbook} disabled={importing}>
-                  <FileUp className="mr-2 h-4 w-4" />
-                  {importing ? "Importing..." : "Import Excel"}
-                </Button>
-              </div>
-            </div>
-          </div>
-
           <div
             id="entries-pdf-section"
             className="max-md:order-2 rounded-xl border border-dashed border-indigo-500/25 bg-gradient-to-r from-indigo-100/65 via-background/80 to-blue-100/60 p-3 sm:p-4 dark:border-indigo-300/20 dark:from-indigo-500/10 dark:via-background/70 dark:to-blue-500/10"
@@ -1976,7 +1868,7 @@ export function EntriesClient() {
           ) : entries.length === 0 ? (
             <div className="rounded-xl border border-dashed p-8 text-center text-sm text-muted-foreground">
               <p>No entries for this month yet.</p>
-              <p className="mt-2 text-xs">Start with a sample import file or add your first shift manually.</p>
+              <p className="mt-2 text-xs">Add your first shift, or tap a day in the heatmap.</p>
               <div className="mt-4 flex flex-wrap justify-center gap-2">
                 <Button
                   type="button"
@@ -1988,27 +1880,6 @@ export function EntriesClient() {
                 >
                   <Plus className="mr-2 h-4 w-4" />
                   Add First Entry
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={downloadSampleImportCsv}
-                >
-                  <ClipboardList className="mr-2 h-4 w-4" />
-                  Download sample CSV
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => {
-                    document.getElementById("entries-import-section")?.scrollIntoView({
-                      behavior: "smooth",
-                      block: "start",
-                    });
-                  }}
-                >
-                  <FileUp className="mr-2 h-4 w-4" />
-                  Import Excel
                 </Button>
               </div>
             </div>
@@ -2187,13 +2058,8 @@ export function EntriesClient() {
           >
             Add
           </Button>
-          <Button
-            type="button"
-            variant="outline"
-            className="h-10 text-xs"
-            onClick={() => document.getElementById("entries-import-section")?.scrollIntoView({ behavior: "smooth", block: "start" })}
-          >
-            Import
+          <Button type="button" variant="outline" className="h-10 text-xs" onClick={() => void onExportCsv()}>
+            Export CSV
           </Button>
           <Button
             type="button"

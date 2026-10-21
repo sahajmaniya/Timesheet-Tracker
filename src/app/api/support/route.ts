@@ -6,7 +6,7 @@ import { clientIpFromHeaders, enforceRateLimit, rejectIfCrossOrigin } from "@/li
 const supportSchema = z.object({
   name: z.string().trim().min(2, "Name is required").max(80, "Name is too long"),
   email: z.string().trim().toLowerCase().email("Enter a valid email"),
-  category: z.enum(["General", "Import", "Export", "Billing", "Bug"]),
+  category: z.enum(["General", "Hours", "Export", "Billing", "Bug"]),
   subject: z.string().trim().min(4, "Subject is too short").max(120, "Subject is too long"),
   message: z.string().trim().min(20, "Please add more details").max(2500, "Message is too long"),
 });

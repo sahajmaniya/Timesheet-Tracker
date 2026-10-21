@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowRight, CircleHelp, Clock3, FileSpreadsheet, FileUp, LifeBuoy, MessageSquareText } from "lucide-react";
+import { ArrowRight, CircleHelp, Clock3, FileSpreadsheet, LifeBuoy, MessageSquareText } from "lucide-react";
 import { LandingNavbar } from "@/components/landing/landing-navbar";
 import { MarketingFooter } from "@/components/layout/marketing-footer";
 import { SupportQueryForm } from "@/components/support/support-query-form";
@@ -39,9 +39,9 @@ export const metadata: Metadata = {
 
 const lanes = [
   {
-    icon: FileUp,
-    title: "Import Issues",
-    desc: "Excel column mismatch, date parsing, and failed import flows.",
+    icon: Clock3,
+    title: "Hours & Sessions",
+    desc: "Positions, work sessions, and daily hours or totals that don't add up.",
   },
   {
     icon: FileSpreadsheet,

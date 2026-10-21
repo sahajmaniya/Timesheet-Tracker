@@ -50,7 +50,7 @@ export default async function SignUpPage() {
             </div>
             <div className="rounded-2xl border border-cyan-300/35 bg-gradient-to-r from-white/85 to-sky-50/60 p-4 text-sm text-slate-700 dark:border-cyan-800/35 dark:from-slate-900/75 dark:to-sky-950/20 dark:text-slate-200">
               <FileSpreadsheet className="mb-2 h-4 w-4 text-cyan-700 dark:text-cyan-300" />
-              CSV + Excel import
+              CSV + PDF export
             </div>
             <div className="rounded-2xl border border-cyan-300/35 bg-gradient-to-r from-white/85 to-emerald-50/60 p-4 text-sm text-slate-700 dark:border-cyan-800/35 dark:from-slate-900/75 dark:to-emerald-950/20 dark:text-slate-200">
               <BadgeCheck className="mb-2 h-4 w-4 text-cyan-700 dark:text-cyan-300" />

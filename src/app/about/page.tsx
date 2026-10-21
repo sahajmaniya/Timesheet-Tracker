@@ -96,7 +96,7 @@ export default function AboutPage() {
             </div>
             <div className="rounded-2xl border border-cyan-300/45 bg-gradient-to-br from-white/95 to-emerald-50/80 p-4 shadow-[0_12px_24px_-18px_rgba(8,47,73,0.55)] dark:border-cyan-700/45 dark:bg-gradient-to-br dark:from-emerald-950/35 dark:to-slate-900/70">
               <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">Workflows</p>
-              <p className="mt-1 text-lg font-black tracking-tight">Import + Review + Submit</p>
+              <p className="mt-1 text-lg font-black tracking-tight">Log + Review + Submit</p>
             </div>
           </div>
         </div>
@@ -131,7 +131,7 @@ export default function AboutPage() {
               <div>
                 <h2 className="text-xl font-bold tracking-tight">How teams use PunchPilot</h2>
                 <p className="mt-2 text-sm leading-6 text-muted-foreground sm:text-base">
-                  Teams import previous data, track daily entries, run validations, and export final files for month-end submission.
+                  Teams track daily entries, run validations, and export final files for month-end submission.
                   This reduces back-and-forth and keeps timesheet processing consistent.
                 </p>
               </div>

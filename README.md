@@ -47,27 +47,25 @@ Modern, responsive timesheet tracker built with Next.js App Router, TypeScript, 
 | PostgreSQL | Persistent storage for users, entries, settings, audit logs | Relational database fit for structured timesheet data |
 | Zod + React Hook Form | Form validation and form state handling | Client/server validation with cleaner form UX |
 | `date-fns` | Time/date math for totals and validations | Reliable utilities for time calculations |
-| `xlsx` | Excel import endpoint (`/api/import/excel`) | Bulk import entries from spreadsheet files |
 | `pdf-lib` + `pdfjs-dist` | PDF fill/export endpoint (`/api/entries/fill-pdf`) | Generate filled monthly timesheet PDFs |
 | Playwright | E2E smoke tests in `tests/e2e` | Automated browser testing for key user journeys |
 | ESLint | Static analysis/linting | Keeps code quality and consistency high |
 
 ## Data Model Choice
 
-This app uses **one entry per user per day** with Prisma constraint:
+This app uses **one entry per position per day** with Prisma constraint:
 
-- `@@unique([userId, date])`
+- `@@unique([userId, positionId, date])`
 
-This prevents accidental duplicates and matches monthly timesheet workflows.
-
-Each entry also belongs to a `Position` (`positionId`). Positions carry the timesheet
+Each entry belongs to a `Position` (`positionId`). Positions carry the timesheet
 type (SA/ISA), hourly rate, and regular schedule, so a user holding two jobs logs each
 day against the job worked; CSV/PDF exports can be scoped to one position and pay is
-estimated per position at its own rate.
+estimated per position at its own rate. Shifts for different positions on the same day
+must not overlap.
 
-Known limitation:
-- Split shifts or multiple project entries on the same calendar date are not supported in the current schema.
-- Import behavior follows this model (`skip` or `overwrite` for same-date rows).
+ISA days can hold several work sessions. They are stored as one entry whose gaps are
+breaks, with one note per session in `sessionNotes`. Each session is rounded to tenths
+with the voucher table and the results are summed.
 
 ## Timezone Strategy
 
@@ -194,7 +192,6 @@ npx prisma migrate deploy
 - `DELETE /api/entries/:id`
 - `GET /api/entries/export?month=YYYY-MM[&positionId=...]`
 - `POST /api/entries/fill-pdf`
-- `POST /api/import/excel`
 - `GET /api/profile`
 - `PATCH /api/profile`
 - `GET /api/payroll/estimate?month=YYYY-MM[&positionId=...]` (includes a per-position breakdown)
@@ -207,7 +204,7 @@ npx prisma migrate deploy
 - All entry APIs derive `userId` from authenticated session.
 - Client-submitted `userId` is never trusted.
 - Chronology validation blocks invalid ranges (e.g., punch out before punch in).
-- Conservative API rate limits are enabled for OTP, password reset, CSV export, PDF generation, and Excel import.
+- Conservative API rate limits are enabled for OTP, password reset, CSV export, and PDF generation.
 - Clicking PunchPilot logo in navbar/topbar/footer routes to home (`/`).
 
 ## Rate Limits
@@ -222,7 +219,6 @@ Current API limits are in-memory per server instance and keyed by user/IP contex
 | Reset password (`/api/auth/reset-password`) | 8 requests | 10 minutes |
 | CSV export (`/api/entries/export`) | 25 requests | 10 minutes |
 | PDF generation (`/api/entries/fill-pdf`) | 12 requests | 10 minutes |
-| Excel import (`/api/import/excel`) | 8 requests | 10 minutes |
 | Support form (`/api/support`) | 4 requests | 1 minute |
 
 ## Monthly Summary Emails

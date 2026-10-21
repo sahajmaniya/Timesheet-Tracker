@@ -58,10 +58,10 @@ export default function MonthlyTimesheetCsvExportPage() {
       },
       {
         "@type": "Question",
-        name: "Can I import old monthly records?",
+        name: "Can I track more than one job?",
         acceptedAnswer: {
           "@type": "Answer",
-          text: "Yes. PunchPilot supports importing previous month records from Excel templates.",
+          text: "Yes. Add each position (for example SA and ISA) in Settings; each gets its own pay rate, schedule, and timesheet.",
         },
       },
     ],
