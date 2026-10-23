@@ -7,6 +7,7 @@ import { useSession } from "next-auth/react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { PositionsManager } from "@/components/profile/positions-manager";
+import { TypedSignaturePicker } from "@/components/profile/typed-signature";
 import { UserAvatar } from "@/components/profile/user-avatar";
 import {
   Dialog,
@@ -356,7 +357,11 @@ export function ProfileSettingsForm({
       toast.error("Please draw your signature first.");
       return;
     }
+    await saveSignature(dataUrl);
+  };
 
+  /** Saves a drawn or typed signature image used on generated timesheet PDFs. */
+  const saveSignature = async (dataUrl: string) => {
     setDrawingSignature(true);
     try {
       const res = await fetch("/api/profile", {
@@ -589,12 +594,27 @@ export function ProfileSettingsForm({
                     <div className="space-y-1 rounded-xl border border-border/70 bg-card/70 p-4 sm:col-span-2">
                       <div className="mb-2 flex items-center gap-2 text-muted-foreground">
                         <Sparkles className="h-4 w-4" />
-                        <span className="text-xs uppercase tracking-wider">Draw Signature</span>
+                        <span className="text-xs uppercase tracking-wider">Signature</span>
                       </div>
-                      <p className="text-sm text-muted-foreground">Draw once and we will use it in your generated timesheet PDFs.</p>
+                      <p className="text-sm text-muted-foreground">
+                        Type your name in a signature style, or draw it. It&apos;s used on your generated timesheet PDFs.
+                      </p>
                       <div className="mt-3 rounded-xl border border-border/70 bg-background/70 p-3">
+                        <p className="mb-2 text-sm font-medium">Type it</p>
+                        <TypedSignaturePicker
+                          defaultName={profile.name ?? ""}
+                          saving={drawingSignature}
+                          onAdopt={saveSignature}
+                        />
+                      </div>
+                      <div className="flex items-center gap-3 py-1 text-xs text-muted-foreground">
+                        <span className="h-px flex-1 bg-border" />
+                        or draw it
+                        <span className="h-px flex-1 bg-border" />
+                      </div>
+                      <div className="rounded-xl border border-border/70 bg-background/70 p-3">
                         <div className="mb-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                          <p className="text-xs text-muted-foreground">Signature Pad</p>
+                          <p className="text-xs text-muted-foreground">Signature pad · shows your current signature</p>
                           <div className="flex flex-wrap items-center gap-2">
                             <Button type="button" variant="ghost" size="sm" className="h-8 px-2.5 text-xs sm:h-9 sm:px-3 sm:text-sm" onClick={undoSignatureStroke}>
                               <Undo2 className="mr-1.5 h-3.5 w-3.5 sm:h-4 sm:w-4" />
