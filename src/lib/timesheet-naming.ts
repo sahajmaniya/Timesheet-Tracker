@@ -22,7 +22,7 @@ export function getVoucherMonth(month: string, periodStart?: string, periodEnd?:
   return best;
 }
 
-/** Keeps characters that are safe in file names, including the comma in "Last,_First". */
+/** Keeps characters that are safe in file names. */
 function cleanPart(value: string) {
   return value
     .trim()
@@ -31,29 +31,29 @@ function cleanPart(value: string) {
     .replace(/^_+|_+$/g, "");
 }
 
-/** "Sahaj Vijaykumar Maniya" → "Maniya,_Sahaj" (last name, first name). */
+/** "Sahaj Vijaykumar Maniya" → "Maniya_Sahaj" (last name, first name). */
 export function lastFirstName(fullName: string | null | undefined) {
   const parts = (fullName ?? "").trim().split(/\s+/).filter(Boolean);
   if (parts.length === 0) return "";
   if (parts.length === 1) return cleanPart(parts[0]);
-  return `${cleanPart(parts[parts.length - 1])},_${cleanPart(parts[0])}`;
+  return `${cleanPart(parts[parts.length - 1])}_${cleanPart(parts[0])}`;
 }
 
 /**
  * Department naming convention for filled vouchers:
- * {UNIT}_{SA|ISA}_TIMESHEET_{Last},_{First}_{MMYYYY}.pdf, e.g.
- * 010_SA_TIMESHEET_Maniya,_Sahaj_102026.pdf. Parts that are unknown are left out.
+ * {Dept}_{SA|ISA}_{Last}_{First}_{MMYYYY}.pdf, e.g. 010_SA_Maniya_Sahaj_102026.pdf.
+ * Parts that are unknown are left out.
  */
 export function buildTimesheetFileName(params: {
-  unitCode?: string | null;
+  /** The position's dept code (stored as Position.unitCode). */
+  deptCode?: string | null;
   roleShortLabel: string;
   fullName?: string | null;
   voucherMonth: string;
 }) {
   const parts = [
-    cleanPart(params.unitCode ?? ""),
+    cleanPart(params.deptCode ?? ""),
     cleanPart(params.roleShortLabel),
-    "TIMESHEET",
     lastFirstName(params.fullName),
     format(parseISO(`${params.voucherMonth}-01`), "MMyyyy"),
   ].filter(Boolean);

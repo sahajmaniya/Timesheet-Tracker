@@ -135,8 +135,8 @@ export const positionSchema = z.object({
   unitCode: z
     .string()
     .trim()
-    .max(10, "Unit code is too long")
-    .regex(/^[A-Za-z0-9-]*$/, "Unit code can only use letters, numbers, and dashes")
+    .max(10, "Dept code is too long")
+    .regex(/^[A-Za-z0-9-]*$/, "Dept code can only use letters, numbers, and dashes")
     .optional(),
   workSchedule: workScheduleSchema,
 });
