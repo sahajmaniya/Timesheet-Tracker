@@ -856,7 +856,7 @@ export function EntriesClient() {
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
       const fileName = buildTimesheetFileName({
-        unitCode: activePosition.unitCode,
+        deptCode: activePosition.unitCode,
         roleShortLabel: timesheetTemplates[timesheetRole].shortLabel,
         fullName: session?.user?.name,
         voucherMonth: getVoucherMonth(month, selectedPayrollPeriod?.startDate, selectedPayrollPeriod?.endDate),
@@ -1855,7 +1855,7 @@ export function EntriesClient() {
               onChange={(e) => setPendingPdf((prev) => (prev ? { ...prev, fileName: e.target.value } : prev))}
             />
             <p className="text-xs text-muted-foreground">
-              Format: UNIT_TYPE_TIMESHEET_Last,_First_MMYYYY. Set each job&apos;s unit code in Settings → Positions.
+              Format: Dept_TYPE_Last_First_MMYYYY. Set each job&apos;s dept code in Settings → Positions.
             </p>
             <DialogFooter className="pt-2">
               <Button type="button" variant="outline" onClick={() => closePendingPdf(false)}>

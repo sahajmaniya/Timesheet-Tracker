@@ -187,7 +187,7 @@ export function PositionsManager({
                 <p className="line-clamp-2 break-words font-semibold">{position.name}</p>
                 <p className="mt-0.5 text-xs text-muted-foreground">
                   {timesheetTemplates[position.role].label}
-                  {position.unitCode ? ` · Unit ${position.unitCode}` : ""}
+                  {position.unitCode ? ` · Dept ${position.unitCode}` : ""}
                 </p>
               </div>
               <div className="flex shrink-0 gap-1">
@@ -270,7 +270,7 @@ export function PositionsManager({
                   />
                 </div>
                 <div className="space-y-1 sm:col-span-2">
-                  <Label htmlFor="position-unit">Unit code (optional)</Label>
+                  <Label htmlFor="position-unit">Dept code (optional)</Label>
                   <Input
                     id="position-unit"
                     value={draft.unitCode}
@@ -279,8 +279,8 @@ export function PositionsManager({
                     onChange={(e) => setDraft({ ...draft, unitCode: e.target.value })}
                   />
                   <p className="text-xs text-muted-foreground">
-                    The UNIT number printed on this job&apos;s voucher. It starts your timesheet file name, like
-                    010_SA_TIMESHEET_Last,_First_102026.
+                    The department code your timesheet files start with, like 010 in
+                    010_SA_Last_First_102026.
                   </p>
                 </div>
               </div>
