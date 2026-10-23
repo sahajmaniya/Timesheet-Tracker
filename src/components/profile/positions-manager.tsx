@@ -39,6 +39,7 @@ function emptyDraft(role: TimesheetRole): PositionDraft {
     name: role === "instructional_student_assistant" ? "Instructional Student Assistant" : "Student Assistant",
     role,
     hourlyRate: "0",
+    unitCode: "",
     workSchedule: structuredClone(DEFAULT_WORK_SCHEDULE),
   };
 }
@@ -106,6 +107,7 @@ export function PositionsManager({
       name: draft.name,
       role: draft.role,
       hourlyRate: Number(draft.hourlyRate),
+      unitCode: draft.unitCode,
       workSchedule: draft.workSchedule,
     });
     if (!parsed.success) {
@@ -183,7 +185,10 @@ export function PositionsManager({
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
                 <p className="line-clamp-2 break-words font-semibold">{position.name}</p>
-                <p className="mt-0.5 text-xs text-muted-foreground">{timesheetTemplates[position.role].label}</p>
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  {timesheetTemplates[position.role].label}
+                  {position.unitCode ? ` · Unit ${position.unitCode}` : ""}
+                </p>
               </div>
               <div className="flex shrink-0 gap-1">
                 <Button type="button" variant="ghost" size="icon" aria-label={`Edit ${position.name}`} onClick={() => openEditor(position)}>
@@ -263,6 +268,20 @@ export function PositionsManager({
                     value={draft.hourlyRate}
                     onChange={(e) => setDraft({ ...draft, hourlyRate: e.target.value })}
                   />
+                </div>
+                <div className="space-y-1 sm:col-span-2">
+                  <Label htmlFor="position-unit">Unit code (optional)</Label>
+                  <Input
+                    id="position-unit"
+                    value={draft.unitCode}
+                    maxLength={10}
+                    placeholder="e.g. 010"
+                    onChange={(e) => setDraft({ ...draft, unitCode: e.target.value })}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    The UNIT number printed on this job&apos;s voucher. It starts your timesheet file name, like
+                    010_SA_TIMESHEET_Last,_First_102026.
+                  </p>
                 </div>
               </div>
 

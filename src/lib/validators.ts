@@ -132,6 +132,12 @@ export const positionSchema = z.object({
   name: z.string().trim().min(2, "Position name must be at least 2 characters").max(80),
   role: positionRoleSchema,
   hourlyRate: z.number().min(0, "Hourly rate must be 0 or more").max(1000, "Hourly rate is too high"),
+  unitCode: z
+    .string()
+    .trim()
+    .max(10, "Unit code is too long")
+    .regex(/^[A-Za-z0-9-]*$/, "Unit code can only use letters, numbers, and dashes")
+    .optional(),
   workSchedule: workScheduleSchema,
 });
 

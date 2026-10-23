@@ -1,7 +1,8 @@
 import { PDFDocument, StandardFonts, degrees, rgb } from "pdf-lib";
-import { addDays, addMonths, differenceInCalendarDays, eachDayOfInterval, format, parseISO } from "date-fns";
+import { addDays, addMonths, differenceInCalendarDays, format, parseISO } from "date-fns";
 import type { Break } from "@prisma/client";
 import { calcWorkedMinutes, minutesToTenthsDecimal, sessionTenthsTotal } from "@/lib/time";
+import { getVoucherMonth } from "@/lib/timesheet-naming";
 import { getTimesheetTemplate, type TimesheetRole } from "@/lib/timesheet-templates";
 
 type EntryForPdf = {
@@ -45,27 +46,7 @@ export class TimesheetPlacementError extends Error {
   }
 }
 
-/**
- * The month a fixed-row voucher is for: the selected month, or for a payroll
- * period the month holding most of its days (e.g. Jul 31–Aug 31 → August).
- */
-export function getVoucherMonth(month: string, periodStart?: string, periodEnd?: string) {
-  if (!periodStart || !periodEnd) return month;
-  const daysByMonth = new Map<string, number>();
-  for (const day of eachDayOfInterval({ start: parseISO(periodStart), end: parseISO(periodEnd) })) {
-    const key = format(day, "yyyy-MM");
-    daysByMonth.set(key, (daysByMonth.get(key) ?? 0) + 1);
-  }
-  let best = month;
-  let bestCount = -1;
-  for (const [key, count] of daysByMonth) {
-    if (count >= bestCount) {
-      best = key;
-      bestCount = count;
-    }
-  }
-  return best;
-}
+export { getVoucherMonth };
 
 /**
  * Row slot on the ISA voucher. Columns hold [prev-month 31, 1–10], [11–21],

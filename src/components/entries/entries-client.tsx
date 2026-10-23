@@ -2,6 +2,7 @@
 
 import { eachDayOfInterval, endOfMonth, format, getDay, isAfter, startOfMonth } from "date-fns";
 import Link from "next/link";
+import { useSession } from "next-auth/react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   AlertTriangle,
@@ -11,6 +12,7 @@ import {
   CalendarRange,
   CheckCircle2,
   Download,
+  FileText,
   History,
   Layers3,
   Plus,
@@ -28,9 +30,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { buildDownloadFilename, getFilenameFromContentDisposition } from "@/lib/downloads";
 import { getUsFederalHolidayMap } from "@/lib/holidays";
 import { minutesToHM } from "@/lib/time";
+import { buildTimesheetFileName, getVoucherMonth, normalizePdfFileName } from "@/lib/timesheet-naming";
 import { DEFAULT_TIMESHEET_ROLE, timesheetTemplates, type TimesheetRole } from "@/lib/timesheet-templates";
 import { weekdayKeys } from "@/lib/work-schedule";
 import type { TimeEntry } from "@/types/time-entry";
@@ -41,14 +43,6 @@ type EntryValidationIssue = {
   level: "warning" | "error";
   message: string;
   date?: string;
-};
-
-type PdfPreferencePreset = {
-  id: string;
-  name: string;
-  role: TimesheetRole;
-  layoutMode: "auto" | "standard" | "carry";
-  previewBeforeDownload: boolean;
 };
 
 type LastGeneratedPdf = {
@@ -74,15 +68,6 @@ function minutesToHhmm(total: number) {
   const h = Math.floor(clamped / 60);
   const m = clamped % 60;
   return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
-}
-
-function sanitizePdfFilenameBase(value: string) {
-  return value
-    .trim()
-    .replace(/\s+/g, "_")
-    .replace(/[/\\?%*:|"<>]/g, "")
-    .replace(/[^\w.-]/g, "")
-    .replace(/^_+|_+$/g, "");
 }
 
 function EntriesTableSkeleton() {
@@ -147,10 +132,10 @@ export function EntriesClient() {
   const [showWalkthrough, setShowWalkthrough] = useState(false);
   const [walkthroughStep, setWalkthroughStep] = useState(0);
   const [previewPdfBeforeDownload, setPreviewPdfBeforeDownload] = useState(true);
-  const [savedPresets, setSavedPresets] = useState<PdfPreferencePreset[]>([]);
-  const [presetName, setPresetName] = useState("");
+  // A generated PDF waiting for the user to confirm its file name and save it.
+  const [pendingPdf, setPendingPdf] = useState<{ url: string; fileName: string } | null>(null);
+  const { data: session } = useSession();
   const [lastGenerated, setLastGenerated] = useState<LastGeneratedPdf | null>(null);
-  const [showRoleHints, setShowRoleHints] = useState(true);
   const [bulkMode, setBulkMode] = useState(false);
   const [bulkSelectedIds, setBulkSelectedIds] = useState<string[]>([]);
   const [bulkPunchIn, setBulkPunchIn] = useState("09:00");
@@ -196,12 +181,6 @@ export function EntriesClient() {
   const calendarMonthDate = new Date(`${month}-01T00:00:00`);
   const calendarMonthScope = `${format(calendarMonthDate, "MMMM d")}–${format(endOfMonth(calendarMonthDate), "d, yyyy")}`;
   const payrollScopeLabel = selectedPayrollPeriod?.label ?? calendarMonthScope;
-  const roleBehaviorHints = useMemo(() => {
-    if (timesheetRole === "instructional_student_assistant") {
-      return ["Total hours only", "No In/Out rows", "No weekly totals", "Fixed day slots"];
-    }
-    return ["In/Out rows", "Break-aware split", "Weekly totals"];
-  }, [timesheetRole]);
   const addRecentAction = useCallback((label: string) => {
     setRecentActions((prev) => [
       { id: Date.now() + Math.floor(Math.random() * 1000), label, at: format(new Date(), "MMM d, h:mm a") },
@@ -280,22 +259,9 @@ export function EntriesClient() {
       if (stepRaw) setWalkthroughStep(Math.max(0, Math.min(2, Number(stepRaw) || 0)));
       const previewPref = window.localStorage.getItem("entries_preview_pdf_before_download");
       if (previewPref === "false") setPreviewPdfBeforeDownload(false);
-      const presetsRaw = window.localStorage.getItem("entries_pdf_presets");
-      if (presetsRaw) {
-        const parsedPresets = JSON.parse(presetsRaw) as PdfPreferencePreset[];
-        setSavedPresets(parsedPresets);
-        if (parsedPresets.length > 0) {
-          setShowRoleHints(false);
-        }
-      }
       const lastGeneratedRaw = window.localStorage.getItem("entries_last_generated_pdf");
       if (lastGeneratedRaw) {
         setLastGenerated(JSON.parse(lastGeneratedRaw) as LastGeneratedPdf);
-        setShowRoleHints(false);
-      }
-      const hideRoleHintsRaw = window.localStorage.getItem("entries_hide_role_hints");
-      if (hideRoleHintsRaw === "true") {
-        setShowRoleHints(false);
       }
       const snoozeRaw = window.localStorage.getItem(`entries_reminder_snooze_${month}`);
       setRemindersSnoozed(snoozeRaw === "true");
@@ -653,54 +619,6 @@ export function EntriesClient() {
     toast.success("Payroll period removed");
   };
 
-  const saveCurrentPreset = () => {
-    const trimmed = presetName.trim();
-    if (!trimmed) {
-      toast.error("Enter a preset name first.");
-      return;
-    }
-
-    const preset: PdfPreferencePreset = {
-      id: trimmed.toLowerCase().replace(/\s+/g, "-"),
-      name: trimmed,
-      role: timesheetRole,
-      layoutMode: timesheetLayoutMode,
-      previewBeforeDownload: previewPdfBeforeDownload,
-    };
-    const next = [preset, ...savedPresets.filter((item) => item.id !== preset.id)].slice(0, 12);
-    setSavedPresets(next);
-    setPresetName(trimmed);
-    try {
-      window.localStorage.setItem("entries_pdf_presets", JSON.stringify(next));
-    } catch {
-      // ignore storage issues
-    }
-    toast.success(`Preset "${trimmed}" saved.`, {
-      description: "Use the dropdown anytime to re-apply this setup.",
-    });
-  };
-
-  const applyPreset = (presetId: string) => {
-    const preset = savedPresets.find((item) => item.id === presetId);
-    if (!preset) return;
-    setTimesheetLayoutMode(preset.layoutMode);
-    setPreviewPdfBeforeDownload(preset.previewBeforeDownload);
-    setPresetName(preset.name);
-    toast.success(`Applied preset "${preset.name}".`, {
-      description: "Layout mode and preview preference were updated.",
-    });
-  };
-
-  const removePreset = (presetId: string) => {
-    const next = savedPresets.filter((item) => item.id !== presetId);
-    setSavedPresets(next);
-    try {
-      window.localStorage.setItem("entries_pdf_presets", JSON.stringify(next));
-    } catch {
-      // ignore storage issues
-    }
-  };
-
   const autoFixValidation = async () => {
     const fixable = entries.filter((entry) => validationIssues.some((issue) => issue.id.startsWith(`${entry.id}-`)));
     if (fixable.length === 0) {
@@ -937,49 +855,14 @@ export function EntriesClient() {
 
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      const contentDisposition = res.headers.get("content-disposition");
-      const filenameFromHeader = getFilenameFromContentDisposition(contentDisposition);
-      const customNameBase = sanitizePdfFilenameBase(presetName);
-      const customFilename = customNameBase
-        ? `${customNameBase.toLowerCase().endsWith(".pdf") ? customNameBase.slice(0, -4) : customNameBase}.pdf`
-        : null;
-      const filename =
-        customFilename ||
-        filenameFromHeader ||
-        buildDownloadFilename({
-          kind: "timesheet_filled_pdf",
-          month,
-          extension: "pdf",
-        });
-      a.download = filename;
-
-      if (previewPdfBeforeDownload) {
-        window.open(url, "_blank", "noopener,noreferrer");
-        const shouldDownload = await confirm({
-          title: "Download Filled PDF?",
-          description: "Preview opened in a new tab. Do you also want to download this PDF now?",
-          confirmText: "Download",
-          cancelText: "Not now",
-        });
-        if (shouldDownload) {
-          a.click();
-        } else {
-          toast.message("Preview opened. You can download after checking alignment.");
-        }
-      } else {
-        a.click();
-      }
-      URL.revokeObjectURL(url);
-      toast.success(
-        selectedLayoutMode === "auto"
-          ? "Filled timesheet PDF ready."
-          : `Filled timesheet PDF ready (${selectedLayoutMode} layout).`,
-        {
-          description: `Saved as ${filename}`,
-        },
-      );
+      const fileName = buildTimesheetFileName({
+        unitCode: activePosition.unitCode,
+        roleShortLabel: timesheetTemplates[timesheetRole].shortLabel,
+        fullName: session?.user?.name,
+        voucherMonth: getVoucherMonth(month, selectedPayrollPeriod?.startDate, selectedPayrollPeriod?.endDate),
+      });
+      if (previewPdfBeforeDownload) window.open(url, "_blank", "noopener,noreferrer");
+      setPendingPdf({ url, fileName });
       const generated: LastGeneratedPdf = {
         month,
         role: timesheetRole,
@@ -995,7 +878,32 @@ export function EntriesClient() {
     } finally {
       setFillingPdf(false);
     }
-  }, [activePosition, addRecentAction, confirm, confirmValidationForAction, month, presetName, previewPdfBeforeDownload, selectedPayrollPeriod, timesheetLayoutMode, timesheetRole, timesheetTemplateFile]);
+  }, [activePosition, addRecentAction, confirm, confirmValidationForAction, month, previewPdfBeforeDownload, selectedPayrollPeriod, session?.user?.name, timesheetLayoutMode, timesheetRole, timesheetTemplateFile]);
+
+  const closePendingPdf = (saved: boolean) => {
+    // Free the PDF later so the download and the preview tab can finish reading it.
+    if (pendingPdf) {
+      const { url } = pendingPdf;
+      window.setTimeout(() => URL.revokeObjectURL(url), 30_000);
+    }
+    setPendingPdf(null);
+    if (!saved) toast.message("PDF not saved. You can generate it again anytime.");
+  };
+
+  const savePendingPdf = () => {
+    if (!pendingPdf) return;
+    const fileName = normalizePdfFileName(pendingPdf.fileName);
+    if (!fileName) {
+      toast.error("Enter a file name.");
+      return;
+    }
+    const link = document.createElement("a");
+    link.href = pendingPdf.url;
+    link.download = fileName;
+    link.click();
+    toast.success("Timesheet PDF saved", { description: fileName });
+    closePendingPdf(true);
+  };
 
   useEffect(() => {
     const onKeydown = (event: KeyboardEvent) => {
@@ -1586,15 +1494,6 @@ export function EntriesClient() {
                 Export CSV
               </Button>
               <Button
-                variant="outline"
-                className="w-full border-red-500/35 text-red-700 hover:bg-red-500/10 hover:text-red-800 dark:text-red-200 dark:hover:bg-red-500/15 dark:hover:text-red-100 sm:w-auto"
-                onClick={onDeleteMonth}
-                disabled={deletingMonth || entries.length === 0}
-              >
-                <Trash2 className="mr-2 h-4 w-4" />
-                {deletingMonth ? "Deleting..." : "Delete All Entries (This Month)"}
-              </Button>
-              <Button
                 className="w-full sm:w-auto"
                 onClick={() => {
                   setSelectedEntry(null);
@@ -1614,197 +1513,97 @@ export function EntriesClient() {
             id="entries-pdf-section"
             className="max-md:order-2 rounded-xl border border-dashed border-indigo-500/25 bg-gradient-to-r from-indigo-100/65 via-background/80 to-blue-100/60 p-3 sm:p-4 dark:border-indigo-300/20 dark:from-indigo-500/10 dark:via-background/70 dark:to-blue-500/10"
           >
-            <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(280px,320px)]">
-              <div className="space-y-2">
-                <p className="text-sm font-semibold text-indigo-800 dark:text-indigo-100">Auto-Fill Timesheet PDF</p>
-                <p className="text-xs text-slate-600 dark:text-slate-300/80">
-                  Upload your blank timesheet PDF template. We fill In/Out/Hours from the selected payroll period, or from the selected calendar month when no period is selected.
+            <p className="text-sm font-semibold text-indigo-800 dark:text-indigo-100">Timesheet PDF</p>
+            {!activePosition ? (
+              <p className="mt-1 text-xs text-slate-600 dark:text-slate-300/80">
+                Pick a position at the top to generate its timesheet.
+              </p>
+            ) : (
+              <>
+                <p className="mt-1 text-xs text-slate-600 dark:text-slate-300/80">
+                  Fills your blank {selectedTemplate.shortLabel} voucher with {activePosition.name} hours for {payrollScopeLabel}.
                 </p>
-                <input
-                  type="file"
-                  accept=".pdf,application/pdf"
-                  onChange={(e) => setTimesheetTemplateFile(e.target.files?.[0] ?? null)}
-                  className="w-full text-sm file:mr-3 file:rounded-md file:border file:border-indigo-500/35 file:bg-indigo-500/10 file:px-2.5 file:py-1.5 file:text-xs file:font-medium file:text-indigo-900 hover:file:bg-indigo-500/15 dark:file:border-indigo-300/30 dark:file:text-indigo-100"
-                />
-                {activePosition ? (
-                  <div className="rounded-md border border-indigo-500/30 bg-background/90 px-3 py-2 text-sm">
-                    <span className="font-semibold">{activePosition.name}</span>
-                    <span className="text-muted-foreground"> · {selectedTemplate.shortLabel} timesheet</span>
-                  </div>
-                ) : (
-                  <p className="rounded-md border border-amber-400/40 bg-amber-500/10 px-3 py-2 text-xs font-medium text-amber-900 dark:text-amber-100">
-                    Choose a position in the selector at the top. Each position gets its own timesheet PDF.
-                  </p>
-                )}
-                <p className="text-[11px] text-slate-500 dark:text-slate-400">{selectedTemplate.description}</p>
-                {showRoleHints && (
-                  <div className="pt-1">
-                    <div className="flex flex-wrap gap-1">
-                      {roleBehaviorHints.map((hint) => (
-                        <span
-                          key={hint}
-                          className="rounded-full border border-indigo-400/30 bg-indigo-500/10 px-2 py-0.5 text-[10px] font-medium text-indigo-900 dark:text-indigo-100"
-                        >
-                          {hint}
-                        </span>
-                      ))}
-                    </div>
-                    <button
-                      type="button"
-                      className="mt-1 text-[10px] text-slate-500 underline-offset-2 hover:underline dark:text-slate-400"
-                      onClick={() => {
-                        setShowRoleHints(false);
-                        try {
-                          window.localStorage.setItem("entries_hide_role_hints", "true");
-                        } catch {
-                          // ignore storage issues
-                        }
-                      }}
-                    >
-                      Hide tips
-                    </button>
-                  </div>
-                )}
-                <div className="grid grid-cols-1 gap-2 sm:grid-cols-[1fr_auto]">
-                  <Input
-                    value={presetName}
-                    onChange={(e) => setPresetName(e.target.value)}
-                    placeholder="Preset name (e.g. ISA Payroll)"
-                    className="h-9 text-xs"
-                  />
-                  <Button type="button" variant="outline" className="h-9 text-xs" onClick={saveCurrentPreset}>
-                    Save Preset
-                  </Button>
-                </div>
-                {savedPresets.length > 0 && (
-                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
-                    <select
-                      className="h-9 w-full min-w-0 rounded-md border border-indigo-500/30 bg-background/90 px-2 text-xs dark:border-indigo-300/25"
-                      defaultValue=""
-                      onChange={(e) => {
-                        if (e.target.value) applyPreset(e.target.value);
-                        e.currentTarget.value = "";
-                      }}
-                    >
-                      <option value="" disabled>Apply saved preset</option>
-                      {savedPresets.map((preset) => (
-                        <option key={preset.id} value={preset.id}>
-                          {preset.name}
-                        </option>
-                      ))}
-                    </select>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      className="h-9 w-full text-xs sm:w-auto"
-                      onClick={() => removePreset(savedPresets[0].id)}
-                    >
-                      Remove first
-                    </Button>
-                  </div>
-                )}
-              </div>
-
-              <div className="rounded-lg border border-indigo-500/20 bg-background/55 p-3 dark:bg-background/35">
-                <div className="space-y-1 text-[11px] text-slate-600 dark:text-slate-300/80">
-                  <p>
-                    Timesheet Type:{" "}
-                    <span className="font-semibold text-slate-800 dark:text-slate-100">
-                      {activePosition ? `${activePosition.name} · ${selectedTemplate.shortLabel}` : "Choose a position"}
+                <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center">
+                  <label className="flex h-10 min-w-0 flex-1 cursor-pointer items-center gap-2 rounded-md border border-indigo-500/30 bg-background/90 px-3 text-sm transition hover:bg-background dark:border-indigo-300/25">
+                    <FileText className="h-4 w-4 shrink-0 text-indigo-600 dark:text-indigo-300" />
+                    <span className={`truncate ${timesheetTemplateFile ? "" : "text-muted-foreground"}`}>
+                      {timesheetTemplateFile?.name ?? "Choose your blank voucher (PDF)"}
                     </span>
+                    <input
+                      type="file"
+                      accept=".pdf,application/pdf"
+                      className="sr-only"
+                      onChange={(e) => setTimesheetTemplateFile(e.target.files?.[0] ?? null)}
+                    />
+                  </label>
+                  <Button className="w-full sm:w-auto" onClick={() => onFillTimesheetPdf("auto")} disabled={fillingPdf}>
+                    <Download className="mr-2 h-4 w-4" />
+                    {fillingPdf ? "Generating..." : "Generate PDF"}
+                  </Button>
+                </div>
+                {lastGenerated && (
+                  <p className="mt-2 text-[11px] text-muted-foreground">
+                    Last generated {format(new Date(lastGenerated.generatedAtIso), "MMM d, h:mm a")} ·{" "}
+                    {lastGenerated.month} · {timesheetTemplates[lastGenerated.role].shortLabel}
                   </p>
-                  <p>
-                    Default layout mode: <span className="font-semibold capitalize text-slate-800 dark:text-slate-100">{timesheetLayoutMode}</span>
-                  </p>
-                  {lastGenerated && (
-                    <p className="text-emerald-700 dark:text-emerald-300">
-                      Last generated: {format(new Date(lastGenerated.generatedAtIso), "MMM d, yyyy h:mm a")} (
-                      {lastGenerated.month}, {timesheetTemplates[lastGenerated.role].label})
+                )}
+                <details className="mt-3 text-xs">
+                  <summary className="cursor-pointer font-medium text-indigo-800 dark:text-indigo-100">More options</summary>
+                  <div className="mt-3 space-y-3 rounded-lg border border-indigo-500/20 bg-background/55 p-3 dark:bg-background/30">
+                    <label className="flex items-center gap-2 text-slate-700 dark:text-slate-200">
+                      <input
+                        type="checkbox"
+                        checked={previewPdfBeforeDownload}
+                        onChange={(e) => {
+                          const enabled = e.target.checked;
+                          setPreviewPdfBeforeDownload(enabled);
+                          try {
+                            window.localStorage.setItem("entries_preview_pdf_before_download", enabled ? "true" : "false");
+                          } catch {
+                            // ignore storage issues
+                          }
+                        }}
+                      />
+                      Preview the PDF before downloading
+                    </label>
+                    {selectedTemplate.hoursRenderMode === "split_by_break" && (
+                      <div className="space-y-2">
+                        <p className="text-slate-600 dark:text-slate-300/80">
+                          Hours landing one week too high or low? Try another layout:
+                        </p>
+                        <div className="flex flex-wrap gap-2">
+                          {(
+                            [
+                              ["standard", "Standard"],
+                              ["carry", "Carry-over"],
+                              ["auto", "Auto"],
+                            ] as const
+                          ).map(([mode, label]) => (
+                            <Button
+                              key={mode}
+                              type="button"
+                              variant={timesheetLayoutMode === mode ? "default" : "outline"}
+                              className="h-8"
+                              disabled={fillingPdf}
+                              onClick={() => {
+                                setTimesheetLayoutMode(mode);
+                                void onFillTimesheetPdf(mode);
+                              }}
+                            >
+                              {label}
+                            </Button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    <p className="hidden text-slate-500 md:block dark:text-slate-400">
+                      Shortcuts: <span className="font-semibold">N</span> new entry, <span className="font-semibold">E</span> export CSV,{" "}
+                      <span className="font-semibold">P</span> generate PDF
                     </p>
-                  )}
-                </div>
-
-                <label className="mt-3 flex items-center gap-2 text-xs text-slate-600 dark:text-slate-300/80">
-                  <input
-                    type="checkbox"
-                    checked={previewPdfBeforeDownload}
-                    onChange={(e) => {
-                      const enabled = e.target.checked;
-                      setPreviewPdfBeforeDownload(enabled);
-                      try {
-                        window.localStorage.setItem(
-                          "entries_preview_pdf_before_download",
-                          enabled ? "true" : "false",
-                        );
-                      } catch {
-                        // ignore storage issues
-                      }
-                    }}
-                  />
-                  Open PDF preview before saving
-                </label>
-
-                <p className="mt-2 text-[11px] text-slate-500 dark:text-slate-400">
-                  Checklist: {submissionChecklist.items.filter((item) => item.done).length}/{submissionChecklist.items.length} complete
-                </p>
-
-                <Button className="mt-3 w-full" onClick={() => onFillTimesheetPdf("auto")} disabled={fillingPdf}>
-                  <Download className="mr-2 h-4 w-4" />
-                  {fillingPdf ? "Generating..." : "Generate Timesheet PDF"}
-                </Button>
-              </div>
-            </div>
-            <details className="mt-3 rounded-lg border border-indigo-500/20 bg-background/55 p-3 text-xs dark:bg-background/30">
-              <summary className="cursor-pointer font-medium text-indigo-800 dark:text-indigo-100">
-                Having alignment issues? Use advanced layout options
-              </summary>
-              <div className="mt-3 space-y-2">
-                <p className="text-slate-600 dark:text-slate-300/80">
-                  Shortcuts: <span className="font-semibold">N</span> new entry, <span className="font-semibold">E</span> export CSV, <span className="font-semibold">P</span> fill PDF
-                </p>
-                <p className="text-slate-600 dark:text-slate-300/80">
-                  If values appear one week above or below, retry using one of these:
-                </p>
-                <div className="flex flex-wrap gap-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="h-8 w-full sm:w-auto"
-                    onClick={() => {
-                      setTimesheetLayoutMode("standard");
-                      void onFillTimesheetPdf("standard");
-                    }}
-                    disabled={fillingPdf}
-                  >
-                    Try Standard Layout
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="h-8 w-full sm:w-auto"
-                    onClick={() => {
-                      setTimesheetLayoutMode("carry");
-                      void onFillTimesheetPdf("carry");
-                    }}
-                    disabled={fillingPdf}
-                  >
-                    Try Carry-Over Layout
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="h-8 w-full sm:w-auto"
-                    onClick={() => {
-                      setTimesheetLayoutMode("auto");
-                      void onFillTimesheetPdf("auto");
-                    }}
-                    disabled={fillingPdf}
-                  >
-                    Try Auto Layout
-                  </Button>
-                </div>
-              </div>
-            </details>
+                  </div>
+                </details>
+              </>
+            )}
           </div>
 
           {bulkMode && entries.length > 0 && (
@@ -1914,6 +1713,24 @@ export function EntriesClient() {
               </TabsContent>
             </Tabs>
           )}
+
+          {entries.length > 0 && (
+            <div className="flex justify-end">
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="text-red-600 hover:bg-red-500/10 hover:text-red-700 dark:text-red-300 dark:hover:text-red-200"
+                onClick={onDeleteMonth}
+                disabled={deletingMonth}
+              >
+                <Trash2 className="mr-1.5 h-3.5 w-3.5" />
+                {deletingMonth
+                  ? "Deleting..."
+                  : `Delete all ${activePosition && positions.length > 1 ? `${activePosition.name} ` : ""}entries for ${format(calendarMonthDate, "MMMM")}`}
+              </Button>
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -2005,6 +1822,51 @@ export function EntriesClient() {
               </div>
             </section>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={Boolean(pendingPdf)} onOpenChange={(isOpen) => !isOpen && closePendingPdf(false)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FileText className="h-4 w-4 text-indigo-500" />
+              Save timesheet PDF
+            </DialogTitle>
+            <DialogDescription>
+              {previewPdfBeforeDownload
+                ? "Check the preview tab, then save the file with this name."
+                : "Save the filled timesheet with this name."}
+            </DialogDescription>
+          </DialogHeader>
+          <form
+            className="space-y-2"
+            onSubmit={(e) => {
+              e.preventDefault();
+              savePendingPdf();
+            }}
+          >
+            <label htmlFor="pending-pdf-name" className="text-sm font-medium">
+              File name
+            </label>
+            <Input
+              id="pending-pdf-name"
+              autoFocus
+              value={pendingPdf?.fileName ?? ""}
+              onChange={(e) => setPendingPdf((prev) => (prev ? { ...prev, fileName: e.target.value } : prev))}
+            />
+            <p className="text-xs text-muted-foreground">
+              Format: UNIT_TYPE_TIMESHEET_Last,_First_MMYYYY. Set each job&apos;s unit code in Settings → Positions.
+            </p>
+            <DialogFooter className="pt-2">
+              <Button type="button" variant="outline" onClick={() => closePendingPdf(false)}>
+                Not now
+              </Button>
+              <Button type="submit">
+                <Download className="mr-2 h-4 w-4" />
+                Save PDF
+              </Button>
+            </DialogFooter>
+          </form>
         </DialogContent>
       </Dialog>
 

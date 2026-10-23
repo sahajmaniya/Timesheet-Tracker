@@ -27,6 +27,8 @@ export async function PATCH(request: Request, { params }: Params) {
         name: parsed.data.name,
         role: parsed.data.role,
         hourlyRate: parsed.data.hourlyRate,
+        // Omitted keeps the current value; an empty string clears it.
+        unitCode: parsed.data.unitCode === undefined ? undefined : parsed.data.unitCode || null,
         workScheduleJson: parsed.data.workSchedule as Prisma.InputJsonValue,
       },
     });
