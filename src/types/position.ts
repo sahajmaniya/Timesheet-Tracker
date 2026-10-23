@@ -6,5 +6,7 @@ export type Position = {
   name: string;
   role: TimesheetRole;
   hourlyRate: number;
+  /** Unit code from the voucher (e.g. "010"); empty when not set. */
+  unitCode: string;
   workSchedule: WorkSchedule;
 };

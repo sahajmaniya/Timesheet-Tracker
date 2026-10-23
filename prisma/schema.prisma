@@ -44,6 +44,8 @@ model Position {
   /// Timesheet template role: "student_assistant" | "instructional_student_assistant".
   role             String      @default("student_assistant")
   hourlyRate       Float       @default(0)
+  /// Unit code printed on this position's voucher (e.g. "010"); used in timesheet file names.
+  unitCode         String?
   workScheduleJson Json?
   createdAt        DateTime    @default(now())
   updatedAt        DateTime    @updatedAt

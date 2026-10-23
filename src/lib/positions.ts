@@ -12,6 +12,7 @@ export function serializePosition(row: PositionRow): Position {
     name: row.name,
     role: parseTimesheetRole(row.role),
     hourlyRate: Math.max(row.hourlyRate ?? 0, 0),
+    unitCode: row.unitCode ?? "",
     workSchedule: parsedSchedule.success ? parsedSchedule.data : DEFAULT_WORK_SCHEDULE,
   };
 }
