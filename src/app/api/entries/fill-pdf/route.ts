@@ -134,7 +134,7 @@ export async function POST(request: Request) {
       ? generatedDateRaw
       : format(new Date(), "M/d/yyyy");
 
-    const { pdfBytes, templateAlignment } = await fillTimesheetPdfTemplate({
+    const { pdfBytes, templateAlignment, templateReadError } = await fillTimesheetPdfTemplate({
       templateBytes: bytes,
       month: parsedMonth.data,
       periodStart: parsedRange?.data.start,
@@ -171,6 +171,8 @@ export async function POST(request: Request) {
           "Content-Disposition": `attachment; filename="${filename}"`,
           // "unaligned": the template's layout couldn't be read, so the client warns to check the preview.
           "X-Template-Alignment": templateAlignment,
+          // TEMPORARY diagnostic for the production template-reading failure; remove once fixed.
+          ...(templateReadError ? { "X-Template-Read-Error": templateReadError.replace(/[^\x20-\x7e]/g, " ").slice(0, 200) } : {}),
         },
       }),
       "entries.fill-pdf",
