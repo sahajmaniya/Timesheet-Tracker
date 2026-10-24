@@ -7,6 +7,7 @@ import { ensureUserPositions } from "@/lib/positions";
 import { prisma } from "@/lib/prisma";
 import { clientIpFromHeaders, enforceRateLimit } from "@/lib/security";
 import { fillTimesheetPdfTemplate, TimesheetPlacementError } from "@/lib/timesheet-pdf";
+import { voucherDisplayName } from "@/lib/timesheet-naming";
 import { parseTimesheetRole } from "@/lib/timesheet-templates";
 import { dateRangeQuerySchema, monthQuerySchema, timesheetCalibrationSchema } from "@/lib/validators";
 
@@ -121,7 +122,7 @@ export async function POST(request: Request) {
     const bytes = new Uint8Array(await file.arrayBuffer());
     const user = await prisma.user.findUnique({
       where: { id: session.user.id },
-      select: { name: true, email: true, signature: true },
+      select: { name: true, email: true, signature: true, timesheetName: true, employeeId: true },
     });
     const employeeName =
       user?.name?.trim() ||
@@ -133,7 +134,7 @@ export async function POST(request: Request) {
       ? generatedDateRaw
       : format(new Date(), "M/d/yyyy");
 
-    const filled = await fillTimesheetPdfTemplate({
+    const { pdfBytes, templateAlignment } = await fillTimesheetPdfTemplate({
       templateBytes: bytes,
       month: parsedMonth.data,
       periodStart: parsedRange?.data.start,
@@ -145,6 +146,15 @@ export async function POST(request: Request) {
       layoutMode,
       role: timesheetRole,
       calibration: parsedCalibration.success ? parsedCalibration.data : undefined,
+      header: {
+        employeeName: user?.timesheetName || voucherDisplayName(user?.name),
+        employeeId: user?.employeeId,
+        unit: position.unitCode,
+        deptId: position.deptId,
+        deptName: position.deptName,
+        positionNumber: position.positionNumber,
+        emplRecord: position.emplRecord,
+      },
     });
 
     const filename = buildDownloadFilename({
@@ -154,11 +164,13 @@ export async function POST(request: Request) {
     });
 
     return finalizeApiTimer(
-      new NextResponse(Buffer.from(filled), {
+      new NextResponse(Buffer.from(pdfBytes), {
         status: 200,
         headers: {
           "Content-Type": "application/pdf",
           "Content-Disposition": `attachment; filename="${filename}"`,
+          // "unaligned": the template's layout couldn't be read, so the client warns to check the preview.
+          "X-Template-Alignment": templateAlignment,
         },
       }),
       "entries.fill-pdf",

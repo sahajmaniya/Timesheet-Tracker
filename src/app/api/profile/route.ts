@@ -18,6 +18,8 @@ export async function GET() {
       email: true,
       image: true,
       signature: true,
+      timesheetName: true,
+      employeeId: true,
       workScheduleJson: true,
       calculationSource: true,
       hourlyRate: true,
@@ -42,6 +44,8 @@ export async function GET() {
       email: user.email,
       image: user.image,
       signature: user.signature,
+      timesheetName: user.timesheetName ?? "",
+      employeeId: user.employeeId ?? "",
       workSchedule: parsedSchedule.success ? parsedSchedule.data : DEFAULT_WORK_SCHEDULE,
       payrollProfile: {
         hourlyRate: user.hourlyRate ?? 0,
@@ -105,6 +109,8 @@ export async function PATCH(request: Request) {
       updateData.stateTaxPercent = safePayroll.stateTaxPercent;
       updateData.otherDeductionMonthly = safePayroll.otherDeductionMonthly;
     }
+    if (parsed.data.timesheetName !== undefined) updateData.timesheetName = parsed.data.timesheetName || null;
+    if (parsed.data.employeeId !== undefined) updateData.employeeId = parsed.data.employeeId || null;
     if (typeof parsed.data.monthlySummaryEmailEnabled === "boolean") {
       updateData.monthlySummaryEmailEnabled = parsed.data.monthlySummaryEmailEnabled;
     }
@@ -117,6 +123,8 @@ export async function PATCH(request: Request) {
         email: true,
         image: true,
         signature: true,
+      timesheetName: true,
+      employeeId: true,
         workScheduleJson: true,
         calculationSource: true,
         hourlyRate: true,
@@ -137,6 +145,8 @@ export async function PATCH(request: Request) {
         email: updated.email,
         image: updated.image,
         signature: updated.signature,
+        timesheetName: updated.timesheetName ?? "",
+        employeeId: updated.employeeId ?? "",
         workSchedule: parsedSchedule.success ? parsedSchedule.data : DEFAULT_WORK_SCHEDULE,
         payrollProfile: {
           hourlyRate: updated.hourlyRate ?? 0,

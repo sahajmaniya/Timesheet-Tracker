@@ -43,6 +43,10 @@ export async function POST(request: Request) {
         hourlyRate: parsed.data.hourlyRate,
         // Omitted keeps the current value; an empty string clears it.
         unitCode: parsed.data.unitCode === undefined ? undefined : parsed.data.unitCode || null,
+        deptId: parsed.data.deptId === undefined ? undefined : parsed.data.deptId || null,
+        deptName: parsed.data.deptName === undefined ? undefined : parsed.data.deptName || null,
+        positionNumber: parsed.data.positionNumber === undefined ? undefined : parsed.data.positionNumber || null,
+        emplRecord: parsed.data.emplRecord === undefined ? undefined : parsed.data.emplRecord || null,
         workScheduleJson: parsed.data.workSchedule as Prisma.InputJsonValue,
       },
     });

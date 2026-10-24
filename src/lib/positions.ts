@@ -13,6 +13,10 @@ export function serializePosition(row: PositionRow): Position {
     role: parseTimesheetRole(row.role),
     hourlyRate: Math.max(row.hourlyRate ?? 0, 0),
     unitCode: row.unitCode ?? "",
+    deptId: row.deptId ?? "",
+    deptName: row.deptName ?? "",
+    positionNumber: row.positionNumber ?? "",
+    emplRecord: row.emplRecord ?? "",
     workSchedule: parsedSchedule.success ? parsedSchedule.data : DEFAULT_WORK_SCHEDULE,
   };
 }

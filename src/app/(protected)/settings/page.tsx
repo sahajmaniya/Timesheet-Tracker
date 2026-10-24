@@ -17,6 +17,8 @@ export default async function SettingsPage() {
         email: true,
         image: true,
         signature: true,
+        timesheetName: true,
+        employeeId: true,
         monthlySummaryEmailEnabled: true,
       },
     }),
@@ -31,6 +33,8 @@ export default async function SettingsPage() {
         email: user?.email ?? session?.user?.email ?? null,
         image: user?.image ?? session?.user?.image ?? null,
         signature: user?.signature ?? null,
+        timesheetName: user?.timesheetName ?? "",
+        employeeId: user?.employeeId ?? "",
         monthlySummaryEmailEnabled: user?.monthlySummaryEmailEnabled ?? true,
       }}
     />

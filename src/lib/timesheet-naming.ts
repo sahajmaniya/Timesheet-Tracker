@@ -39,6 +39,13 @@ export function lastFirstName(fullName: string | null | undefined) {
   return `${cleanPart(parts[parts.length - 1])}_${cleanPart(parts[0])}`;
 }
 
+/** "Sahaj Vijaykumar Maniya" → "Maniya, Sahaj" (the voucher's LAST, FIRST format). */
+export function voucherDisplayName(fullName: string | null | undefined) {
+  const parts = (fullName ?? "").trim().split(/\s+/).filter(Boolean);
+  if (parts.length < 2) return parts[0] ?? "";
+  return `${parts[parts.length - 1]}, ${parts[0]}`;
+}
+
 /**
  * Department naming convention for filled vouchers:
  * {Dept}_{SA|ISA}_{Last}_{First}_{MMYYYY}.pdf, e.g. 010_SA_Maniya_Sahaj_102026.pdf.

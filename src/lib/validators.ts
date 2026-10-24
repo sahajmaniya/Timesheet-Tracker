@@ -132,6 +132,10 @@ export const positionSchema = z.object({
   name: z.string().trim().min(2, "Position name must be at least 2 characters").max(80),
   role: positionRoleSchema,
   hourlyRate: z.number().min(0, "Hourly rate must be 0 or more").max(1000, "Hourly rate is too high"),
+  deptId: z.string().trim().max(20, "Dept ID is too long").optional(),
+  deptName: z.string().trim().max(40, "Dept name is too long").optional(),
+  positionNumber: z.string().trim().max(20, "Position number is too long").optional(),
+  emplRecord: z.string().trim().max(5, "Empl rec is too long").optional(),
   unitCode: z
     .string()
     .trim()
@@ -180,6 +184,14 @@ export const profileUpdateSchema = z.object({
   workSchedule: workScheduleSchema.optional(),
   payrollProfile: payrollProfileSchema.optional(),
   monthlySummaryEmailEnabled: z.boolean().optional(),
+  /** Name as printed on vouchers, e.g. "Maniya, Sahaj V". */
+  timesheetName: z.string().trim().max(80, "Name on timesheets is too long").optional(),
+  employeeId: z
+    .string()
+    .trim()
+    .max(20, "Employee ID is too long")
+    .regex(/^[A-Za-z0-9-]*$/, "Employee ID can only use letters, numbers, and dashes")
+    .optional(),
 });
 
 export type TimeEntryInput = z.infer<typeof timeEntrySchema>;

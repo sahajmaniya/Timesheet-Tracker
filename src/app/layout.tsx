@@ -1,7 +1,14 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { AppProviders } from "@/components/providers/app-providers";
 import { siteConfig } from "@/lib/site";
+
+export const viewport: Viewport = {
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#f8fbff" },
+    { media: "(prefers-color-scheme: dark)", color: "#07142e" },
+  ],
+};
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteConfig.url),
@@ -48,10 +55,6 @@ export const metadata: Metadata = {
       { rel: "icon", url: "/android-chrome-512x512.png", sizes: "512x512", type: "image/png" },
     ],
   },
-  themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#f8fbff" },
-    { media: "(prefers-color-scheme: dark)", color: "#07142e" },
-  ],
   robots: {
     index: true,
     follow: true,

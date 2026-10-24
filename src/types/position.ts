@@ -8,5 +8,10 @@ export type Position = {
   hourlyRate: number;
   /** Dept code that starts timesheet file names (e.g. "010"); empty when not set. */
   unitCode: string;
+  /** Voucher header details for this job; empty when not set. */
+  deptId: string;
+  deptName: string;
+  positionNumber: string;
+  emplRecord: string;
   workSchedule: WorkSchedule;
 };

@@ -133,7 +133,7 @@ export function EntriesClient() {
   const [walkthroughStep, setWalkthroughStep] = useState(0);
   const [previewPdfBeforeDownload, setPreviewPdfBeforeDownload] = useState(true);
   // A generated PDF waiting for the user to confirm its file name and save it.
-  const [pendingPdf, setPendingPdf] = useState<{ url: string; fileName: string } | null>(null);
+  const [pendingPdf, setPendingPdf] = useState<{ url: string; fileName: string; unaligned: boolean } | null>(null);
   const { data: session } = useSession();
   const [lastGenerated, setLastGenerated] = useState<LastGeneratedPdf | null>(null);
   const [bulkMode, setBulkMode] = useState(false);
@@ -861,8 +861,15 @@ export function EntriesClient() {
         fullName: session?.user?.name,
         voucherMonth: getVoucherMonth(month, selectedPayrollPeriod?.startDate, selectedPayrollPeriod?.endDate),
       });
+      // The server couldn't read this template's layout, so numbers may not sit in the boxes.
+      const unaligned = res.headers.get("x-template-alignment") === "unaligned";
+      if (unaligned) {
+        toast.warning("Check this PDF carefully", {
+          description: "We couldn't line up this template automatically, so some numbers may sit outside their boxes.",
+        });
+      }
       if (previewPdfBeforeDownload) window.open(url, "_blank", "noopener,noreferrer");
-      setPendingPdf({ url, fileName });
+      setPendingPdf({ url, fileName, unaligned });
       const generated: LastGeneratedPdf = {
         month,
         role: timesheetRole,
@@ -1838,6 +1845,16 @@ export function EntriesClient() {
                 : "Save the filled timesheet with this name."}
             </DialogDescription>
           </DialogHeader>
+          {pendingPdf?.unaligned && (
+            <div className="flex gap-2 rounded-lg border border-amber-400/50 bg-amber-500/10 px-3 py-2.5 text-xs text-amber-900 dark:text-amber-100">
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" />
+              <p>
+                <span className="font-semibold">We couldn&apos;t line up this template automatically.</span> It may be a
+                scan, an image-only PDF, or a different form, so some numbers could sit outside their boxes. Check the
+                preview before saving. A PDF exported straight from the voucher spreadsheet works best.
+              </p>
+            </div>
+          )}
           <form
             className="space-y-2"
             onSubmit={(e) => {
