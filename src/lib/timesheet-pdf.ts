@@ -246,12 +246,10 @@ export async function fillTimesheetPdfTemplate({
   const template = getTimesheetTemplate(role);
   // Line up with this upload's printed form, which can be shifted or scaled
   // depending on how it was exported. Without readable labels, keep reference positions.
-  let templateReadError: string | null = null;
   const templateText =
     template.layout.alignmentAnchors || template.layout.headerFields
       ? await readTemplateText(templateBytes).catch((error: unknown) => {
           console.error("Could not read timesheet template text:", error);
-          templateReadError = error instanceof Error ? `${error.name}: ${error.message}` : String(error);
           return null;
         })
       : null;
@@ -707,6 +705,5 @@ export async function fillTimesheetPdfTemplate({
     pdfBytes: await pdfDoc.save(),
     /** "unaligned" when this template's layout could not be read; positions may be off. */
     templateAlignment: !detectedAlignment ? "not_applicable" : detectedAlignment.status === "aligned" ? "aligned" : "unaligned",
-    templateReadError: templateReadError as string | null,
   } as const;
 }
