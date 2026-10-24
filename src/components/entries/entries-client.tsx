@@ -3,9 +3,10 @@
 import { eachDayOfInterval, endOfMonth, format, getDay, isAfter, startOfMonth } from "date-fns";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   AlertTriangle,
+  ArrowUp,
   BellRing,
   Briefcase,
   CalendarCheck2,
@@ -14,7 +15,6 @@ import {
   Download,
   FileText,
   History,
-  Layers3,
   Plus,
   Sparkles,
   Trash2,
@@ -136,14 +136,6 @@ export function EntriesClient() {
   const [pendingPdf, setPendingPdf] = useState<{ url: string; fileName: string; unaligned: boolean } | null>(null);
   const { data: session } = useSession();
   const [lastGenerated, setLastGenerated] = useState<LastGeneratedPdf | null>(null);
-  const [bulkMode, setBulkMode] = useState(false);
-  const [bulkSelectedIds, setBulkSelectedIds] = useState<string[]>([]);
-  const [bulkPunchIn, setBulkPunchIn] = useState("09:00");
-  const [bulkPunchOut, setBulkPunchOut] = useState("13:00");
-  const [bulkBreakStart, setBulkBreakStart] = useState("11:00");
-  const [bulkBreakEnd, setBulkBreakEnd] = useState("11:30");
-  const [bulkIncludeBreak, setBulkIncludeBreak] = useState(false);
-  const [applyingBulk, setApplyingBulk] = useState(false);
   const [autoFixing, setAutoFixing] = useState(false);
   const [creatingMissing, setCreatingMissing] = useState(false);
   const [remindersSnoozed, setRemindersSnoozed] = useState(false);
@@ -241,9 +233,30 @@ export function EntriesClient() {
     }
   }, []);
 
+  const positionPickerRef = useRef<HTMLDivElement | null>(null);
+  const positionSelectRef = useRef<HTMLSelectElement | null>(null);
+  const [highlightPositionPicker, setHighlightPositionPicker] = useState(false);
+  // Brings the Position selector into view and flashes it, for actions that need a position first.
+  const focusPositionPicker = useCallback(() => {
+    positionPickerRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+    positionSelectRef.current?.focus({ preventScroll: true });
+    setHighlightPositionPicker(true);
+  }, []);
+  // The PDF box is only usable once a position is picked, so send people to the picker first.
+  const goToPdfSection = useCallback(() => {
+    if (!activePosition) {
+      focusPositionPicker();
+      return;
+    }
+    document.getElementById("entries-pdf-section")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [activePosition, focusPositionPicker]);
+  useEffect(() => {
+    if (!highlightPositionPicker) return;
+    const timer = window.setTimeout(() => setHighlightPositionPicker(false), 2200);
+    return () => window.clearTimeout(timer);
+  }, [highlightPositionPicker]);
   const changePositionFilter = (nextId: string) => {
     setPositionFilter(nextId);
-    setBulkSelectedIds([]);
     try {
       window.localStorage.setItem("entries_position_filter", nextId);
     } catch {
@@ -689,48 +702,6 @@ export function EntriesClient() {
     }
   };
 
-  const applyBulkUpdate = async () => {
-    if (bulkSelectedIds.length === 0) {
-      toast.error("Select at least one entry for bulk edit.");
-      return;
-    }
-
-    const ok = await confirm({
-      title: "Apply Bulk Edit?",
-      description: `Apply this time pattern to ${bulkSelectedIds.length} selected entries.`,
-      confirmText: "Apply",
-    });
-    if (!ok) return;
-
-    setApplyingBulk(true);
-    let updated = 0;
-    try {
-      for (const id of bulkSelectedIds) {
-        const entry = entries.find((item) => item.id === id);
-        if (!entry) continue;
-        const breaks = bulkIncludeBreak ? [{ start: bulkBreakStart, end: bulkBreakEnd }] : [];
-        const res = await fetch(`/api/entries/${id}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            date: entry.date,
-            punchIn: bulkPunchIn,
-            punchOut: bulkPunchOut,
-            notes: entry.notes,
-            breaks,
-          }),
-        });
-        if (res.ok) updated += 1;
-      }
-      toast.success(`Updated ${updated} entries.`);
-      addRecentAction(`Bulk updated ${updated} entries`);
-      setBulkSelectedIds([]);
-      await fetchEntries();
-    } finally {
-      setApplyingBulk(false);
-    }
-  };
-
   const createSuggestedMissingEntries = async () => {
     const candidates = scheduleStats.missing.slice(0, 8);
     if (candidates.length === 0) {
@@ -800,6 +771,7 @@ export function EntriesClient() {
       toast.error("Choose a position first.", {
         description: "Each position has its own timesheet. Pick one in the Position selector at the top.",
       });
+      focusPositionPicker();
       return;
     }
     if (!timesheetTemplateFile) {
@@ -885,7 +857,7 @@ export function EntriesClient() {
     } finally {
       setFillingPdf(false);
     }
-  }, [activePosition, addRecentAction, confirm, confirmValidationForAction, month, previewPdfBeforeDownload, selectedPayrollPeriod, session?.user?.name, timesheetLayoutMode, timesheetRole, timesheetTemplateFile]);
+  }, [activePosition, addRecentAction, confirm, confirmValidationForAction, focusPositionPicker, month, previewPdfBeforeDownload, selectedPayrollPeriod, session?.user?.name, timesheetLayoutMode, timesheetRole, timesheetTemplateFile]);
 
   const closePendingPdf = (saved: boolean) => {
     // Free the PDF later so the download and the preview tab can finish reading it.
@@ -933,18 +905,18 @@ export function EntriesClient() {
         void onExportCsv();
       } else if (key === "p") {
         event.preventDefault();
-        if (timesheetTemplateFile) {
+        if (activePosition && timesheetTemplateFile) {
           void onFillTimesheetPdf("auto");
         } else {
-          document.getElementById("entries-pdf-section")?.scrollIntoView({ behavior: "smooth", block: "start" });
-          toast.message("Upload a blank PDF first, then press P again.");
+          goToPdfSection();
+          toast.message(activePosition ? "Upload a blank PDF first, then press P again." : "Choose a position first.");
         }
       }
     };
 
     window.addEventListener("keydown", onKeydown);
     return () => window.removeEventListener("keydown", onKeydown);
-  }, [onExportCsv, onFillTimesheetPdf, timesheetTemplateFile]);
+  }, [activePosition, goToPdfSection, onExportCsv, onFillTimesheetPdf, timesheetTemplateFile]);
 
   const onDeleteMonth = async () => {
     if (entries.length === 0) {
@@ -1033,7 +1005,7 @@ export function EntriesClient() {
             {walkthroughStep === 1 && (
               <button
                 type="button"
-                onClick={() => document.getElementById("entries-pdf-section")?.scrollIntoView({ behavior: "smooth", block: "start" })}
+                onClick={goToPdfSection}
                 className="w-full rounded-xl border border-border/70 bg-card/70 p-3 text-left transition hover:bg-accent/60"
               >
                 <p className="font-semibold">2. Upload blank PDF</p>
@@ -1043,7 +1015,7 @@ export function EntriesClient() {
             {walkthroughStep === 2 && (
               <button
                 type="button"
-                onClick={() => document.getElementById("entries-pdf-section")?.scrollIntoView({ behavior: "smooth", block: "start" })}
+                onClick={goToPdfSection}
                 className="w-full rounded-xl border border-border/70 bg-card/70 p-3 text-left transition hover:bg-accent/60"
               >
                 <p className="font-semibold">3. Run checklist and generate</p>
@@ -1079,15 +1051,27 @@ export function EntriesClient() {
       )}
 
       {positions.length > 1 && (
-        <Card className="border-violet-500/25 bg-gradient-to-r from-violet-100/70 via-background to-indigo-100/60 dark:from-violet-500/12 dark:via-background dark:to-indigo-500/10">
+        <Card
+          ref={positionPickerRef}
+          className={`scroll-mt-24 border-2 border-violet-500/40 bg-gradient-to-r from-violet-100 via-background to-indigo-100/80 shadow-[0_14px_35px_-20px_rgba(124,58,237,0.45)] transition-shadow duration-300 dark:border-violet-400/45 dark:from-violet-500/25 dark:via-slate-900/80 dark:to-indigo-500/20 ${
+            highlightPositionPicker ? "ring-4 ring-violet-500/60 ring-offset-2 ring-offset-background dark:ring-violet-300/70" : ""
+          }`}
+        >
           <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
             <div className="flex min-w-0 items-start gap-3">
-              <div className="rounded-xl bg-violet-600 p-2 text-white shadow-sm dark:bg-violet-400 dark:text-violet-950">
+              <div className="rounded-xl bg-violet-600 p-2.5 text-white shadow-sm dark:bg-violet-400 dark:text-violet-950">
                 <Briefcase className="h-5 w-5" />
               </div>
               <div className="min-w-0">
-                <p className="text-sm font-semibold text-violet-950 dark:text-violet-50">Position</p>
-                <p className="mt-0.5 text-xs text-violet-800/80 dark:text-violet-100/75">
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className="text-base font-semibold text-violet-950 dark:text-white">Position</p>
+                  {!activePosition && (
+                    <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-800 dark:bg-amber-400/20 dark:text-amber-200">
+                      Pick one for the PDF
+                    </span>
+                  )}
+                </div>
+                <p className="mt-0.5 text-sm text-violet-900/80 dark:text-violet-100/85">
                   {activePosition
                     ? `Showing only ${activePosition.name}. CSV export and the PDF use its ${timesheetTemplates[activePosition.role].shortLabel} timesheet.`
                     : "Showing all positions. Pick one to export its CSV or generate its timesheet PDF."}
@@ -1095,9 +1079,11 @@ export function EntriesClient() {
               </div>
             </div>
             <select
+              ref={positionSelectRef}
+              aria-label="Position"
               value={activePositionId ?? ""}
               onChange={(e) => changePositionFilter(e.target.value)}
-              className="h-10 w-full rounded-md border border-violet-500/30 bg-background/90 px-3 text-sm font-medium sm:w-auto sm:min-w-[260px] dark:border-violet-300/25"
+              className="h-11 w-full rounded-lg border-2 border-violet-500/50 bg-background px-3 text-sm font-semibold text-foreground shadow-sm focus:outline-none focus:ring-2 focus:ring-violet-500/50 sm:w-auto sm:min-w-[280px] dark:border-violet-300/50 dark:bg-slate-950"
             >
               <option value="">All positions</option>
               {positions.map((position) => (
@@ -1331,15 +1317,6 @@ export function EntriesClient() {
               <Wand2 className="mr-2 h-4 w-4" />
               {autoFixing ? "Fixing..." : "Auto-fix common issues"}
             </Button>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => setBulkMode((prev) => !prev)}
-            >
-              <Layers3 className="mr-2 h-4 w-4" />
-              {bulkMode ? "Exit bulk edit" : "Enter bulk edit"}
-            </Button>
           </div>
           {validationIssues.length === 0 ? (
             <p className="text-emerald-700 dark:text-emerald-300">No issues found for this month.</p>
@@ -1518,16 +1495,29 @@ export function EntriesClient() {
         <CardContent className="flex flex-col gap-4 pt-0">
           <div
             id="entries-pdf-section"
-            className="max-md:order-2 rounded-xl border border-dashed border-indigo-500/25 bg-gradient-to-r from-indigo-100/65 via-background/80 to-blue-100/60 p-3 sm:p-4 dark:border-indigo-300/20 dark:from-indigo-500/10 dark:via-background/70 dark:to-blue-500/10"
+            className="max-md:order-2 rounded-xl border-2 border-indigo-500/35 bg-gradient-to-r from-indigo-100 via-background to-blue-100/80 p-3 shadow-[0_14px_35px_-22px_rgba(79,70,229,0.5)] sm:p-4 dark:border-indigo-400/40 dark:from-indigo-500/20 dark:via-slate-900/80 dark:to-blue-500/15"
           >
-            <p className="text-sm font-semibold text-indigo-800 dark:text-indigo-100">Timesheet PDF</p>
+            <p className="flex items-center gap-2 text-base font-semibold text-indigo-900 dark:text-white">
+              <FileText className="h-4 w-4 text-indigo-600 dark:text-indigo-300" />
+              Timesheet PDF
+            </p>
             {!activePosition ? (
-              <p className="mt-1 text-xs text-slate-600 dark:text-slate-300/80">
-                Pick a position at the top to generate its timesheet.
-              </p>
+              <button
+                type="button"
+                onClick={focusPositionPicker}
+                className="mt-2 flex w-full flex-col items-start gap-2 rounded-lg border border-indigo-500/30 bg-background/80 p-3 text-left transition hover:border-indigo-500/60 hover:bg-background sm:flex-row sm:items-center sm:justify-between dark:border-indigo-300/30 dark:bg-slate-950/60 dark:hover:border-indigo-300/60"
+              >
+                <span className="text-sm text-slate-700 dark:text-slate-200">
+                  First choose which job this timesheet is for.
+                </span>
+                <span className="inline-flex shrink-0 items-center gap-1.5 rounded-md bg-indigo-600 px-3 py-1.5 text-sm font-semibold text-white dark:bg-indigo-400 dark:text-indigo-950">
+                  <ArrowUp className="h-4 w-4" />
+                  Choose a position
+                </span>
+              </button>
             ) : (
               <>
-                <p className="mt-1 text-xs text-slate-600 dark:text-slate-300/80">
+                <p className="mt-1 text-sm text-slate-700 dark:text-slate-300">
                   Fills your blank {selectedTemplate.shortLabel} voucher with {activePosition.name} hours for {payrollScopeLabel}.
                 </p>
                 <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center">
@@ -1612,62 +1602,6 @@ export function EntriesClient() {
               </>
             )}
           </div>
-
-          {bulkMode && entries.length > 0 && (
-            <div className="rounded-xl border border-dashed border-violet-500/30 bg-violet-50/50 p-3 dark:bg-violet-500/10">
-              <p className="text-sm font-semibold text-violet-900 dark:text-violet-100">Bulk Edit Mode</p>
-              <p className="mt-1 text-xs text-violet-800/80 dark:text-violet-200/80">
-                Select dates, set one pattern, and apply in one action.
-              </p>
-              <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
-                <Input type="time" className="min-w-0" value={bulkPunchIn} onChange={(e) => setBulkPunchIn(e.target.value)} />
-                <Input type="time" className="min-w-0" value={bulkPunchOut} onChange={(e) => setBulkPunchOut(e.target.value)} />
-                <Input type="time" className="min-w-0" value={bulkBreakStart} onChange={(e) => setBulkBreakStart(e.target.value)} />
-                <Input type="time" className="min-w-0" value={bulkBreakEnd} onChange={(e) => setBulkBreakEnd(e.target.value)} />
-                <label className="flex items-center gap-2 rounded-md border border-border/60 bg-background px-3 text-xs">
-                  <input
-                    type="checkbox"
-                    checked={bulkIncludeBreak}
-                    onChange={(e) => setBulkIncludeBreak(e.target.checked)}
-                  />
-                  Include break
-                </label>
-              </div>
-              <div className="mt-3 flex flex-wrap gap-2">
-                {entries.slice(0, 20).map((entry) => {
-                  const selected = bulkSelectedIds.includes(entry.id);
-                  return (
-                    <button
-                      key={entry.id}
-                      type="button"
-                      onClick={() =>
-                        setBulkSelectedIds((prev) =>
-                          selected ? prev.filter((id) => id !== entry.id) : [...prev, entry.id],
-                        )
-                      }
-                      className={`rounded-full border px-2.5 py-1 text-xs ${
-                        selected
-                          ? "border-violet-500 bg-violet-500/15 text-violet-900 dark:text-violet-100"
-                          : "border-border bg-background text-muted-foreground"
-                      }`}
-                    >
-                      {entry.date}
-                      {positionNames && !activePosition ? ` · ${positionNames[entry.positionId] ?? ""}` : ""}
-                    </button>
-                  );
-                })}
-              </div>
-              <div className="mt-3 flex flex-wrap items-center gap-2">
-                <Button type="button" size="sm" onClick={() => void applyBulkUpdate()} disabled={applyingBulk}>
-                  <Layers3 className="mr-2 h-4 w-4" />
-                  {applyingBulk ? "Applying..." : `Apply to ${bulkSelectedIds.length} selected`}
-                </Button>
-                <Button type="button" variant="outline" size="sm" onClick={() => setBulkSelectedIds([])}>
-                  Clear selection
-                </Button>
-              </div>
-            </div>
-          )}
 
           {loading ? (
             <EntriesTableSkeleton />
@@ -1943,7 +1877,7 @@ export function EntriesClient() {
           <Button
             type="button"
             className="h-10 text-xs"
-            onClick={() => document.getElementById("entries-pdf-section")?.scrollIntoView({ behavior: "smooth", block: "start" })}
+            onClick={goToPdfSection}
           >
             Generate
           </Button>
