@@ -15,7 +15,6 @@ import {
   Download,
   FileText,
   History,
-  Layers3,
   Plus,
   Sparkles,
   Trash2,
@@ -137,14 +136,6 @@ export function EntriesClient() {
   const [pendingPdf, setPendingPdf] = useState<{ url: string; fileName: string; unaligned: boolean } | null>(null);
   const { data: session } = useSession();
   const [lastGenerated, setLastGenerated] = useState<LastGeneratedPdf | null>(null);
-  const [bulkMode, setBulkMode] = useState(false);
-  const [bulkSelectedIds, setBulkSelectedIds] = useState<string[]>([]);
-  const [bulkPunchIn, setBulkPunchIn] = useState("09:00");
-  const [bulkPunchOut, setBulkPunchOut] = useState("13:00");
-  const [bulkBreakStart, setBulkBreakStart] = useState("11:00");
-  const [bulkBreakEnd, setBulkBreakEnd] = useState("11:30");
-  const [bulkIncludeBreak, setBulkIncludeBreak] = useState(false);
-  const [applyingBulk, setApplyingBulk] = useState(false);
   const [autoFixing, setAutoFixing] = useState(false);
   const [creatingMissing, setCreatingMissing] = useState(false);
   const [remindersSnoozed, setRemindersSnoozed] = useState(false);
@@ -266,7 +257,6 @@ export function EntriesClient() {
   }, [highlightPositionPicker]);
   const changePositionFilter = (nextId: string) => {
     setPositionFilter(nextId);
-    setBulkSelectedIds([]);
     try {
       window.localStorage.setItem("entries_position_filter", nextId);
     } catch {
@@ -709,48 +699,6 @@ export function EntriesClient() {
       }
     } finally {
       setAutoFixing(false);
-    }
-  };
-
-  const applyBulkUpdate = async () => {
-    if (bulkSelectedIds.length === 0) {
-      toast.error("Select at least one entry for bulk edit.");
-      return;
-    }
-
-    const ok = await confirm({
-      title: "Apply Bulk Edit?",
-      description: `Apply this time pattern to ${bulkSelectedIds.length} selected entries.`,
-      confirmText: "Apply",
-    });
-    if (!ok) return;
-
-    setApplyingBulk(true);
-    let updated = 0;
-    try {
-      for (const id of bulkSelectedIds) {
-        const entry = entries.find((item) => item.id === id);
-        if (!entry) continue;
-        const breaks = bulkIncludeBreak ? [{ start: bulkBreakStart, end: bulkBreakEnd }] : [];
-        const res = await fetch(`/api/entries/${id}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            date: entry.date,
-            punchIn: bulkPunchIn,
-            punchOut: bulkPunchOut,
-            notes: entry.notes,
-            breaks,
-          }),
-        });
-        if (res.ok) updated += 1;
-      }
-      toast.success(`Updated ${updated} entries.`);
-      addRecentAction(`Bulk updated ${updated} entries`);
-      setBulkSelectedIds([]);
-      await fetchEntries();
-    } finally {
-      setApplyingBulk(false);
     }
   };
 
@@ -1369,15 +1317,6 @@ export function EntriesClient() {
               <Wand2 className="mr-2 h-4 w-4" />
               {autoFixing ? "Fixing..." : "Auto-fix common issues"}
             </Button>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => setBulkMode((prev) => !prev)}
-            >
-              <Layers3 className="mr-2 h-4 w-4" />
-              {bulkMode ? "Exit bulk edit" : "Enter bulk edit"}
-            </Button>
           </div>
           {validationIssues.length === 0 ? (
             <p className="text-emerald-700 dark:text-emerald-300">No issues found for this month.</p>
@@ -1663,62 +1602,6 @@ export function EntriesClient() {
               </>
             )}
           </div>
-
-          {bulkMode && entries.length > 0 && (
-            <div className="rounded-xl border border-dashed border-violet-500/30 bg-violet-50/50 p-3 dark:bg-violet-500/10">
-              <p className="text-sm font-semibold text-violet-900 dark:text-violet-100">Bulk Edit Mode</p>
-              <p className="mt-1 text-xs text-violet-800/80 dark:text-violet-200/80">
-                Select dates, set one pattern, and apply in one action.
-              </p>
-              <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
-                <Input type="time" className="min-w-0" value={bulkPunchIn} onChange={(e) => setBulkPunchIn(e.target.value)} />
-                <Input type="time" className="min-w-0" value={bulkPunchOut} onChange={(e) => setBulkPunchOut(e.target.value)} />
-                <Input type="time" className="min-w-0" value={bulkBreakStart} onChange={(e) => setBulkBreakStart(e.target.value)} />
-                <Input type="time" className="min-w-0" value={bulkBreakEnd} onChange={(e) => setBulkBreakEnd(e.target.value)} />
-                <label className="flex items-center gap-2 rounded-md border border-border/60 bg-background px-3 text-xs">
-                  <input
-                    type="checkbox"
-                    checked={bulkIncludeBreak}
-                    onChange={(e) => setBulkIncludeBreak(e.target.checked)}
-                  />
-                  Include break
-                </label>
-              </div>
-              <div className="mt-3 flex flex-wrap gap-2">
-                {entries.slice(0, 20).map((entry) => {
-                  const selected = bulkSelectedIds.includes(entry.id);
-                  return (
-                    <button
-                      key={entry.id}
-                      type="button"
-                      onClick={() =>
-                        setBulkSelectedIds((prev) =>
-                          selected ? prev.filter((id) => id !== entry.id) : [...prev, entry.id],
-                        )
-                      }
-                      className={`rounded-full border px-2.5 py-1 text-xs ${
-                        selected
-                          ? "border-violet-500 bg-violet-500/15 text-violet-900 dark:text-violet-100"
-                          : "border-border bg-background text-muted-foreground"
-                      }`}
-                    >
-                      {entry.date}
-                      {positionNames && !activePosition ? ` · ${positionNames[entry.positionId] ?? ""}` : ""}
-                    </button>
-                  );
-                })}
-              </div>
-              <div className="mt-3 flex flex-wrap items-center gap-2">
-                <Button type="button" size="sm" onClick={() => void applyBulkUpdate()} disabled={applyingBulk}>
-                  <Layers3 className="mr-2 h-4 w-4" />
-                  {applyingBulk ? "Applying..." : `Apply to ${bulkSelectedIds.length} selected`}
-                </Button>
-                <Button type="button" variant="outline" size="sm" onClick={() => setBulkSelectedIds([])}>
-                  Clear selection
-                </Button>
-              </div>
-            </div>
-          )}
 
           {loading ? (
             <EntriesTableSkeleton />

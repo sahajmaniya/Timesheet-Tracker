@@ -88,7 +88,7 @@ export async function PATCH(request: Request, { params }: Params) {
         punchIn: parsed.data.punchIn,
         punchOut: parsed.data.punchOut,
         notes: parsed.data.notes,
-        // Omitted (e.g. bulk edits) keeps the existing session notes.
+        // Omitted keeps the existing session notes.
         ...(parsed.data.sessionNotes ? { sessionNotes: parsed.data.sessionNotes } : {}),
         breaks: {
           deleteMany: {},
