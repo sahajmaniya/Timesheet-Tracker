@@ -9,6 +9,7 @@ import { z } from "zod";
 import { writeAuthAuditLog } from "@/lib/auth-audit";
 import { hashOtpCode, OTP_MAX_ATTEMPTS } from "@/lib/otp";
 import { prisma } from "@/lib/prisma";
+import { profilePhotoUrl } from "@/lib/utils";
 
 const credentialsSchema = z.object({
   email: z.string().trim().toLowerCase().email(),
@@ -266,7 +267,7 @@ export const authOptions: NextAuthOptions = {
         token.sub = dbUser?.id ?? user.id;
         token.name = dbUser?.name ?? user.name;
         token.email = dbUser?.email ?? user.email;
-        token.image = dbUser?.image ?? null;
+        token.image = profilePhotoUrl(dbUser?.image);
         token.sessionVersion = dbUser?.sessionVersion ?? 0;
         delete token.error;
         return token;
@@ -295,7 +296,7 @@ export const authOptions: NextAuthOptions = {
         token.sub = dbUser.id;
         token.name = dbUser.name;
         token.email = dbUser.email;
-        token.image = dbUser.image ?? null;
+        token.image = profilePhotoUrl(dbUser.image);
         token.sessionVersion = dbUser.sessionVersion;
       }
 

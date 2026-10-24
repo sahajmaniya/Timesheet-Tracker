@@ -3,6 +3,7 @@ import { getServerAuthSession } from "@/lib/auth";
 import { ProfileSettingsForm } from "@/components/profile/profile-settings-form";
 import { ensureUserPositions } from "@/lib/positions";
 import { prisma } from "@/lib/prisma";
+import { profilePhotoUrl } from "@/lib/utils";
 
 export default async function SettingsPage() {
   const session = await getServerAuthSession();
@@ -31,7 +32,7 @@ export default async function SettingsPage() {
       initialProfile={{
         name: user?.name ?? session?.user?.name ?? null,
         email: user?.email ?? session?.user?.email ?? null,
-        image: user?.image ?? session?.user?.image ?? null,
+        image: profilePhotoUrl(user?.image) ?? session?.user?.image ?? null,
         signature: user?.signature ?? null,
         timesheetName: user?.timesheetName ?? "",
         employeeId: user?.employeeId ?? "",

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { getServerAuthSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { profilePhotoUrl } from "@/lib/utils";
 import { payrollProfileSchema, profileUpdateSchema, workScheduleSchema } from "@/lib/validators";
 import { DEFAULT_WORK_SCHEDULE } from "@/lib/work-schedule";
 
@@ -42,7 +43,7 @@ export async function GET() {
     profile: {
       name: user.name,
       email: user.email,
-      image: user.image,
+      image: profilePhotoUrl(user.image),
       signature: user.signature,
       timesheetName: user.timesheetName ?? "",
       employeeId: user.employeeId ?? "",
@@ -77,10 +78,6 @@ export async function PATCH(request: Request) {
       );
     }
 
-    const hasImageField =
-      typeof body === "object" &&
-      body !== null &&
-      Object.prototype.hasOwnProperty.call(body, "image");
     const hasSignatureField =
       typeof body === "object" &&
       body !== null &&
@@ -90,9 +87,6 @@ export async function PATCH(request: Request) {
       name: parsed.data.name,
     };
 
-    if (hasImageField) {
-      updateData.image = parsed.data.image || null;
-    }
     if (hasSignatureField) {
       updateData.signature = parsed.data.signature || null;
     }
@@ -143,7 +137,7 @@ export async function PATCH(request: Request) {
       profile: {
         name: updated.name,
         email: updated.email,
-        image: updated.image,
+        image: profilePhotoUrl(updated.image),
         signature: updated.signature,
         timesheetName: updated.timesheetName ?? "",
         employeeId: updated.employeeId ?? "",
