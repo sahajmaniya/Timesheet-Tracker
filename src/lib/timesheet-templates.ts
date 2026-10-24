@@ -1,5 +1,7 @@
 export type TimesheetRole = "student_assistant" | "instructional_student_assistant";
 
+export type VoucherHeaderField = "unit" | "deptId" | "deptName" | "positionNumber" | "employeeName" | "employeeId" | "emplRecord";
+
 export type TimesheetLayoutConfig = {
   gridXByWeekday: [number, number, number, number, number, number, number];
   firstWeekY: number;
@@ -38,6 +40,22 @@ export type TimesheetLayoutConfig = {
     rowStepY: number;
     textSize: number;
   };
+  /**
+   * Printed labels and where they sit on the reference voucher. Uploaded templates
+   * are aligned to them, since exports from different machines can shift the form.
+   */
+  alignmentAnchors?: { text: string; x: number; y: number }[];
+  /**
+   * Header boxes filled from the profile/position when the template leaves them
+   * empty. Cell bounds are used to check whether the template already has a value.
+   */
+  headerFields?: {
+    field: VoucherHeaderField;
+    centerX: number;
+    baselineY: number;
+    size: number;
+    cell: { x0: number; x1: number; y0: number; y1: number };
+  }[];
   /** "MM/YY" pay period box; any value printed on the blank is painted over first. */
   payPeriodField?: {
     centerX: number;
@@ -117,6 +135,21 @@ export const timesheetTemplates: Record<TimesheetRole, TimesheetTemplateDefiniti
         rowStepY: 12.36,
         textSize: 10.2,
       },
+      alignmentAnchors: [
+        { text: "PAY PERIOD (MO./YR)", x: 71.78, y: 681.7 },
+        { text: "TOTAL REGULAR HOURS WORKED:", x: 393.91, y: 233.69 },
+        { text: "TOTAL HOURS WORKED:", x: 408.31, y: 94.22 },
+      ],
+      // Measured from the CSULB hourly voucher header (10.2pt bold values).
+      headerFields: [
+        { field: "unit", centerX: 194.38, baselineY: 694.54, size: 10.2, cell: { x0: 168.7, x1: 218.7, y0: 688.3, y1: 708.1 } },
+        { field: "deptId", centerX: 237.61, baselineY: 694.54, size: 10.2, cell: { x0: 219.5, x1: 255.3, y0: 688.3, y1: 708.1 } },
+        { field: "deptName", centerX: 360.35, baselineY: 695.02, size: 10.2, cell: { x0: 255.8, x1: 464.6, y0: 688.3, y1: 708.1 } },
+        { field: "positionNumber", centerX: 514.9, baselineY: 695.02, size: 10.2, cell: { x0: 465.1, x1: 565.2, y0: 688.3, y1: 708.1 } },
+        { field: "employeeName", centerX: 194.32, baselineY: 665.98, size: 10.2, cell: { x0: 46.4, x1: 341.8, y0: 659.3, y1: 679.1 } },
+        { field: "employeeId", centerX: 428.79, baselineY: 665.98, size: 10.2, cell: { x0: 342.3, x1: 514.9, y0: 659.3, y1: 679.1 } },
+        { field: "emplRecord", centerX: 540.05, baselineY: 665.98, size: 10.2, cell: { x0: 515.4, x1: 565.2, y0: 659.3, y1: 679.1 } },
+      ],
       payPeriodField: {
         centerX: 107.79,
         baselineY: 695.02,

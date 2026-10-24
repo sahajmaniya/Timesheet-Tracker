@@ -2,8 +2,9 @@ import { PDFDocument, StandardFonts, degrees, rgb } from "pdf-lib";
 import { addDays, addMonths, differenceInCalendarDays, format, parseISO } from "date-fns";
 import type { Break } from "@prisma/client";
 import { calcWorkedMinutes, minutesToTenthsDecimal, sessionTenthsTotal } from "@/lib/time";
+import { alignmentFromText, IDENTITY_ALIGNMENT, readTemplateText, type TemplateAlignment } from "@/lib/pdf-anchors";
 import { getVoucherMonth } from "@/lib/timesheet-naming";
-import { getTimesheetTemplate, type TimesheetRole } from "@/lib/timesheet-templates";
+import { getTimesheetTemplate, type TimesheetRole, type VoucherHeaderField } from "@/lib/timesheet-templates";
 
 type EntryForPdf = {
   date: string;
@@ -222,6 +223,7 @@ export async function fillTimesheetPdfTemplate({
   layoutMode,
   role,
   calibration,
+  header,
 }: {
   templateBytes: Uint8Array;
   month: string;
@@ -234,12 +236,28 @@ export async function fillTimesheetPdfTemplate({
   layoutMode: TimesheetLayoutMode;
   role: TimesheetRole;
   calibration?: Partial<TimesheetCalibration> | null;
+  /** Voucher header values (name, IDs, dept); only written into boxes the template leaves empty. */
+  header?: Partial<Record<VoucherHeaderField, string | null>>;
 }) {
   const activeCalibration: TimesheetCalibration = {
     ...DEFAULT_TIMESHEET_CALIBRATION,
     ...(calibration ?? {}),
   };
   const template = getTimesheetTemplate(role);
+  // Line up with this upload's printed form, which can be shifted or scaled
+  // depending on how it was exported. Without readable labels, keep reference positions.
+  const templateText =
+    template.layout.alignmentAnchors || template.layout.headerFields
+      ? await readTemplateText(templateBytes).catch(() => null)
+      : null;
+  const detectedAlignment: TemplateAlignment | null = template.layout.alignmentAnchors
+    ? alignmentFromText(templateText, template.layout.alignmentAnchors)
+    : null;
+  const alignment = detectedAlignment?.status === "aligned" ? detectedAlignment : IDENTITY_ALIGNMENT;
+  /** Reference-voucher point → this template (used for fixed-position vouchers). */
+  const ax = (x: number) => alignment.sx * x + alignment.tx;
+  const ay = (y: number) => alignment.sy * y + alignment.ty;
+  const alignSize = (size: number) => size * ((alignment.sx + alignment.sy) / 2);
   const isIsaRole = role === "instructional_student_assistant";
   const useBreakSplitRows = template.hoursRenderMode === "split_by_break";
   const showInOutTimes = useBreakSplitRows;
@@ -335,19 +353,20 @@ export async function fillTimesheetPdfTemplate({
       monthlyTenths += dayTenths;
 
       const { hours, tenths } = splitHoursAndTenths(dayTenths);
-      const y = fixedSlots.firstRowTextY - slot.rowIndex * fixedSlots.rowStepY + activeCalibration.shiftY;
+      const y = ay(fixedSlots.firstRowTextY - slot.rowIndex * fixedSlots.rowStepY) + activeCalibration.shiftY;
+      const textSize = alignSize(fixedSlots.textSize);
       const boxes: Array<[string | null, number]> = [
         [hours, fixedSlots.hoursCenterX[slot.columnIndex]],
         [tenths, fixedSlots.tenthsCenterX[slot.columnIndex]],
       ];
       for (const [text, centerX] of boxes) {
         if (!text) continue;
-        const textWidth = font.widthOfTextAtSize(text, fixedSlots.textSize);
+        const textWidth = font.widthOfTextAtSize(text, textSize);
         drawText({
           text,
-          x: centerX - textWidth / 2 + activeCalibration.shiftX,
+          x: ax(centerX) - textWidth / 2 + activeCalibration.shiftX,
           y,
-          size: fixedSlots.textSize,
+          size: textSize,
           drawFont: font,
           drawColor: color,
         });
@@ -488,17 +507,57 @@ export async function fillTimesheetPdfTemplate({
   const payPeriod = template.layout.payPeriodField;
   if (payPeriod && pageRotation === 0) {
     const { clearRect, background } = payPeriod;
-    page.drawRectangle({ ...clearRect, color: rgb(...background) });
+    page.drawRectangle({
+      x: ax(clearRect.x),
+      y: ay(clearRect.y),
+      width: clearRect.width * alignment.sx,
+      height: clearRect.height * alignment.sy,
+      color: rgb(...background),
+    });
     const payPeriodText = format(parseISO(`${voucherMonth}-01`), "MM/yy");
-    const textWidth = bold.widthOfTextAtSize(payPeriodText, payPeriod.size);
+    const payPeriodSize = alignSize(payPeriod.size);
+    const textWidth = bold.widthOfTextAtSize(payPeriodText, payPeriodSize);
     drawText({
       text: payPeriodText,
-      x: payPeriod.centerX - textWidth / 2,
-      y: payPeriod.baselineY,
-      size: payPeriod.size,
+      x: ax(payPeriod.centerX) - textWidth / 2,
+      y: ay(payPeriod.baselineY),
+      size: payPeriodSize,
       drawFont: bold,
       drawColor: rgb(0, 0, 0),
     });
+  }
+
+  // Header boxes (name, IDs, dept) that the uploaded template leaves blank. Skipped when
+  // the template can't be read, since we couldn't tell which boxes are already filled.
+  const headerFields = template.layout.headerFields;
+  if (header && headerFields && templateText && detectedAlignment?.status === "aligned" && pageRotation === 0) {
+    for (const spot of headerFields) {
+      const value = header[spot.field]?.trim();
+      if (!value) continue;
+      const cell = { x0: ax(spot.cell.x0), x1: ax(spot.cell.x1), y0: ay(spot.cell.y0), y1: ay(spot.cell.y1) };
+      const alreadyFilled = templateText.some((item) => {
+        const centerX = item.x + item.width / 2;
+        return centerX > cell.x0 && centerX < cell.x1 && item.y > cell.y0 && item.y < cell.y1;
+      });
+      if (alreadyFilled) continue;
+
+      // Shrink long values (e.g. a long department name) to fit inside the box.
+      const maxWidth = cell.x1 - cell.x0 - 6;
+      let size = alignSize(spot.size);
+      let textWidth = bold.widthOfTextAtSize(value, size);
+      if (textWidth > maxWidth) {
+        size *= maxWidth / textWidth;
+        textWidth = bold.widthOfTextAtSize(value, size);
+      }
+      drawText({
+        text: value,
+        x: ax(spot.centerX) - textWidth / 2,
+        y: ay(spot.baselineY),
+        size,
+        drawFont: bold,
+        drawColor: rgb(0, 0, 0),
+      });
+    }
   }
 
   // Weekly totals column (right side).
@@ -530,13 +589,14 @@ export async function fillTimesheetPdfTemplate({
       { x: 540.52, y: 231.96 },
       { x: 540.52, y: 93.24 },
     ];
+    const totalSize = alignSize(10.2);
     for (const target of isaTotalCenters) {
-      const w = bold.widthOfTextAtSize(monthlyText, 10.2);
+      const w = bold.widthOfTextAtSize(monthlyText, totalSize);
       drawText({
         text: monthlyText,
-        x: target.x - w / 2 + activeCalibration.shiftX + activeCalibration.totalsShiftX,
-        y: target.y + activeCalibration.shiftY + activeCalibration.totalsShiftY,
-        size: 10.2,
+        x: ax(target.x) - w / 2 + activeCalibration.shiftX + activeCalibration.totalsShiftX,
+        y: ay(target.y) + activeCalibration.shiftY + activeCalibration.totalsShiftY,
+        size: totalSize,
         drawFont: bold,
         drawColor: color,
       });
@@ -573,10 +633,10 @@ export async function fillTimesheetPdfTemplate({
 
       // Keep signature image constrained inside the employee-signature area.
       // This makes placement stable regardless of signature length/shape.
-      const boxX = isIsaRole ? 100 : template.layout.signatureBox.x * xScale;
-      const boxY = isIsaRole ? 101 : template.layout.signatureBox.y * yScale;
-      const boxWidth = isIsaRole ? 120 : template.layout.signatureBox.width * xScale;
-      const boxHeight = isIsaRole ? 25 : template.layout.signatureBox.height * yScale;
+      const boxX = isIsaRole ? ax(100) : template.layout.signatureBox.x * xScale;
+      const boxY = isIsaRole ? ay(101) : template.layout.signatureBox.y * yScale;
+      const boxWidth = isIsaRole ? 120 * alignment.sx : template.layout.signatureBox.width * xScale;
+      const boxHeight = isIsaRole ? 25 * alignment.sy : template.layout.signatureBox.height * yScale;
       const scale = Math.min(boxWidth / embedded.width, boxHeight / embedded.height);
       const drawWidth = embedded.width * scale;
       const drawHeight = embedded.height * scale;
@@ -600,9 +660,9 @@ export async function fillTimesheetPdfTemplate({
   if (!hasDrawnSignature && signatureText) {
     drawText({
       text: signatureText,
-      x: (isIsaRole ? 120 : template.layout.typedSignature.x * xScale) + activeCalibration.signatureShiftX,
-      y: (isIsaRole ? 116.4 : template.layout.typedSignature.y * yScale) + activeCalibration.signatureShiftY,
-      size: isIsaRole ? 11 : 11 * yScale,
+      x: (isIsaRole ? ax(120) : template.layout.typedSignature.x * xScale) + activeCalibration.signatureShiftX,
+      y: (isIsaRole ? ay(116.4) : template.layout.typedSignature.y * yScale) + activeCalibration.signatureShiftY,
+      size: isIsaRole ? alignSize(11) : 11 * yScale,
       drawFont: signatureFont,
       drawColor: rgb(0.03, 0.09, 0.24),
       extraRotateDeg: template.layout.typedSignature.rotateDeg,
@@ -610,9 +670,9 @@ export async function fillTimesheetPdfTemplate({
   }
 
   if (isIsaRole) {
-    const dateSize = 10.18;
-    const dateCenter = 277.06;
-    const dateY = 115.44;
+    const dateSize = alignSize(10.18);
+    const dateCenter = ax(277.06);
+    const dateY = ay(115.44);
     const dateWidth = bold.widthOfTextAtSize(generatedDate, dateSize);
     drawText({
       text: generatedDate,
@@ -638,5 +698,9 @@ export async function fillTimesheetPdfTemplate({
     }
   }
 
-  return pdfDoc.save();
+  return {
+    pdfBytes: await pdfDoc.save(),
+    /** "unaligned" when this template's layout could not be read; positions may be off. */
+    templateAlignment: !detectedAlignment ? "not_applicable" : detectedAlignment.status === "aligned" ? "aligned" : "unaligned",
+  } as const;
 }

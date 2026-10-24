@@ -40,6 +40,10 @@ function emptyDraft(role: TimesheetRole): PositionDraft {
     role,
     hourlyRate: "0",
     unitCode: "",
+    deptId: "",
+    deptName: "",
+    positionNumber: "",
+    emplRecord: "",
     workSchedule: structuredClone(DEFAULT_WORK_SCHEDULE),
   };
 }
@@ -108,6 +112,10 @@ export function PositionsManager({
       role: draft.role,
       hourlyRate: Number(draft.hourlyRate),
       unitCode: draft.unitCode,
+      deptId: draft.deptId,
+      deptName: draft.deptName,
+      positionNumber: draft.positionNumber,
+      emplRecord: draft.emplRecord,
       workSchedule: draft.workSchedule,
     });
     if (!parsed.success) {
@@ -187,7 +195,8 @@ export function PositionsManager({
                 <p className="line-clamp-2 break-words font-semibold">{position.name}</p>
                 <p className="mt-0.5 text-xs text-muted-foreground">
                   {timesheetTemplates[position.role].label}
-                  {position.unitCode ? ` · Dept ${position.unitCode}` : ""}
+                  {position.unitCode ? ` · Unit ${position.unitCode}` : ""}
+                  {position.deptName ? ` · ${position.deptName}` : ""}
                 </p>
               </div>
               <div className="flex shrink-0 gap-1">
@@ -269,19 +278,36 @@ export function PositionsManager({
                     onChange={(e) => setDraft({ ...draft, hourlyRate: e.target.value })}
                   />
                 </div>
-                <div className="space-y-1 sm:col-span-2">
-                  <Label htmlFor="position-unit">Dept code (optional)</Label>
-                  <Input
-                    id="position-unit"
-                    value={draft.unitCode}
-                    maxLength={10}
-                    placeholder="e.g. 010"
-                    onChange={(e) => setDraft({ ...draft, unitCode: e.target.value })}
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    The department code your timesheet files start with, like 010 in
-                    010_SA_Last_First_102026.
-                  </p>
+              </div>
+
+              <div className="rounded-xl border border-border/70 bg-card/70 p-3 sm:p-4">
+                <p className="text-sm font-semibold">Voucher header (optional)</p>
+                <p className="mb-3 text-xs text-muted-foreground">
+                  Copy these from this job&apos;s voucher. They&apos;re filled into blank templates; boxes already printed on
+                  your template are left as they are.
+                </p>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {(
+                    [
+                      ["unitCode", "Unit / dept code", "e.g. 096", 10, "Also starts your file names, like 096_ISA_…"],
+                      ["deptId", "Dept ID", "e.g. 00096", 20, null],
+                      ["deptName", "Dept name", "e.g. MGMT/HRM", 40, null],
+                      ["positionNumber", "Position no.", "e.g. 00012345", 20, null],
+                      ["emplRecord", "Empl rec", "e.g. 0", 5, null],
+                    ] as const
+                  ).map(([field, label, placeholder, maxLength, hint]) => (
+                    <div key={field} className="min-w-0 space-y-1">
+                      <Label htmlFor={`position-${field}`}>{label}</Label>
+                      <Input
+                        id={`position-${field}`}
+                        value={draft[field]}
+                        maxLength={maxLength}
+                        placeholder={placeholder}
+                        onChange={(e) => setDraft({ ...draft, [field]: e.target.value })}
+                      />
+                      {hint && <p className="text-xs text-muted-foreground">{hint}</p>}
+                    </div>
+                  ))}
                 </div>
               </div>
 

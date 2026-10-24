@@ -17,6 +17,10 @@ model User {
   updatedAt        DateTime    @updatedAt
   image            String?
   signature        String?
+  /// Name as printed on vouchers, e.g. "Maniya, Sahaj V" (LAST, FIRST, MI).
+  timesheetName    String?
+  /// University employee ID printed on vouchers.
+  employeeId       String?
   workScheduleJson Json?
   calculationSource String     @default("local_estimate")
   hourlyRate       Float?
@@ -46,6 +50,11 @@ model Position {
   hourlyRate       Float       @default(0)
   /// Dept code (e.g. "010") that starts this position's timesheet file names.
   unitCode         String?
+  /// Voucher header details for this job (blank templates get them filled in).
+  deptId           String?
+  deptName         String?
+  positionNumber   String?
+  emplRecord       String?
   workScheduleJson Json?
   createdAt        DateTime    @default(now())
   updatedAt        DateTime    @updatedAt

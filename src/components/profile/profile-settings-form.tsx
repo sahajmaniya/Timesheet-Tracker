@@ -1,7 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Loader2, Mail, Sparkles, Undo2, Upload, User2 } from "lucide-react";
+import { FileText, Loader2, Mail, Sparkles, Undo2, Upload, User2 } from "lucide-react";
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { useSession } from "next-auth/react";
 import { useForm } from "react-hook-form";
@@ -31,6 +31,8 @@ type ProfileData = {
   image: string | null;
   signature: string | null;
   monthlySummaryEmailEnabled: boolean;
+  timesheetName: string;
+  employeeId: string;
 };
 
 export function ProfileSettingsForm({
@@ -71,6 +73,8 @@ export function ProfileSettingsForm({
       name: profile.name ?? "",
       image: "",
       monthlySummaryEmailEnabled: profile.monthlySummaryEmailEnabled,
+      timesheetName: profile.timesheetName,
+      employeeId: profile.employeeId,
     },
   });
   const scheduledDays = new Set(
@@ -91,6 +95,8 @@ export function ProfileSettingsForm({
       body: JSON.stringify({
         name: values.name,
         monthlySummaryEmailEnabled: values.monthlySummaryEmailEnabled,
+        timesheetName: values.timesheetName,
+        employeeId: values.employeeId,
       }),
     });
 
@@ -589,6 +595,28 @@ export function ProfileSettingsForm({
                         <span className="text-xs uppercase tracking-wider">Email</span>
                       </div>
                       <Input value={profile.email ?? ""} disabled />
+                    </div>
+
+                    <div className="space-y-1 rounded-xl border border-border/70 bg-card/70 p-4 sm:col-span-2">
+                      <div className="mb-1 flex items-center gap-2 text-muted-foreground">
+                        <FileText className="h-4 w-4" />
+                        <span className="text-xs uppercase tracking-wider">On your timesheets</span>
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        Filled into blank vouchers when the box is empty. Boxes already printed on your template are left as they are.
+                      </p>
+                      <div className="mt-2 grid gap-3 sm:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+                        <div className="min-w-0 space-y-1">
+                          <Label htmlFor="timesheetName" className="text-xs">Name (LAST, FIRST, MI)</Label>
+                          <Input id="timesheetName" placeholder="e.g. Maniya, Sahaj V" {...register("timesheetName")} />
+                          {errors.timesheetName && <p className="text-xs text-destructive">{errors.timesheetName.message}</p>}
+                        </div>
+                        <div className="min-w-0 space-y-1">
+                          <Label htmlFor="employeeId" className="text-xs">Employee ID</Label>
+                          <Input id="employeeId" inputMode="numeric" placeholder="e.g. 012345678" {...register("employeeId")} />
+                          {errors.employeeId && <p className="text-xs text-destructive">{errors.employeeId.message}</p>}
+                        </div>
+                      </div>
                     </div>
 
                     <div className="space-y-1 rounded-xl border border-border/70 bg-card/70 p-4 sm:col-span-2">
