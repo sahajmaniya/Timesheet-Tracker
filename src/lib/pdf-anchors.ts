@@ -1,3 +1,5 @@
+import { ensureDomMatrix } from "@/lib/dommatrix-polyfill";
+
 export type TemplateAnchor = { text: string; x: number; y: number };
 
 /**
@@ -20,6 +22,8 @@ export type TemplateTextItem = { text: string; x: number; y: number; width: numb
 
 /** Text printed on page 1 of a PDF (points, origin bottom-left); null if it can't be read. */
 export async function readTemplateText(pdfBytes: Uint8Array): Promise<TemplateTextItem[] | null> {
+  // Serverless runtimes lack DOMMatrix (and pdfjs's native fallback); install a 2D stand-in first.
+  ensureDomMatrix();
   const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
   // Run the parser in-process (no separate worker file), so it works in serverless bundles.
   const worker = await import("pdfjs-dist/legacy/build/pdf.worker.mjs");
