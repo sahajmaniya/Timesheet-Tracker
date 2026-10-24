@@ -156,19 +156,6 @@ export const payrollProfileSchema = z.object({
 
 export const profileUpdateSchema = z.object({
   name: z.string().trim().min(2).max(80),
-  image: z
-    .string()
-    .trim()
-    .refine(
-      (value) =>
-        value.length === 0 ||
-        value.startsWith("http://") ||
-        value.startsWith("https://") ||
-        value.startsWith("data:image/"),
-      "Profile image must be a valid URL or uploaded image data",
-    )
-    .optional()
-    .or(z.literal("")),
   signature: z
     .string()
     .trim()
